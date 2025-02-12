@@ -1,15 +1,28 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native'
-import React from 'react'
-import AppNavigation from './src/navigations/AppNavigation'
 
-const App = () => {
+import React from 'react';
+import type {PropsWithChildren} from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  View,
+} from 'react-native';
+import Home from './scr/Screens/Home/Home';
+import Search from './scr/Screens/Search/Search';
+
+function App(): React.JSX.Element {
   return (
-    <>
-        <AppNavigation/>
-    </>
-  )
+    <SafeAreaView style={styles.container}>
+      <Home />
+    </SafeAreaView>
+  );
 }
 
-export default App
+const styles = StyleSheet.create({
+  container: {flex: 1},
+});
 
-const styles = StyleSheet.create({})
+export default App;
