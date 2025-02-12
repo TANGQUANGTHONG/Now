@@ -5,14 +5,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Import màn hình
 import Home from '../Screens/Home';
-import Profile from '../Screens/Profile';
+import Contact from '../Screens/Contact';
 import Setting from '../Screens/Setting';
 import Chat from '../Screens/Chat';
 
 // Danh sách tab
 const oTab = {
   Home: { name: 'Home', component: Home, icon: "home" },
-  Profile: { name: 'Profile', component: Profile, icon: "user-circle-o" },
+  Contact: { name: 'Contact', component: Contact, icon: "user-circle-o" },
   Setting: { name: 'Setting', component: Setting, icon: "gear" }
 };
 
@@ -40,9 +40,13 @@ const TabHome = () => {
 };
 
 // Danh sách Stack Home
+
+import Profile from '../Screens/Profile';
 const oStackHome = {
   TabHome: { name: 'TabHome', component: TabHome },
-  Chat: { name: 'Chat', component: Chat }
+  Chat: { name: 'Chat', component: Chat },
+  Profile: {name: 'Profile', component: Profile}
+
 };
 
 const StackHome = createNativeStackNavigator();
