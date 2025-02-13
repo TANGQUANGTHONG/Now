@@ -8,7 +8,8 @@ import Home from '../Screens/Home';
 import Contact from '../Screens/Contact';
 import Setting from '../Screens/Setting';
 import Chat from '../Screens/Chat';
-
+import Single from '../Screens/Single';
+import Group from '../Screens/Group';
 // Danh sách tab
 const oTab = {
   Home: { name: 'Home', component: Home, icon: "home" },
@@ -45,15 +46,16 @@ import Profile from '../Screens/Profile';
 const oStackHome = {
   TabHome: { name: 'TabHome', component: TabHome },
   Chat: { name: 'Chat', component: Chat },
-  Profile: {name: 'Profile', component: Profile}
-
+  Profile: {name: 'Profile', component: Profile},
+  Single: { name: 'Single', component: Single },
+  Group: { name: 'Group', component: Group }
 };
 
 const StackHome = createNativeStackNavigator();
 
 const HomeNavigation = () => {
   return (
-    <StackHome.Navigator screenOptions={{ headerShown: false }} initialRouteName="TabHome">
+    <StackHome.Navigator screenOptions={{ headerShown: false }} initialRouteName="Group">
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen key={index} name={item.name} component={item.component} />
       ))}
