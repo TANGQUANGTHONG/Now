@@ -32,7 +32,7 @@ const Profile = (props) => {
       <View style={styles.header}>
         <View style={styles.iconBack}>
           <Pressable onPress={()=> navigation.goBack()}>
-          <Icon name="chevron-back" size={width* 0.066}/>
+          <Icon name="chevron-back" size={width* 0.066} color={'gray'}/>
           </Pressable>
         </View>
         <Image source={{ uri: user.avatar }} style={styles.avatar} />
