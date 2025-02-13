@@ -1,7 +1,7 @@
 import {FlatList, StyleSheet, Text, TextInput, View} from 'react-native';
 import React from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import Item_Search from '../Styles/Home_Search/Item_Search';
+import Item_Search from '../../Styles/Home_Search/Item_Search';
 const Search = () => {
   return (
     <View style={styles.container}>

@@ -1,9 +1,9 @@
 import { FlatList, Image, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native'
 import React, { useState, useEffect } from 'react'
-import SingleS from '../Styles/Chat/SingleS'
+import SingleS from '../../Styles/Chat/SingleS'
 import Icon from 'react-native-vector-icons/Ionicons'
-import Chat from '../components/Chat'
-import Chat2 from '../components/Chat2'
+import Chat from '../../components/chat/Chat'
+import Chat2 from '../../components/chat/Chat2'
 // import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 const Single = () => {
 
@@ -65,7 +65,7 @@ const Single = () => {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="arrow-back" size={25} color="black" />
                         <View style={SingleS.boxText}>
-                            <Image style={SingleS.avatar} source={require('../../assest/images/person.jpg')} />
+                            <Image style={SingleS.avatar} source={require('../../assets/images/Chat/person.jpg')} />
                             <View style={{ marginLeft: 10 }}>
                                 <Text style={SingleS.txtNameHeader}>John Doe</Text>
                                 <Text style={{ fontSize: 13 }}>Active now</Text>

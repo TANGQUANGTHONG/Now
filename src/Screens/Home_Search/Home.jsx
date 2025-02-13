@@ -9,9 +9,9 @@ import {
 } from 'react-native';
 import React from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import Item_home_friend from '../Styles/Home_Search/Item_home_friend';
-import Item_home_chat from '../Styles/Home_Search/Item_home_chat';
-import { oStackHome } from '../navigations/HomeNavigation';
+import Item_home_friend from '../../Styles/Home_Search/Item_home_friend';
+import Item_home_chat from '../../Styles/Home_Search/Item_home_chat';
+import { oStackHome } from '../../navigations/HomeNavigation';
 import { useNavigation } from '@react-navigation/native';
 const Home = () => {
   const navigation = useNavigation(); // Lấy navigation từ hook

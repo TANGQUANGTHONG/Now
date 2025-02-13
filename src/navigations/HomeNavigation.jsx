@@ -4,12 +4,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Import màn hình
-import Home from '../Screens/Home';
+import Home from '../Screens/Home_Search/Home';
 import Contact from '../Screens/Contact';
-import Setting from '../Screens/Setting';
-import Chat from '../Screens/Chat';
-import Single from '../Screens/Single';
-import Group from '../Screens/Group';
+import Setting from '../Screens/Profile_Settings/Setting';
+// import Chat from '../Screens/Chat';
+import Single from '../Screens/chat/Single';
+import Group from '../Screens/chat/Group';
+
+import Login from '../Screens/Login_Sign_Up/Login';
+import Sign_up from '../Screens/Login_Sign_Up/Sign_up';
 // Danh sách tab
 const oTab = {
   Home: { name: 'Home', component: Home, icon: "home" },
@@ -42,13 +45,14 @@ const TabHome = () => {
 
 // Danh sách Stack Home
 
-import Profile from '../Screens/Profile';
+import Profile from '../Screens/Profile_Settings/Profile';
 const oStackHome = {
   TabHome: { name: 'TabHome', component: TabHome },
-  Chat: { name: 'Chat', component: Chat },
   Profile: {name: 'Profile', component: Profile},
   Single: { name: 'Single', component: Single },
-  Group: { name: 'Group', component: Group }
+  Group: { name: 'Group', component: Group },
+  Login: { name: 'Login', component: Login },
+  Sign_up: { name: 'Sign_up', component: Sign_up },
 };
 
 const StackHome = createNativeStackNavigator();

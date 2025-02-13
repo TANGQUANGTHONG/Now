@@ -1,11 +1,11 @@
 import { FlatList, Image, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import Icon from 'react-native-vector-icons/Ionicons'
-import Chat from '../components/Chat'
-import Chat2 from '../components/Chat2'
-import ChatGroup1 from '../components/ChatGroup1'
-import ChatGroup2 from '../components/ChatGroup2'
-import GroupS from '../Styles/Chat/GroupS'
+import Chat from '../../components/chat/Chat'
+import Chat2 from '../../components/chat/Chat2'
+import ChatGroup1 from '../../components/chat/ChatGroup1'
+import ChatGroup2 from '../../components/chat/ChatGroup2'
+import GroupS from '../../Styles/Chat/GroupS'
 // import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 const Group = () => {
 
@@ -93,7 +93,7 @@ const Group = () => {
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Icon name="arrow-back" size={25} color="black" />
             <View style={GroupS.boxText}>
-              <Image style={GroupS.avatar} source={require('../../assest/images/group.jpg')} />
+              <Image style={GroupS.avatar} source={require('../../assets/images/Chat/group.jpg')} />
               <View style={{ marginLeft: 10 }}>
                 <Text style={GroupS.txtNameHeader}>Team Align</Text>
                 <Text style={{ fontSize: 13 }}>3 members, 2 online</Text>
