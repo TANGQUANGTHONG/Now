@@ -55,7 +55,7 @@ const StackHome = createNativeStackNavigator();
 
 const HomeNavigation = () => {
   return (
-    <StackHome.Navigator screenOptions={{ headerShown: false }} initialRouteName="Group">
+    <StackHome.Navigator screenOptions={{ headerShown: false }} initialRouteName="TabHome">
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen key={index} name={item.name} component={item.component} />
       ))}

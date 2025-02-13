@@ -2,13 +2,13 @@ import React from 'react'
 import { NavigationContainer } from '@react-navigation/native';
 
 
-import HomeNavigation from './HomeNavigation';
+import TabHome from './HomeNavigation';
 
 const AppNavigation = () => {
   return (
     <NavigationContainer>
      
-         <HomeNavigation /> 
+         <TabHome /> 
       
     </NavigationContainer>
   )
