@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import { auth } from "../../firebaseConfig"; // Import Firebase Auth
+import { oStackHome } from '../../navigations/HomeNavigation';
+import { signInWithEmailAndPassword } from "firebase/auth";
+
 
 
 const { width, height } = Dimensions.get('window'); 
@@ -14,6 +18,17 @@ const Login = (props) => {
   // Kiểm tra email hợp lệ
   const isValidEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      navigation.navigate(oStackHome.TabHome.name); // Chuyển hướng đến màn hình Home
+    } catch (error) {
+      setErrorMessage("Sai email hoặc mật khẩu!");
+    }
   };
 
   // Kiểm tra nếu cả email và password hợp lệ
@@ -88,9 +103,14 @@ const Login = (props) => {
 
       {/* Nút đăng nhập và quên mật khẩu ở dưới cùng */}
       <View style={styles.bottomContainer}>
-        <TouchableOpacity style={[styles.loginButton, isFormValid && styles.activeLoginButton]} disabled={!isFormValid} onPress={()=> navigation.navigate('TabHome')}>
-          <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Log in</Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+  style={[styles.loginButton, isFormValid && styles.activeLoginButton]}
+  disabled={!isFormValid}
+  onPress={handleLogin}
+>
+  <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Log in</Text>
+</TouchableOpacity>
+
 
         <TouchableOpacity>
           <Text style={styles.forgotPassword}>Forgot password?</Text>
