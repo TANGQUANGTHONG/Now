@@ -1,20 +1,31 @@
 import React from "react";
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, Dimensions, Pressable, ScrollView } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
+import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get("window");
 
 
 
+
 const Setting = (props) => {
+
   const {navigation} = props
+
+  const auth = getAuth()
+  const logOut = () => {
+    auth.signOut().then(() =>{
+      console.log("Đã đăng xuất");
+      navigation.navigate('Login')
+    })
+  }
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-      
+      <Pressable onPress={logOut}>
         <Text style={styles.textSetting}>Setting</Text>
-      
+        </Pressable>
       </View>
 
       {/* Body */}
@@ -41,7 +52,11 @@ const Setting = (props) => {
         <Option icon="notifications" title="Notifications" subtitle="Messages, group and others" />
         <Option icon="help" title="Help" subtitle="Help center, contact us, privacy policy" />
         <Option icon="server" title="Storage and data" subtitle="Network usage, storage usage" />
+
+      
         <Option icon="person-add" title="Invite a friend" />
+
+        
       </ScrollView>
       </View>
     </View>
@@ -61,6 +76,9 @@ const Option = ({ icon, title, subtitle }) => (
 );
 
 const styles = StyleSheet.create({
+  textColor:{
+    color: 'red'
+  },
   container: { 
     flex: 1, 
     backgroundColor: "#000" 

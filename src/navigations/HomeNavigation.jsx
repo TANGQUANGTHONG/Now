@@ -11,10 +11,6 @@ import Chat from '../Screens/Chat';
 import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
-import Boarding from '../Screens/auth/Boarding';
-import SignUp from '../Screens/auth/SignUp';
-import Splash from '../Screens/auth/Splash';
-import Login from '../Screens/auth/Login';
 
 // Danh sách tab
 const oTab = {
@@ -85,10 +81,7 @@ const oStackHome = {
   Single: { name: 'Single', component: Single },
   Group: { name: 'Group', component: Group },
   Search: {name: 'Search', component: Search},
-  Login: {name: 'Login', component: Login},
-  SignUp: {name: 'SignUp', component: SignUp},
-  Splash: {name: 'Splash', component: Splash},
-  Boarding: {name: 'Boarding', component: Boarding}
+ 
 };
 
 const StackHome = createNativeStackNavigator();

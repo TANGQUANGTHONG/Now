@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions, Pressable } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions, Pressable, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-
+import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window'); 
 
@@ -10,6 +10,19 @@ const Login = (props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
+
+  const auth = getAuth()
+  const loginWithEmailAndPass = () => {
+    
+      auth.signInWithEmailAndPassword(email, password)
+      .then(() => {
+                navigation.navigate('TabHome');
+                setPassword('')
+                setEmail('')
+              })
+      .catch((err) => console.log(err))
+  }
+
 
   // Kiểm tra email hợp lệ
   const isValidEmail = (email) => {
@@ -61,9 +74,12 @@ const Login = (props) => {
           <TextInput
             style={styles.input}
             value={email}
+            placeholderTextColor="gray"  // Màu placeholder
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            color="black"  // Màu text rõ ràng
+
           />
         </View>
 
@@ -75,8 +91,11 @@ const Login = (props) => {
           <View style={styles.passwordContainer}>
             <TextInput
               style={styles.input}
+
+               placeholderTextColor="gray"  // Màu placeholder
               value={password}
               onChangeText={setPassword}
+              color="black"  // Màu text rõ ràng
               secureTextEntry={secureText}
             />
             <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
@@ -88,7 +107,7 @@ const Login = (props) => {
 
       {/* Nút đăng nhập và quên mật khẩu ở dưới cùng */}
       <View style={styles.bottomContainer}>
-        <TouchableOpacity style={[styles.loginButton, isFormValid && styles.activeLoginButton]} disabled={!isFormValid} onPress={()=> navigation.navigate('TabHome')}>
+        <TouchableOpacity style={[styles.loginButton, isFormValid && styles.activeLoginButton]} disabled={!isFormValid} onPress={loginWithEmailAndPass}>
           <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Log in</Text>
         </TouchableOpacity>
 
@@ -96,7 +115,7 @@ const Login = (props) => {
           <Text style={styles.forgotPassword}>Forgot password?</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </View> 
   );
 };
 

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { styles } from '../../styles/auth/Sign_up';
-
-
-const { height } = Dimensions.get('window'); // Lấy chiều cao màn hình
+import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
+import { getFirestore, doc, setDoc } from '@react-native-firebase/firestore';
+import "react-native-get-random-values";
+import CryptoJS from "crypto-js";
 
 const SignUp = (props) => {
-  const { navigation } = props
+  const { navigation } = props;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,9 +16,45 @@ const SignUp = (props) => {
   const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
 
+  // Lấy instance của Auth và Firestore
+  const auth = getAuth();
+  const db = getFirestore();
+
+  const Sign_Up = () => {
+    // Đăng ký người dùng
+    createUserWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        const userId = userCredential.user.uid;
+
+        // Mã hóa mật khẩu để lưu vào Firestore (nếu bạn muốn lưu mật khẩu đã mã hóa)
+        const encryptedPassword = CryptoJS.AES.encrypt(password, 'secret-key').toString();
+        
+        // Lưu thông tin người dùng vào Firestore
+        const userRef = doc(db, 'users', userId);
+        setDoc(userRef, {
+          username: name,
+          email: email,
+          password: encryptedPassword  // Lưu mật khẩu đã mã hóa
+        })
+        .then(() => {
+          Alert.alert("User created and saved to Firestore");
+          navigation.navigate('Login');
+        })
+        .catch((error) => {
+          console.log('Error saving user data to Firestore:', error);
+          Alert.alert('Error saving user data to Firestore');
+        });
+      })
+      .catch((err) => {
+        console.log('Error creating user:', err);
+        Alert.alert('Error creating user');
+      });
+  };
+
+
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password) => password.length >= 6;
-  const validateConfirmPassword = (password, confirmPassword) => password === confirmPassword
+  const validateConfirmPassword = (password, confirmPassword) => password === confirmPassword;
 
   const validateFields = () => {
     let newErrors = {};
@@ -46,69 +83,75 @@ const SignUp = (props) => {
         </Text>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.validText}>
-            Your Name
-          </Text>
-          <TextInput
-            style={[styles.input, errors.name && styles.errorInput]}
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="none"
-          />
-          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-        </View>
+  <Text style={styles.validText}>
+    Your Name
+  </Text>
+  <TextInput
+    style={[styles.input, errors.name && styles.errorInput]}
+    value={name}
+    onChangeText={setName}
+    autoCapitalize="none"
+    placeholderTextColor={'#8C96A2'}
+    color="black"  // Màu text rõ ràng
+  />
+  {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+</View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>
-            Your email
-          </Text>
-          <TextInput
-            style={[styles.input, errors.email && styles.errorInput]}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-        </View>
+<View style={styles.inputContainer}>
+  <Text style={styles.validText}>
+    Your email
+  </Text>
+  <TextInput
+    style={[styles.input, errors.email && styles.errorInput]}
+    value={email}
+    onChangeText={setEmail}
+    keyboardType="email-address"
+    autoCapitalize="none"
+    placeholderTextColor={'#8C96A2'}
+    color="black"  // Màu text rõ ràng
+  />
+  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+</View>
 
+<View style={styles.inputContainer}>
+  <Text style={styles.validText}>
+    Password
+  </Text>
+  <View style={styles.passwordContainer}>
+    <TextInput
+      style={[styles.input, errors.password && styles.errorInput]}
+      value={password}
+      onChangeText={setPassword}
+      placeholderTextColor="gray"  // Màu placeholder
+      secureTextEntry={secureText}
+      color="black"  // Màu text rõ ràng
+    />
+    <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+      <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+    </TouchableOpacity>
+  </View>
+  {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+</View>
 
-        {/* Ô nhập password */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>
-            Password
-          </Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[styles.input, errors.password && styles.errorInput]}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={secureText}
-            />
-            <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-              <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>
-            Confirm Password
-          </Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[styles.input, errors.confirmPassword && styles.errorInput]}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={secureText}
-            />
-            <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-              <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-        </View>
+<View style={styles.inputContainer}>
+  <Text style={styles.validText}>
+    Confirm Password
+  </Text>
+  <View style={styles.passwordContainer}>
+    <TextInput
+      style={[styles.input, errors.confirmPassword && styles.errorInput]}
+      value={confirmPassword}
+      onChangeText={setConfirmPassword}
+      placeholderTextColor={'#8C96A2'}
+      secureTextEntry={secureText}
+      color="black"  // Màu text rõ ràng
+    />
+    <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+      <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+    </TouchableOpacity>
+  </View>
+  {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+</View>
       </View>
 
       {/* Nút đăng nhập và quên mật khẩu ở dưới cùng */}
@@ -117,6 +160,7 @@ const SignUp = (props) => {
           style={[styles.loginButton, isFormValid && styles.activeCreateButton]}
           onPress={() => {
             if (validateFields()) {
+              Sign_Up();  // Gọi hàm đăng ký
               navigation.navigate('Login'); 
             }
           }}
