@@ -6,12 +6,12 @@ import ImageGallery from "./ImageGallery";
 const { width, height } = Dimensions.get("window");
 
 const user = {
-  name: "Jhon Abraham",
-  username: "@jhonabraham",
-  email: "jhonabraham20@gmail.com",
+  name: "Alex Linderson",
+  username: "@alexlinderson",
+  email: "alexlinderson@gmail.com",
   address: "33 street west subidbazar, sylhet",
   phone: "(320) 555-0104",
-  avatar: "https://i.pinimg.com/236x/11/f4/d6/11f4d67b92c81b9479051e0d5a5c7d6d.jpg",
+  avatar: "https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__",
   media: [
     "https://i.pinimg.com/236x/11/f4/d6/11f4d67b92c81b9479051e0d5a5c7d6d.jpg",
     "https://i.pinimg.com/236x/11/f4/d6/11f4d67b92c81b9479051e0d5a5c7d6d.jpg",
@@ -32,7 +32,7 @@ const Profile = (props) => {
       <View style={styles.header}>
         <View style={styles.iconBack}>
           <Pressable onPress={()=> navigation.goBack()}>
-          <Icon name="chevron-back" size={width* 0.066}/>
+          <Icon name="chevron-back" size={width* 0.066} color={'gray'}/>
           </Pressable>
         </View>
         <Image source={{ uri: user.avatar }} style={styles.avatar} />

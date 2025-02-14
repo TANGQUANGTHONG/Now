@@ -1,56 +1,52 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import { StyleSheet, Dimensions } from 'react-native';
 
+const { width, height } = Dimensions.get('window');
 
 const SingleS = StyleSheet.create({
     container: {
         flex: 1
     },
     avatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 50
+        width: width * 0.13, // Tỉ lệ 13% của chiều rộng màn hình
+        height: width * 0.13, // Tỉ lệ 13% của chiều rộng màn hình
+        borderRadius: (width * 0.13) / 2 // Đảm bảo hình tròn
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginHorizontal: 20,
-        marginVertical: 20
+        marginHorizontal: width * 0.05, // Tỉ lệ 5% của chiều rộng màn hình
+        marginVertical: height * 0.02 // Tỉ lệ 2% của chiều cao màn hình
     },
     boxText: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginLeft: 10
+        marginLeft: width * 0.025 // Tỉ lệ 2.5% của chiều rộng màn hình
     },
     txtNameHeader: {
         color: 'black',
-        fontSize: 20,
+        fontSize: width * 0.05, // Font size theo tỉ lệ 5% của chiều rộng màn hình
         fontWeight: 'bold'
     },
     body: {
-        marginHorizontal: 20,
-        marginVertical: 20
+        marginHorizontal: width * 0.05, // Tỉ lệ 5% của chiều rộng màn hình
+        marginVertical: height * 0.02 // Tỉ lệ 2% của chiều cao màn hình
     },
     box: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
-        // position: 'absolute',
+        marginBottom: height * 0.02, // Tỉ lệ 2% của chiều cao màn hình
         bottom: 0,
         backgroundColor: 'blue',
     },
-    boxbtnTextInput: {
-        
-    },
-    input:{
+    boxbtnTextInput: {},
+    input: {
         backgroundColor: 'white',
-        padding:10,
-        flex:1,
+        padding: height * 0.015, // Padding theo tỉ lệ 1.5% của chiều cao màn hình
+        flex: 1,
         borderRadius: 20,
-        marginHorizontal: 10
+        marginHorizontal: width * 0.025 // Tỉ lệ 2.5% của chiều rộng màn hình
     }
-})
+});
 
-export default SingleS
-
+export default SingleS;
