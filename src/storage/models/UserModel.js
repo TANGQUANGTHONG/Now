@@ -1,7 +1,7 @@
 class UserModel {
-  constructor(idUser, phone, name, createdAt = new Date()) {
+  constructor(idUser, email, name, createdAt = new Date()) {
     this.idUser = idUser;
-    this.phone = phone;
+    this.email = this.email;
     this.name = name;
     this.createdAt = createdAt;
   }
