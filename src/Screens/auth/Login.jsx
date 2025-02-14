@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 
-// import { styles } from '../../Styles/Login_Sign_Up/Login';
 
-const { height } = Dimensions.get('window'); // Lấy chiều cao màn hình
+const { width, height } = Dimensions.get('window'); 
 
 const Login = (props) => {
     const {navigation} = props
@@ -105,85 +104,79 @@ const styles = StyleSheet.create({
   container: {
     height: height, // Đặt chiều cao bằng chiều cao màn hình
     backgroundColor: '#fff',
-    padding: 20,
+    padding: width * 0.05, // Sử dụng 5% chiều rộng của màn hình làm padding
   },
   content: {
     justifyContent: 'center', // Căn giữa nội dung theo chiều dọc
-    marginTop: 30, // Tăng giá trị này để đẩy nội dung xuống thấp hơn
+    marginTop: height * 0.04, // Tăng giá trị này để đẩy nội dung xuống thấp hơn
   },
   
   backButton: {
     position: 'absolute',
-    top: 20,
-    left: 20,
+    top: height * 0.03, // Dùng 3% chiều cao màn hình để định vị nút
+    left: width * 0.05, // Dùng 5% chiều rộng màn hình để định vị nút
   },
   title: {
-    fontSize: 24,
+    fontSize: width * 0.06, // Đặt fontSize dựa trên chiều rộng màn hình (6%)
     fontWeight: 'bold',
     textAlign: 'center',
     color: 'black',
-    marginTop: 50,
+    marginTop: height * 0.07, // Khoảng cách margin dựa trên chiều cao màn hình
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: width * 0.045, // Font size dựa trên chiều rộng
     textAlign: 'center',
     color: 'gray',
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: height * 0.015, // Dùng 1.5% chiều cao màn hình làm margin top
+    marginBottom: height * 0.025, // Khoảng cách margin dưới là 2.5%
   },
   socialIcons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
-    marginBottom: 10,
-    marginTop: 20,
+    gap: width * 0.05, // Khoảng cách giữa các nút icon
+    marginBottom: height * 0.015, // Khoảng cách margin dưới là 1.5%
+    marginTop: height * 0.025, // Khoảng cách margin trên là 2.5%
   },
   socialButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: width * 0.12, // Đặt chiều rộng là 12% của màn hình
+    height: width * 0.12, // Chiều cao bằng chiều rộng để giữ tỉ lệ hình vuông
+    borderRadius: width * 0.06, // Bo tròn nửa chiều rộng để tạo thành nút tròn
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   icon: {
-    width: 30,
-    height: 30,
+    width: width * 0.08, // Chiều rộng của icon là 8% của màn hình
+    height: width * 0.08, // Chiều cao tương tự để giữ tỉ lệ hình vuông
   },
   orText: {
-    marginVertical: 10,
+    marginVertical: height * 0.015, // Dùng 1.5% chiều cao làm khoảng cách trên và dưới
     color: 'gray',
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: width * 0.045, // Font size dựa trên chiều rộng của màn hình
     fontWeight: 'bold',
   },
   orContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 30,
+    marginTop: height * 0.03, // Tăng giá trị margin top để đẩy các thành phần xuống
   },
   line: {
     flex: 1, // Thanh ngang tự dãn ra hai bên
     height: 1, // Độ dày của thanh ngang
-    backgroundColor: '#CDD1D0', // Màu của thanh ngang
-    marginHorizontal: 10, // Khoảng cách giữa "OR" và thanh ngang
+    backgroundColor: '#CDD1D0',
+    marginHorizontal: width * 0.025, // Khoảng cách hai bên là 2.5% của màn hình
   },
-  orText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'gray',
-  },
-  
   
   inputContainer: {
     width: '100%',
-    marginTop: 30,
+    marginTop: height * 0.04, // Khoảng cách margin top là 4% của màn hình
   },
   inputLabel: {
-    fontSize: 14,
-    marginBottom: 5,
+    fontSize: width * 0.035, // Đặt font size cho nhãn là 3.5% của chiều rộng màn hình
+    marginBottom: height * 0.01, // Khoảng cách dưới là 1% chiều cao màn hình
   },
   validText: {
     color: '#24786D',
@@ -191,11 +184,11 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    height: 50,
+    height: height * 0.07, // Chiều cao của input là 7% của màn hình
     borderBottomWidth: 1,
     borderBottomColor: '#CDD1D0',
-    fontSize: 16,
-    paddingHorizontal: 10,
+    fontSize: width * 0.045, // Font size là 4.5% chiều rộng
+    paddingHorizontal: width * 0.03, // Padding bên trong là 3% chiều rộng
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -203,29 +196,28 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     position: 'absolute',
-    right: 10,
+    right: width * 0.03, // Đặt icon ở bên phải với khoảng cách là 3% chiều rộng
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
+    bottom: height * 0.03, // Đặt ở dưới cùng với khoảng cách là 3% chiều cao
+    left: width * 0.05, // Khoảng cách từ trái là 5% chiều rộng
+    right: width * 0.05, // Khoảng cách từ phải là 5% chiều rộng
   },
   loginButton: {
     width: '100%',
     backgroundColor: '#f5f5f5',
-    padding: 15,
+    padding: height * 0.02, // Padding bên trong là 2% chiều cao
     alignItems: 'center',
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: width * 0.03, // Bo tròn các góc theo tỷ lệ chiều rộng
+    marginBottom: height * 0.015, // Khoảng cách margin dưới là 1.5%
   },
   activeLoginButton: {
     backgroundColor: '#24786D', // Chuyển sang màu xanh khi hợp lệ
-    
   },
   loginText: {
     color: 'gray',
-    fontSize: 18,
+    fontSize: width * 0.045, // Đặt font size dựa trên chiều rộng màn hình
   },
   activeLoginText: {
     color: 'white', // Chuyển chữ thành màu trắng khi hợp lệ
@@ -235,7 +227,6 @@ const styles = StyleSheet.create({
     color: '#24786D',
     fontWeight: 'bold',
   },
-
 });
 
 export default Login;

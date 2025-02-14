@@ -1,5 +1,7 @@
-import {View, StyleSheet, Image} from 'react-native';
+import {View, StyleSheet, Image, Dimensions} from 'react-native';
 import React, { useEffect } from 'react';
+
+const {width, height} = Dimensions.get('window')
 
 const Splash = (props) => {
     const {navigation} = props
@@ -32,7 +34,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   image: {
-    width: 154,
-    height: 123,
+    width: width * 0.25 ,
+    height: width * 0.2,
   },
 });

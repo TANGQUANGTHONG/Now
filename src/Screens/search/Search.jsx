@@ -1,7 +1,9 @@
-import {FlatList, StyleSheet, Text, TextInput, View} from 'react-native';
+import {FlatList, StyleSheet, Text, TextInput, View, Dimensions} from 'react-native';
 import React from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_search from '../../components/items/Item_search';
+
+const {width , height} = Dimensions.get('window')
 const Search = () => {
   return (
     <View style={styles.container}>
@@ -26,24 +28,24 @@ export default Search;
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
-    paddingHorizontal: 24,
-    paddingTop: 17,
+    paddingHorizontal: width * 0.06, // Adjust padding based on screen width
+    paddingTop: height * 0.02, // Adjust padding based on screen height
     flex: 1,
   },
   container_search: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F6F6',
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingHorizontal: width * 0.05, // Adjust padding based on screen width
+    borderRadius: width * 0.03, // Set the radius relative to screen width
   },
   input: {
-    marginLeft: 10,
+    marginLeft: width * 0.025, // Adjust margin based on screen width
     fontWeight: '500',
-    fontSize: 12,
+    fontSize: width * 0.03, // Adjust font size based on screen width
   },
   list_search: {
-    marginTop: 50,
+    marginTop: height * 0.06, // Adjust margin based on screen height
   },
 });
 

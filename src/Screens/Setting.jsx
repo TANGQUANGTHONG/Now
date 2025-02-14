@@ -25,7 +25,7 @@ const Setting = (props) => {
           </View>
         </View>
         <View style={styles.profile}>
-          <Pressable onPress={() => navigation.navigate('Profile')}>
+          <Pressable >
         <Image source={{ uri: "https://cdn.pixabay.com/photo/2024/02/26/14/13/businessman-8598067_1280.jpg" }} style={styles.avatar} />
         </Pressable>
         <View style={styles.profileInfo}>
@@ -61,80 +61,105 @@ const Option = ({ icon, title, subtitle }) => (
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-  header: { alignItems: "center", padding: height * 0.06, backgroundColor: "#0a0f14" },
-  body: { backgroundColor: "#fff", padding: width * 0.05, borderTopLeftRadius: width * 0.1, borderTopRightRadius: width * 0.1, flex: 1 },
-  label: { fontSize: width * 0.035, color: "gray", marginTop: height * 0.01 },
-  value: { fontSize: width * 0.04, fontWeight: "bold", color: "#333" },
-  section:{
-    paddingVertical:  width * 0.02,
+  container: { 
+    flex: 1, 
+    backgroundColor: "#000" 
+  },
+  header: { 
+    alignItems: "center", 
+    padding: height * 0.06, 
+    backgroundColor: "#0a0f14" 
+  },
+  body: { 
+    backgroundColor: "#fff", 
+    padding: width * 0.05, 
+    borderTopLeftRadius: width * 0.1, 
+    borderTopRightRadius: width * 0.1, 
+    flex: 1 
+  },
+  label: { 
+    fontSize: width * 0.035, 
+    color: "gray", 
+    marginTop: height * 0.01 
+  },
+  value: { 
+    fontSize: width * 0.04, 
+    fontWeight: "bold", 
+    color: "#333" 
+  },
+  section: {
+    paddingVertical: width * 0.02,
   },
   rectangle: {
     alignItems: 'center',
   },
-  rectangleLine:{
+  rectangleLine: {
     width: width * 0.1,
     borderRadius: width * 0.05,
     height: height * 0.006,
-    backgroundColor: 'gray'
+    backgroundColor: 'gray',
   },
-  textSetting:{
+  textSetting: {
     fontSize: width * 0.05,
-    fontWeight: '500'
+    fontWeight: '500',
+    color: '#fff' // Add color for better contrast
   },
   option: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
+    padding: width * 0.03, 
     backgroundColor: "white",
-    marginVertical: 5,
-    borderRadius: 10
+    marginVertical: height * 0.01, 
+    borderRadius: width * 0.03,
   },
   optionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: width * 0.1, 
+    height: width * 0.1, 
+    borderRadius: width * 0.05, 
     backgroundColor: "#f0f0f0",
     justifyContent: "center",
     alignItems: "center",
   },
   optionText: {
-    marginLeft: 15,
+    marginLeft: width * 0.04,
   },
   optionTitle: {
     color: "black",
-    fontSize: 16,
+    fontSize: width * 0.045,
     fontWeight: "bold",
   },
   optionSubtitle: {
     color: "gray",
-    fontSize: 12,
+    fontSize: width * 0.03,
   },
   profile: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "white",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: width * 0.05,
+    borderBottomRightRadius: width * 0.05,
+    padding: width * 0.03,
+    marginVertical: height * 0.02,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: width * 0.15, 
+    height: width * 0.15, 
+    borderRadius: width * 0.075,
   },
   profileInfo: {
     flex: 1,
-    marginLeft: 15,
+    marginLeft: width * 0.04,
   },
   name: {
     color: "black",
-    fontSize: 18,
+    fontSize: width * 0.045,
     fontWeight: "bold",
   },
   status: {
     color: "gray",
-    fontSize: 14,
+    fontSize: width * 0.035,
   },
 });
+
 
 export default Setting;

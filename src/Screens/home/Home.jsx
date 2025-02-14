@@ -5,6 +5,7 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
+  Dimensions,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,6 +14,8 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_home_friend from '../../components/items/Item_home_friend';
 import Item_home_chat from '../../components/items/Item_home_chat';
 
+
+const {width, height} = Dimensions.get('window')
 const Home = (props) => {
   const {navigation} = props
   return (
@@ -60,41 +63,41 @@ const styles = StyleSheet.create({
   },
   text_title: {
     color: 'white',
-    fontSize: 20,
+    fontSize: width * 0.05, 
     fontWeight: '500',
   },
   img_title: {
-    width: 44,
-    height: 44,
-    borderRadius: 50,
+    width: width * 0.12, 
+    height: width * 0.12, 
+    borderRadius: (width * 0.12) / 2,
   },
   container_title: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    marginTop: 17,
+    paddingHorizontal: width * 0.06,
+    marginTop: height * 0.02,
     alignItems: 'center',
   },
   container_list_friend: {
-    marginLeft: 24,
-    marginTop: 40,
+    marginLeft: width * 0.06,
+    marginTop: height * 0.05,
   },
   container_list_chat: {
     width: '100%',
-    height: '70%',
+    height: height * 0.7, 
     backgroundColor: 'white',
-    marginTop: 30,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    paddingHorizontal: 24,
-    paddingTop: 40,
+    marginTop: height * 0.03, 
+    borderTopLeftRadius: width * 0.1, 
+    borderTopRightRadius: width * 0.1, 
+    paddingHorizontal: width * 0.06, 
+    paddingTop: height * 0.05, 
   },
   button_search: {
     borderWidth: 1,
     borderColor: '#363F3B',
-    width: 44,
-    height: 44,
-    borderRadius: 50,
+    width: width * 0.12, 
+    height: width * 0.12, 
+    borderRadius: (width * 0.12) / 2, 
     justifyContent: 'center',
     alignItems: 'center',
   },
