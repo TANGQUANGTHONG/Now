@@ -6,15 +6,19 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 // Import màn hình
 import Home from '../Screens/home/Home';
 import Contact from '../Screens/Contact';
-import Setting from '../Screens/Setting';
-import Chat from '../Screens/Chat';
+import Setting from '../Screens/Profile_Settings/Setting';
+// import Chat from '../Screens/Chat';
 import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
+import Boarding from '../Screens/auth/Boarding';
+import SignUp from '../Screens/auth/SignUp';
+import Splash from '../Screens/auth/Splash';
 import Login from '../Screens/auth/Login';
+
 // Danh sách tab
 const oTab = {
-  Home: { name: 'Home', component: Home, icon: "chatbubble-ellipses-outline", name: "Message" },
+  Home: { name: 'Home', component: Home, icon: "chatbubble-ellipses-outline" , name: "Message"},
   Contact: { name: 'Contact', component: Contact, icon: "person-circle", name: "Contacts" },
   Setting: { name: 'Setting', component: Setting, icon: "settings", name: "Setting" }
 };
@@ -33,7 +37,7 @@ const TabHome = () => {
               name={item.icon}
               size={size}
               color={focused ? "#24786D" : "gray"}
-              style={{ fontWeight: focused ? 'bold' : 'normal' }}
+              style={{ fontWeight: focused ? 'bold' : 'normal' }} 
             />
           ) : null;
         },
@@ -42,15 +46,15 @@ const TabHome = () => {
         tabBarInactiveTintColor: 'gray',
         tabBarHideOnKeyboard: true,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: 'bold',
+          fontSize: 12, 
+          fontWeight: 'bold', 
           marginBottom: 5,
         },
         tabBarStyle: {
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          height: 60,
-          paddingBottom: 8,
+          borderTopLeftRadius: 20, 
+          borderTopRightRadius: 20, 
+          height: 60, 
+          paddingBottom: 8, 
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.2,
@@ -73,15 +77,17 @@ const TabHome = () => {
 
 // Danh sách Stack Home
 
-import Profile from '../Screens/Profile';
+import Profile from '../Screens/Profile_Settings/Profile';
 const oStackHome = {
   TabHome: { name: 'TabHome', component: TabHome },
-  Chat: { name: 'Chat', component: Chat },
-  Profile: { name: 'Profile', component: Profile },
+  Profile: {name: 'Profile', component: Profile},
   Single: { name: 'Single', component: Single },
   Group: { name: 'Group', component: Group },
-  Search: { name: 'Search', component: Search },
-  Login: { name: 'Login', component: Login }
+  Search: {name: 'Search', component: Search},
+  Login: {name: 'Login', component: Login},
+  SignUp: {name: 'SignUp', component: SignUp},
+  Splash: {name: 'Splash', component: Splash},
+  Boarding: {name: 'Boarding', component: Boarding}
 };
 
 const StackHome = createNativeStackNavigator();

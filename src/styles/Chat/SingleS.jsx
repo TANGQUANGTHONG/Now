@@ -41,7 +41,6 @@ const SingleS = StyleSheet.create({
     },
     boxbtnTextInput: {},
     input: {
-        
         backgroundColor: 'white',
         padding: height * 0.015, // Padding theo tỉ lệ 1.5% của chiều cao màn hình
         flex: 1,
