@@ -36,10 +36,16 @@ const Single = () => {
     const unsubscribe = messagesRef
       .orderBy('timestamp', 'asc')
       .onSnapshot(snapshot => {
-        const msgs = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const msgs = snapshot.docs.map(doc => {
+          const data = doc.data()
+          return{
+            id: doc.id,
+            text: decryptMessage(data.text),
+            timestamp: data.timestamp
+          }
+          // id: doc.id,
+          // ...doc.data(),
+        });
         setMessages(msgs);
       });
 
