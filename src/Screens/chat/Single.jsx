@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,12 @@ import {
   FlatList,
   StyleSheet,
 } from 'react-native';
-import {useRoute} from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
-
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 const Single = () => {
   const route = useRoute();
-  const {userId, myId, myUsername, username, img} = route.params;
+  const { userId, myId, myUsername, username, img } = route.params;
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
 
@@ -30,10 +30,16 @@ const Single = () => {
     const unsubscribe = messagesRef
       .orderBy('timestamp', 'asc')
       .onSnapshot(snapshot => {
-        const msgs = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const msgs = snapshot.docs.map(doc => {
+          const data = doc.data()
+          return {
+            id: doc.id,
+            text: decryptMessage(data.text),
+            timestamp: data.timestamp
+          }
+          // id: doc.id,
+          // ...doc.data(),
+        });
         setMessages(msgs);
       });
 
@@ -51,12 +57,12 @@ const Single = () => {
       const chatSnapshot = await chatRef.get();
 
       if (!chatSnapshot.exists) {
-        await chatRef.set({users: [userId, myId]});
+        await chatRef.set({ users: [userId, myId] });
       }
 
       await chatRef.collection('messages').add({
         senderId: myId, // Sửa userId thành myId
-        text,
+        text: encryptMessage(text),
         timestamp: firestore.FieldValue.serverTimestamp(),
       });
 
@@ -72,7 +78,7 @@ const Single = () => {
       <FlatList
         data={messages}
         keyExtractor={item => item.id}
-        renderItem={({item}) => (
+        renderItem={({ item }) => (
           <View
             style={
               item.senderId === myId
