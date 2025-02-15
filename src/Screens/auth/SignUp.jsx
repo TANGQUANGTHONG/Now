@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import React, {useState} from 'react';
+import {View, Text, TextInput, TouchableOpacity, Alert} from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { styles } from '../../styles/auth/Sign_up';
-import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
-import { getFirestore, doc, setDoc } from '@react-native-firebase/firestore';
-import "react-native-get-random-values";
-import CryptoJS from "crypto-js";
+import {styles} from '../../styles/auth/Sign_up';
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+} from '@react-native-firebase/auth';
+import {getFirestore, doc, setDoc} from '@react-native-firebase/firestore';
+import 'react-native-get-random-values';
+import CryptoJS from 'crypto-js';
 
-const SignUp = (props) => {
-  const { navigation } = props;
+const SignUp = props => {
+  const {navigation} = props;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,135 +26,158 @@ const SignUp = (props) => {
   const Sign_Up = () => {
     // Đăng ký người dùng
     createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
+      .then(userCredential => {
         const userId = userCredential.user.uid;
 
         // Mã hóa mật khẩu để lưu vào Firestore (nếu bạn muốn lưu mật khẩu đã mã hóa)
-        const encryptedPassword = CryptoJS.AES.encrypt(password, 'secret-key').toString();
-        
+        const encryptedPassword = CryptoJS.AES.encrypt(
+          password,
+          'secret-key',
+        ).toString();
+
         // Lưu thông tin người dùng vào Firestore
         const userRef = doc(db, 'users', userId);
         setDoc(userRef, {
           username: name,
           email: email,
-          password: encryptedPassword  // Lưu mật khẩu đã mã hóa
+          password: encryptedPassword, // Lưu mật khẩu đã mã hóa
         })
-        .then(() => {
-          Alert.alert("User created and saved to Firestore");
-          navigation.navigate('Login');
-        })
-        .catch((error) => {
-          console.log('Error saving user data to Firestore:', error);
-          Alert.alert('Error saving user data to Firestore');
-        });
+          .then(() => {
+            Alert.alert('User created and saved to Firestore');
+            navigation.navigate('Login');
+          })
+          .catch(error => {
+            console.log('Error saving user data to Firestore:', error);
+            Alert.alert('Error saving user data to Firestore');
+          });
       })
-      .catch((err) => {
+      .catch(err => {
         console.log('Error creating user:', err);
         Alert.alert('Error creating user');
       });
   };
 
-
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validatePassword = (password) => password.length >= 6;
-  const validateConfirmPassword = (password, confirmPassword) => password === confirmPassword;
+  const validateEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePassword = password => password.length >= 6;
+  const validateConfirmPassword = (password, confirmPassword) =>
+    password === confirmPassword;
 
   const validateFields = () => {
     let newErrors = {};
     if (!name.trim()) newErrors.name = 'Name is required';
     if (!validateEmail(email)) newErrors.email = 'Invalid email address';
-    if (!validatePassword(password)) newErrors.password = 'Password must be at least 6 characters';
-    if (!validateConfirmPassword(password, confirmPassword)) newErrors.confirmPassword = 'Passwords do not match';
+    if (!validatePassword(password))
+      newErrors.password = 'Password must be at least 6 characters';
+    if (!validateConfirmPassword(password, confirmPassword))
+      newErrors.confirmPassword = 'Passwords do not match';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const isFormValid = validateEmail(email) && validatePassword(password) && validateConfirmPassword(password, confirmPassword) && name.trim();
+  const isFormValid =
+    validateEmail(email) &&
+    validatePassword(password) &&
+    validateConfirmPassword(password, confirmPassword) &&
+    name.trim();
 
   return (
     <View style={styles.container}>
       {/* Nút back */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}>
         <Icon name="arrow-left" size={24} color="black" />
       </TouchableOpacity>
 
       <View style={styles.content}>
         <Text style={styles.title}>Sign up with Email</Text>
         <Text style={styles.subtitle}>
-          Get chatting with friends and family today by signing up for our chat app!
+          Get chatting with friends and family today by signing up for our chat
+          app!
         </Text>
 
         <View style={styles.inputContainer}>
-  <Text style={styles.validText}>
-    Your Name
-  </Text>
-  <TextInput
-    style={[styles.input, errors.name && styles.errorInput]}
-    value={name}
-    onChangeText={setName}
-    autoCapitalize="none"
-    placeholderTextColor={'#8C96A2'}
-    color="black"  // Màu text rõ ràng
-  />
-  {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-</View>
+          <Text style={styles.validText}>Your Name</Text>
+          <TextInput
+            style={[styles.input, errors.name && styles.errorInput]}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="none"
+            placeholderTextColor={'#8C96A2'}
+            color="black" // Màu text rõ ràng
+          />
+          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+        </View>
 
-<View style={styles.inputContainer}>
-  <Text style={styles.validText}>
-    Your email
-  </Text>
-  <TextInput
-    style={[styles.input, errors.email && styles.errorInput]}
-    value={email}
-    onChangeText={setEmail}
-    keyboardType="email-address"
-    autoCapitalize="none"
-    placeholderTextColor={'#8C96A2'}
-    color="black"  // Màu text rõ ràng
-  />
-  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-</View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.validText}>Your email</Text>
+          <TextInput
+            style={[styles.input, errors.email && styles.errorInput]}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholderTextColor={'#8C96A2'}
+            color="black" // Màu text rõ ràng
+          />
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+        </View>
 
-<View style={styles.inputContainer}>
-  <Text style={styles.validText}>
-    Password
-  </Text>
-  <View style={styles.passwordContainer}>
-    <TextInput
-      style={[styles.input, errors.password && styles.errorInput]}
-      value={password}
-      onChangeText={setPassword}
-      placeholderTextColor="gray"  // Màu placeholder
-      secureTextEntry={secureText}
-      color="black"  // Màu text rõ ràng
-    />
-    <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-      <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
-    </TouchableOpacity>
-  </View>
-  {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-</View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.validText}>Password</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[styles.input, errors.password && styles.errorInput]}
+              value={password}
+              onChangeText={setPassword}
+              placeholderTextColor="gray" // Màu placeholder
+              secureTextEntry={secureText}
+              color="black" // Màu text rõ ràng
+            />
+            <TouchableOpacity
+              onPress={() => setSecureText(!secureText)}
+              style={styles.eyeIcon}>
+              <Icon
+                name={secureText ? 'eye-off' : 'eye'}
+                size={20}
+                color="gray"
+              />
+            </TouchableOpacity>
+          </View>
+          {errors.password && (
+            <Text style={styles.errorText}>{errors.password}</Text>
+          )}
+        </View>
 
-<View style={styles.inputContainer}>
-  <Text style={styles.validText}>
-    Confirm Password
-  </Text>
-  <View style={styles.passwordContainer}>
-    <TextInput
-      style={[styles.input, errors.confirmPassword && styles.errorInput]}
-      value={confirmPassword}
-      onChangeText={setConfirmPassword}
-      placeholderTextColor={'#8C96A2'}
-      secureTextEntry={secureText}
-      color="black"  // Màu text rõ ràng
-    />
-    <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-      <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
-    </TouchableOpacity>
-  </View>
-  {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-</View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.validText}>Confirm Password</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                errors.confirmPassword && styles.errorInput,
+              ]}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholderTextColor={'#8C96A2'}
+              secureTextEntry={secureText}
+              color="black" // Màu text rõ ràng
+            />
+            <TouchableOpacity
+              onPress={() => setSecureText(!secureText)}
+              style={styles.eyeIcon}>
+              <Icon
+                name={secureText ? 'eye-off' : 'eye'}
+                size={20}
+                color="gray"
+              />
+            </TouchableOpacity>
+          </View>
+          {errors.confirmPassword && (
+            <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+          )}
+        </View>
       </View>
 
       {/* Nút đăng nhập và quên mật khẩu ở dưới cùng */}
@@ -160,12 +186,14 @@ const SignUp = (props) => {
           style={[styles.loginButton, isFormValid && styles.activeCreateButton]}
           onPress={() => {
             if (validateFields()) {
-              Sign_Up();  // Gọi hàm đăng ký
-              navigation.navigate('Login'); 
+              Sign_Up(); // Gọi hàm đăng ký
+              navigation.navigate('Login');
             }
-          }}
-        >
-          <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Sign Up</Text>
+          }}>
+          <Text
+            style={[styles.loginText, isFormValid && styles.activeLoginText]}>
+            Sign Up
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
