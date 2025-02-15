@@ -8,7 +8,7 @@ import { encryptMessage, decryptMessage } from './maHoa'
 
 const Single = (props) => {
     const {navigation} = props
-    
+
     const [message, setMessage] = useState('')
 
     const handleSendMessage = () => {
