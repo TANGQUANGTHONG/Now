@@ -1,6 +1,6 @@
 import { FlatList, Image, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Pressable } from 'react-native'
 import React, { useState, useEffect } from 'react'
-import SingleS from '../../styles/Chat/SingleS'
+import SingleS from '../../Styles/Chat/SingleS'
 import Icon from 'react-native-vector-icons/Ionicons'
 import Chat from '../../components/chat_single/Chat'
 import Chat2 from '../../components/chat_single/Chat2'

@@ -5,8 +5,8 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 
 // Import màn hình
 import Home from '../Screens/home/Home';
-import Setting from '../Screens/Setting';
-import Chat from '../Screens/Chat';
+import Setting from '../Screens/Profile_Settings/Setting';
+import Chat from '../Screens/chat/Single';
 import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';

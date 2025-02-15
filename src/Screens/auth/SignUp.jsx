@@ -12,7 +12,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import {styles} from '../../styles/auth/Sign_up';
+import {styles} from '../../Styles/auth/Sign_up';
 import {
   getAuth,
   createUserWithEmailAndPassword,

@@ -5,7 +5,7 @@ import Chat from '../../components/chat_single/Chat'
 import Chat2 from '../../components/chat_single/Chat2'
 import ChatGroup1 from '../../components/chat_group/ChatGroup1'
 import ChatGroup2 from '../../components/chat_group/ChatGroup2'
-import GroupS from '../../styles/Chat/GroupS'
+import GroupS from '../../Styles/Chat/GroupS'
 // import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 const Group = () => {
 
