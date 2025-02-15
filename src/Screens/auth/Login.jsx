@@ -26,6 +26,24 @@ const Login = props => {
 
   // Kiểm tra nếu cả email và password hợp lệ
   const isFormValid = isValidEmail(email) && password.length >= 6;
+  const handleLogin = async () => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      const user = userCredential.user;
+      console.log('Đăng nhập thành công:', user);
+
+      if (user) {
+        navigation.navigate('TabHome');
+      }
+    } catch (error) {
+      console.error('Lỗi đăng nhập:', error.message);
+      Alert.alert('Lỗi', 'Email hoặc mật khẩu không đúng');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -115,7 +133,7 @@ const Login = props => {
         <TouchableOpacity
           style={[styles.loginButton, isFormValid && styles.activeLoginButton]}
           disabled={!isFormValid}
-          onPress={() => navigation.navigate('TabHome')}>
+          onPress={() => handleLogin()}>
           <Text
             style={[styles.loginText, isFormValid && styles.activeLoginText]}>
             Log in
