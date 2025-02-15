@@ -9,7 +9,7 @@ import {
 import {getFirestore, doc, setDoc} from '@react-native-firebase/firestore';
 import 'react-native-get-random-values';
 import CryptoJS from 'crypto-js';
-
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 const SignUp = props => {
   const {navigation} = props;
   const [name, setName] = useState('');
@@ -30,17 +30,14 @@ const SignUp = props => {
         const userId = userCredential.user.uid;
 
         // Mã hóa mật khẩu để lưu vào Firestore (nếu bạn muốn lưu mật khẩu đã mã hóa)
-        const encryptedPassword = CryptoJS.AES.encrypt(
-          password,
-          'secret-key',
-        ).toString();
+        // const encryptedPassword = CryptoJS.AES.encrypt(password, 'secret-key').toString();
 
         // Lưu thông tin người dùng vào Firestore
         const userRef = doc(db, 'users', userId);
         setDoc(userRef, {
-          username: name,
-          email: email,
-          password: encryptedPassword, // Lưu mật khẩu đã mã hóa
+          username: encryptMessage(name),
+          email: encryptMessage(email),
+          password: encryptMessage(password), // Lưu mật khẩu đã mã hóa
         })
           .then(() => {
             Alert.alert('User created and saved to Firestore');

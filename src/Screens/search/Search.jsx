@@ -11,6 +11,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_search from '../../components/items/Item_search';
 import firestore from '@react-native-firebase/firestore';
 const {width, height} = Dimensions.get('window');
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 
 const Search = () => {
   const [searchText, setSearchText] = useState('');
