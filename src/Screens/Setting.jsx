@@ -1,20 +1,29 @@
 import React from "react";
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, Dimensions, Pressable, ScrollView } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
+import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get("window");
 
 
 
+
 const Setting = (props) => {
+
   const {navigation} = props
+
+  const auth = getAuth()
+  const logOut = () => {
+    auth.signOut().then(() =>{
+      console.log("Đã đăng xuất");
+      navigation.navigate('Login')
+    })
+  }
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-      
+      <View style={styles.header}>      
         <Text style={styles.textSetting}>Setting</Text>
-      
       </View>
 
       {/* Body */}
@@ -41,7 +50,13 @@ const Setting = (props) => {
         <Option icon="notifications" title="Notifications" subtitle="Messages, group and others" />
         <Option icon="help" title="Help" subtitle="Help center, contact us, privacy policy" />
         <Option icon="server" title="Storage and data" subtitle="Network usage, storage usage" />
-        <Option icon="person-add" title="Invite a friend" />
+
+      <TouchableOpacity onPress={logOut}>
+      <Option1 icon="exit-outline" title="Log out" />
+      </TouchableOpacity>
+        
+
+        
       </ScrollView>
       </View>
     </View>
@@ -50,7 +65,7 @@ const Setting = (props) => {
 
 const Option = ({ icon, title, subtitle }) => (
   <TouchableOpacity style={styles.option}>
-    <View style={styles.optionIcon}>
+    <View style={[styles.optionIcon]}>
       <Icon name={icon} size={20} color="#555" />
     </View>
     <View style={styles.optionText}>
@@ -59,8 +74,22 @@ const Option = ({ icon, title, subtitle }) => (
     </View>
   </TouchableOpacity>
 );
+const Option1 = ({ icon, title, subtitle }) => (
+  <TouchableOpacity style={styles.option}>
+    <View style={[styles.optionIcon]}>
+      <Icon name={icon} size={20} color="red" />
+    </View>
+    <View style={styles.optionText}>
+      <Text style={styles.optionTitle1}>{title}</Text>
+      {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
+    </View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
+  textColor:{
+    color: 'red'
+  },
   container: { 
     flex: 1, 
     backgroundColor: "#000" 
@@ -125,6 +154,11 @@ const styles = StyleSheet.create({
   },
   optionTitle: {
     color: "black",
+    fontSize: width * 0.045,
+    fontWeight: "bold",
+  },
+  optionTitle1: {
+    color: "red",
     fontSize: width * 0.045,
     fontWeight: "bold",
   },

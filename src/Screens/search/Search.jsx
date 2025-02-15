@@ -6,12 +6,12 @@ import {
   View,
   Dimensions,
 } from 'react-native';
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_search from '../../components/items/Item_search';
 import firestore from '@react-native-firebase/firestore';
-const {width, height} = Dimensions.get('window');
-import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+const { width, height } = Dimensions.get('window');
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 
 const Search = () => {
   const [searchText, setSearchText] = useState('');
@@ -21,10 +21,15 @@ const Search = () => {
   const fetchUsers = async () => {
     try {
       const snapshot = await firestore().collection('users').get();
-      const userList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const userList = snapshot.docs.map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          username: decryptMessage(data.username),
+          email: decryptMessage(data.email),
+          img:decryptMessage(data.Image)
+        }
+      });
       console.log(userList);
       setUsers(userList);
     } catch (error) {
@@ -66,7 +71,7 @@ const Search = () => {
       <View style={styles.list_search}>
         <FlatList
           data={filteredUsers}
-          renderItem={({item}) => <Item_search data={item} />}
+          renderItem={({ item }) => <Item_search data={item} />}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
         />
@@ -93,7 +98,6 @@ const styles = StyleSheet.create({
   },
   input: {
     marginLeft: width * 0.025, // Adjust margin based on screen width
-    fontWeight: '500',
     fontSize: width * 0.03, // Adjust font size based on screen width
   },
   list_search: {
