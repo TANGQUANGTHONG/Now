@@ -8,6 +8,7 @@ export const encryptMessage = (message) => {
   return CryptoJS.AES.encrypt(message, SECRET_KEY).toString();
 };
 
+
 // Hàm giải mã tin nhắn
 export const decryptMessage = (encryptedMessage) => {
   const bytes = CryptoJS.AES.decrypt(encryptedMessage, SECRET_KEY);

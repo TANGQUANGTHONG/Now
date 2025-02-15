@@ -5,8 +5,8 @@ import { styles } from '../../styles/auth/Sign_up';
 import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
 import { getFirestore, doc, setDoc } from '@react-native-firebase/firestore';
 import "react-native-get-random-values";
-import CryptoJS from "crypto-js";
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import { encryptMessage } from '../../cryption/Encryption';
+
 const SignUp = (props) => {
   const { navigation } = props;
   const [name, setName] = useState('');
@@ -44,7 +44,7 @@ const SignUp = (props) => {
             console.log('Error saving user data to Firestore:', error);
             Alert.alert('Error saving user data to Firestore');
           });
-      })
+      }) 
       .catch((err) => {
         console.log('Error creating user:', err);
         Alert.alert('Error creating user');
@@ -160,7 +160,7 @@ const SignUp = (props) => {
           style={[styles.loginButton, isFormValid && styles.activeCreateButton]}
           onPress={() => {
             if (validateFields()) {
-              Sign_Up();  // Gọi hàm đăng ký
+              Sign_Up;  // Gọi hàm đăng ký
               navigation.navigate('Login');
             }
           }}

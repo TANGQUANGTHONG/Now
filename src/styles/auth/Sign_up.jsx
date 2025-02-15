@@ -18,8 +18,8 @@ export const styles = StyleSheet.create({
   errorText: {
     color: 'red',
     fontSize: width * 0.033,
-    alignSelf: 'flex-end', // Đảm bảo chữ lỗi luôn căn trái
-    marginTop: width * 0.05, // Tạo khoảng cách giữa ô nhập và lỗi
+    alignSelf: 'flex-end',
+    marginTop: width * 0.05, 
   },
   backButton: {
     position: 'absolute',
@@ -68,7 +68,7 @@ export const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: width * 0.02,
+    bottom: width * 0.2,
     left: width * 0.02,
     right: width * 0.02,
   },
@@ -77,7 +77,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     padding: width * 0.03,
     alignItems: 'center',
-    borderRadius: width * 0.01,
+    borderRadius: width * 0.07,
     marginVertical: width * 0.04
   },
   activeLoginButton: {

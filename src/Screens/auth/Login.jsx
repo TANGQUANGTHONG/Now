@@ -91,13 +91,11 @@ const Login = (props) => {
           <View style={styles.passwordContainer}>
             <TextInput
               style={styles.input}
-
-              placeholderTextColor="gray"  // Màu placeholder
+              placeholderTextColor="gray"  
               value={password}
               onChangeText={setPassword}
-              color="black"  // Màu text rõ ràng
-              secureTextEntry={secureText}
-            />
+              color="black" 
+              secureTextEntry={secureText}/>
             <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
               <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
             </TouchableOpacity>
@@ -107,6 +105,9 @@ const Login = (props) => {
 
       {/* Nút đăng nhập và quên mật khẩu ở dưới cùng */}
       <View style={styles.bottomContainer}>
+        <Pressable onPress={()=> navigation.navigate('SignUpWithPhone')}>
+        <Text style={{color: 'black'}}>Login Phone</Text>
+        </Pressable>
         <TouchableOpacity style={[styles.loginButton, isFormValid && styles.activeLoginButton]} disabled={!isFormValid} onPress={loginWithEmailAndPass}>
           <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Log in</Text>
         </TouchableOpacity>
@@ -121,7 +122,7 @@ const Login = (props) => {
 
 const styles = StyleSheet.create({
   container: {
-    height: height, // Đặt chiều cao bằng chiều cao màn hình
+    height: height, 
     backgroundColor: '#fff',
     padding: width * 0.05, // Sử dụng 5% chiều rộng của màn hình làm padding
   },

@@ -6,6 +6,7 @@ import Login from '../Screens/auth/Login';
 import Splash from '../Screens/auth/Splash';
 import Boarding from '../Screens/auth/Boarding';
 import SignUp from '../Screens/auth/SignUp';
+
 const UserNavigation = () => {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName='Boarding'>
