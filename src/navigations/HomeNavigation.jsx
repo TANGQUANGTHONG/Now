@@ -21,12 +21,6 @@ const oTab = {
     icon: 'chatbubble-ellipses-outline',
     name: 'Message',
   },
-  Contact: {
-    name: 'Contact',
-    component: Contact,
-    icon: 'person-circle',
-    name: 'Contacts',
-  },
   Setting: {
     name: 'Setting',
     component: Setting,
