@@ -2,27 +2,26 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions, Pressable, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
-
-const { width, height } = Dimensions.get('window'); 
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+const { width, height } = Dimensions.get('window');
 
 const Login = (props) => {
-    const {navigation} = props
+  const { navigation } = props
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
 
   const auth = getAuth()
   const loginWithEmailAndPass = () => {
-    
-      auth.signInWithEmailAndPassword(email, password)
+
+    auth.signInWithEmailAndPassword(email, password)
       .then(() => {
-                navigation.navigate('TabHome');
-                setPassword('')
-                setEmail('')
-              })
+        navigation.navigate('TabHome');
+        setPassword('')
+        setEmail('')
+      })
       .catch((err) => console.log(err))
   }
-
 
   // Kiểm tra email hợp lệ
   const isValidEmail = (email) => {
@@ -36,8 +35,8 @@ const Login = (props) => {
     <View style={styles.container}>
       {/* Nút back */}
       <TouchableOpacity style={styles.backButton}>
-        <Pressable onPress={()=> navigation.goBack()}>
-        <Icon name="arrow-left" size={24} color="black" />
+        <Pressable onPress={() => navigation.goBack()}>
+          <Icon name="arrow-left" size={24} color="black" />
         </Pressable>
       </TouchableOpacity>
 
@@ -61,14 +60,14 @@ const Login = (props) => {
         </View>
 
         <View style={styles.orContainer}>
-        <View style={styles.line} />
-        <Text style={styles.orText}>OR</Text>
-        <View style={styles.line} />
+          <View style={styles.line} />
+          <Text style={styles.orText}>OR</Text>
+          <View style={styles.line} />
         </View>
 
         {/* Ô nhập email */}
         <View style={styles.inputContainer}>
-          <Text style={styles.validText }>
+          <Text style={styles.validText}>
             Your email
           </Text>
           <TextInput
@@ -85,14 +84,14 @@ const Login = (props) => {
 
         {/* Ô nhập password */}
         <View style={styles.inputContainer}>
-          <Text style={ styles.validText}>
+          <Text style={styles.validText}>
             Password
           </Text>
           <View style={styles.passwordContainer}>
             <TextInput
               style={styles.input}
 
-               placeholderTextColor="gray"  // Màu placeholder
+              placeholderTextColor="gray"  // Màu placeholder
               value={password}
               onChangeText={setPassword}
               color="black"  // Màu text rõ ràng
@@ -115,7 +114,7 @@ const Login = (props) => {
           <Text style={styles.forgotPassword}>Forgot password?</Text>
         </TouchableOpacity>
       </View>
-    </View> 
+    </View>
   );
 };
 
@@ -129,7 +128,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Căn giữa nội dung theo chiều dọc
     marginTop: height * 0.04, // Tăng giá trị này để đẩy nội dung xuống thấp hơn
   },
-  
+
   backButton: {
     position: 'absolute',
     top: height * 0.03, // Dùng 3% chiều cao màn hình để định vị nút
@@ -188,7 +187,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#CDD1D0',
     marginHorizontal: width * 0.025, // Khoảng cách hai bên là 2.5% của màn hình
   },
-  
+
   inputContainer: {
     width: '100%',
     marginTop: height * 0.04, // Khoảng cách margin top là 4% của màn hình
@@ -219,7 +218,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: height * 0.03, // Đặt ở dưới cùng với khoảng cách là 3% chiều cao
+    bottom: height * 0.07, // Đặt ở dưới cùng với khoảng cách là 3% chiều cao
     left: width * 0.05, // Khoảng cách từ trái là 5% chiều rộng
     right: width * 0.05, // Khoảng cách từ phải là 5% chiều rộng
   },
