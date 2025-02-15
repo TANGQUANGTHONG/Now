@@ -5,9 +5,8 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 
 // Import màn hình
 import Home from '../Screens/home/Home';
-import Contact from '../Screens/Contact';
-import Setting from '../Screens/Setting';
-import Chat from '../Screens/Chat';
+import Setting from '../Screens/Profile_Settings/Setting';
+import Chat from '../Screens/chat/Single';
 import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
@@ -79,9 +78,10 @@ const TabHome = () => {
   );
 };
 
+
 // Danh sách Stack Home
 
-import Profile from '../Screens/Profile';
+import Profile from '../Screens/Profile_Settings/Profile';
 const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},
