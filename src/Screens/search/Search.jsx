@@ -1,20 +1,77 @@
-import {FlatList, StyleSheet, Text, TextInput, View, Dimensions} from 'react-native';
-import React from 'react';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Dimensions,
+} from 'react-native';
+import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_search from '../../components/items/Item_search';
+// Sử dụng cú pháp import mới từ Firebase Modular SDK
+import { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
+const { width, height } = Dimensions.get('window');
+import {decryptMessage } from '../../cryption/Encryption';
 
-const {width , height} = Dimensions.get('window')
 const Search = () => {
+  const [searchText, setSearchText] = useState('');
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  console.log(filteredUsers);
+
+  const fetchUsers = async () => {
+    try {
+      // Sử dụng phương thức mới `getDocs()` từ Firestore Modular SDK
+      const querySnapshot = await getDocs(collection(getFirestore(), 'users'));
+      const userList = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          username: decryptMessage(data.username),
+          email: decryptMessage(data.email),
+          img: decryptMessage(data.Image),
+        };
+      });
+      console.log(userList);
+      setUsers(userList);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleSearch = text => {
+    setSearchText(text);
+    if (text === '') {
+      setFilteredUsers([]);
+    } else {
+      const filtered = users.filter(user => {
+        console.log(user.username);
+        return user.username.toLowerCase().includes(text.toLowerCase());
+      });
+      setFilteredUsers(filtered);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.container_search}>
         <Icon name="search" size={24} color="#000E08" />
-        <TextInput placeholder="Search" style={styles.input} />
+        <TextInput
+          placeholder="Search"
+          style={styles.input}
+          value={searchText}
+          onChangeText={handleSearch}
+        />
       </View>
       <View style={styles.list_search}>
         <FlatList
-          data={data}
-          renderItem={({item}) => <Item_search data={item} />}
+          data={filteredUsers}
+          renderItem={({ item }) => <Item_search data={item} />}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
         />
@@ -41,7 +98,6 @@ const styles = StyleSheet.create({
   },
   input: {
     marginLeft: width * 0.025, // Adjust margin based on screen width
-    fontWeight: '500',
     fontSize: width * 0.03, // Adjust font size based on screen width
   },
   list_search: {
