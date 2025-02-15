@@ -1,7 +1,6 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, Alert} from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-<<<<<<< HEAD
 import {styles} from '../../styles/auth/Sign_up';
 import {
   getAuth,
@@ -10,19 +9,9 @@ import {
 import {getFirestore, doc, setDoc} from '@react-native-firebase/firestore';
 import 'react-native-get-random-values';
 import CryptoJS from 'crypto-js';
-
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 const SignUp = props => {
   const {navigation} = props;
-=======
-import { styles } from '../../styles/auth/Sign_up';
-import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
-import { getFirestore, doc, setDoc } from '@react-native-firebase/firestore';
-import "react-native-get-random-values";
-import CryptoJS from "crypto-js";
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
-const SignUp = (props) => {
-  const { navigation } = props;
->>>>>>> origin/Do_MaHoa
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,39 +30,20 @@ const SignUp = (props) => {
         const userId = userCredential.user.uid;
 
         // Mã hóa mật khẩu để lưu vào Firestore (nếu bạn muốn lưu mật khẩu đã mã hóa)
-<<<<<<< HEAD
-        const encryptedPassword = CryptoJS.AES.encrypt(
-          password,
-          'secret-key',
-        ).toString();
-=======
         // const encryptedPassword = CryptoJS.AES.encrypt(password, 'secret-key').toString();
->>>>>>> origin/Do_MaHoa
 
         // Lưu thông tin người dùng vào Firestore
         const userRef = doc(db, 'users', userId);
         setDoc(userRef, {
-<<<<<<< HEAD
-          username: name,
-          email: email,
-          password: encryptedPassword, // Lưu mật khẩu đã mã hóa
+          username: encryptMessage(name),
+          email: encryptMessage(email),
+          password: encryptMessage(password), // Lưu mật khẩu đã mã hóa
         })
           .then(() => {
             Alert.alert('User created and saved to Firestore');
             navigation.navigate('Login');
           })
           .catch(error => {
-=======
-          username: encryptMessage(name),
-          email: encryptMessage(email),
-          password: encryptMessage(password)  // Lưu mật khẩu đã mã hóa
-        })
-          .then(() => {
-            Alert.alert("User created and saved to Firestore");
-            navigation.navigate('Login');
-          })
-          .catch((error) => {
->>>>>>> origin/Do_MaHoa
             console.log('Error saving user data to Firestore:', error);
             Alert.alert('Error saving user data to Firestore');
           });
@@ -125,36 +95,20 @@ const SignUp = (props) => {
         </Text>
 
         <View style={styles.inputContainer}>
-<<<<<<< HEAD
           <Text style={styles.validText}>Your Name</Text>
-=======
-          <Text style={styles.validText}>
-            Your Name
-          </Text>
->>>>>>> origin/Do_MaHoa
           <TextInput
             style={[styles.input, errors.name && styles.errorInput]}
             value={name}
             onChangeText={setName}
             autoCapitalize="none"
             placeholderTextColor={'#8C96A2'}
-<<<<<<< HEAD
             color="black" // Màu text rõ ràng
-=======
-            color="black"  // Màu text rõ ràng
->>>>>>> origin/Do_MaHoa
           />
           {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
         </View>
 
         <View style={styles.inputContainer}>
-<<<<<<< HEAD
           <Text style={styles.validText}>Your email</Text>
-=======
-          <Text style={styles.validText}>
-            Your email
-          </Text>
->>>>>>> origin/Do_MaHoa
           <TextInput
             style={[styles.input, errors.email && styles.errorInput]}
             value={email}
@@ -162,29 +116,18 @@ const SignUp = (props) => {
             keyboardType="email-address"
             autoCapitalize="none"
             placeholderTextColor={'#8C96A2'}
-<<<<<<< HEAD
             color="black" // Màu text rõ ràng
-=======
-            color="black"  // Màu text rõ ràng
->>>>>>> origin/Do_MaHoa
           />
           {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
         </View>
 
         <View style={styles.inputContainer}>
-<<<<<<< HEAD
           <Text style={styles.validText}>Password</Text>
-=======
-          <Text style={styles.validText}>
-            Password
-          </Text>
->>>>>>> origin/Do_MaHoa
           <View style={styles.passwordContainer}>
             <TextInput
               style={[styles.input, errors.password && styles.errorInput]}
               value={password}
               onChangeText={setPassword}
-<<<<<<< HEAD
               placeholderTextColor="gray" // Màu placeholder
               secureTextEntry={secureText}
               color="black" // Màu text rõ ràng
@@ -212,31 +155,10 @@ const SignUp = (props) => {
                 styles.input,
                 errors.confirmPassword && styles.errorInput,
               ]}
-=======
-              placeholderTextColor="gray"  // Màu placeholder
-              secureTextEntry={secureText}
-              color="black"  // Màu text rõ ràng
-            />
-            <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-              <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>
-            Confirm Password
-          </Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[styles.input, errors.confirmPassword && styles.errorInput]}
->>>>>>> origin/Do_MaHoa
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholderTextColor={'#8C96A2'}
               secureTextEntry={secureText}
-<<<<<<< HEAD
               color="black" // Màu text rõ ràng
             />
             <TouchableOpacity
@@ -252,15 +174,6 @@ const SignUp = (props) => {
           {errors.confirmPassword && (
             <Text style={styles.errorText}>{errors.confirmPassword}</Text>
           )}
-=======
-              color="black"  // Màu text rõ ràng
-            />
-            <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-              <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
->>>>>>> origin/Do_MaHoa
         </View>
       </View>
 
@@ -270,11 +183,7 @@ const SignUp = (props) => {
           style={[styles.loginButton, isFormValid && styles.activeCreateButton]}
           onPress={() => {
             if (validateFields()) {
-<<<<<<< HEAD
               Sign_Up(); // Gọi hàm đăng ký
-=======
-              Sign_Up();  // Gọi hàm đăng ký
->>>>>>> origin/Do_MaHoa
               navigation.navigate('Login');
             }
           }}>
