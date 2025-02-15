@@ -16,7 +16,7 @@ const Search = () => {
   const [searchText, setSearchText] = useState('');
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
-
+  console.log(filteredUsers);
   const fetchUsers = async () => {
     try {
       const snapshot = await firestore().collection('users').get();
@@ -42,13 +42,11 @@ const Search = () => {
       setFilteredUsers([]);
     } else {
       const filtered = users.filter(user => {
-        console.log(user.name);
-        return (
-          user.name.toLowerCase().includes(text.toLowerCase()) ||
-          user.email.toLowerCase().includes(text.toLowerCase())
-        );
+        console.log(user.username);
+        return user.username.toLowerCase().includes(text.toLowerCase());
+        // user.email.toLowerCase().includes(text.toLowerCase())
       });
-      console.log(filtered);
+
       setFilteredUsers(filtered);
     }
   };

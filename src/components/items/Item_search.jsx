@@ -3,12 +3,13 @@ import React from 'react';
 
 const Item_search = props => {
   const {data} = props;
+  console.log(data.username);
   return (
     <View style={styles.container}>
       {/* <Image source={{uri: data.img}} style={styles.img} /> */}
       <View style={styles.container_item}>
         <View style={styles.container_content}>
-          <Text style={styles.text_name}>{data.name}</Text>
+          <Text style={styles.text_name}>{data.username}</Text>
           {/* <Text style={styles.text_content}>{data.content}</Text> */}
         </View>
       </View>
