@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
 } from '@react-native-firebase/auth';
 
-import HomeNavigation from './HomeNavigation';
+import {HomeNavigation} from './HomeNavigation';
 import UserNavigation from './UserNavigation';
 
 const AppNavigation = () => {

@@ -13,20 +13,7 @@ import Search from '../Screens/search/Search';
 import Login from '../Screens/auth/Login';
 import Profile from '../Screens/Profile';
 
-// Danh sách tab
-const oTab = {
-  Home: {
-    name: 'Home',
-    component: Home,
-    icon: 'chatbubble-ellipses-outline',
-  },
-  Setting: {
-    name: 'Setting',
-    component: Setting,
-    icon: 'settings',
-  },
-};
-
+// Tạo Bottom Tab
 const Tab = createBottomTabNavigator();
 
 const TabHome = () => {
@@ -35,10 +22,13 @@ const TabHome = () => {
       initialRouteName="Home"
       screenOptions={({route}) => ({
         tabBarIcon: ({focused, color, size}) => {
-          const item = Object.values(oTab).find(tab => tab.name === route.name);
-          return item ? (
+          let iconName;
+          if (route.name === 'Home') iconName = 'chatbubble-ellipses-outline';
+          else if (route.name === 'Setting') iconName = 'settings';
+
+          return iconName ? (
             <Icon
-              name={item.icon}
+              name={iconName}
               size={size}
               color={focused ? '#24786D' : 'gray'}
               style={{fontWeight: focused ? 'bold' : 'normal'}}
@@ -65,46 +55,33 @@ const TabHome = () => {
           shadowRadius: 4,
         },
       })}>
-      {Object.values(oTab).map((item, index) => (
-        <Tab.Screen
-          key={index}
-          name={item.name}
-          component={item.component}
-          options={{title: item.name}}
-        />
-      ))}
+      <Tab.Screen name="Home" component={Home} options={{title: 'Home'}} />
+      <Tab.Screen
+        name="Setting"
+        component={Setting}
+        options={{title: 'Setting'}}
+      />
     </Tab.Navigator>
   );
 };
 
-// Danh sách Stack Home
-const oStackHome = {
-  TabHome: {name: 'TabHome', component: TabHome},
-  Chat: {name: 'Chat', component: Chat},
-  Profile: {name: 'Profile', component: Profile},
-  Single: {name: 'Single', component: Single},
-  Group: {name: 'Group', component: Group},
-  Search: {name: 'Search', component: Search},
-  Login: {name: 'Login', component: Login},
-};
-
+// Tạo Stack Navigator
 const StackHome = createNativeStackNavigator();
 
 const HomeNavigation = () => {
   return (
     <StackHome.Navigator
       screenOptions={{headerShown: false}}
-      initialRouteName="TabHome">
-      {Object.values(oStackHome).map((item, index) => (
-        <StackHome.Screen
-          key={index}
-          name={item.name}
-          component={item.component}
-        />
-      ))}
+      initialRouteName="Login">
+      <StackHome.Screen name="Login" component={Login} />
+      <StackHome.Screen name="TabHome" component={TabHome} />
+      <StackHome.Screen name="Chat" component={Chat} />
+      <StackHome.Screen name="Profile" component={Profile} />
+      <StackHome.Screen name="Single" component={Single} />
+      <StackHome.Screen name="Group" component={Group} />
+      <StackHome.Screen name="Search" component={Search} />
     </StackHome.Navigator>
   );
 };
 
-export {oTab, oStackHome};
-export default HomeNavigation;
+export {HomeNavigation, TabHome};
