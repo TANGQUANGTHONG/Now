@@ -5,12 +5,13 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 
 // Import màn hình
 import Home from '../Screens/home/Home';
-import Setting from '../Screens/Profile_Settings/Setting';
+import Setting from '../Screens/Setting';
 import Chat from '../Screens/chat/Single';
 import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import Login from '../Screens/auth/Login';
+import Profile from '../Screens/Profile';
 
 // Danh sách tab
 const oTab = {
@@ -18,13 +19,11 @@ const oTab = {
     name: 'Home',
     component: Home,
     icon: 'chatbubble-ellipses-outline',
-    name: 'Message',
   },
   Setting: {
     name: 'Setting',
     component: Setting,
     icon: 'settings',
-    name: 'Setting',
   },
 };
 
@@ -78,10 +77,7 @@ const TabHome = () => {
   );
 };
 
-
 // Danh sách Stack Home
-
-import Profile from '../Screens/Profile_Settings/Profile';
 const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},
@@ -98,7 +94,7 @@ const HomeNavigation = () => {
   return (
     <StackHome.Navigator
       screenOptions={{headerShown: false}}
-      initialRouteName="Splash">
+      initialRouteName="TabHome">
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen
           key={index}
