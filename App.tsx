@@ -1,10 +1,8 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native'
+import React from 'react'
+import AppNavigation from './src/navigations/AppNavigation'
 
+<<<<<<< HEAD
 import React from 'react';
 import type {PropsWithChildren} from 'react';
 import {
@@ -32,3 +30,16 @@ const styles = StyleSheet.create({
 });
 
 export default App;
+=======
+const App = () => {
+  return (
+    <>
+        <AppNavigation/>
+    </>
+  )
+}
+
+export default App
+
+const styles = StyleSheet.create({})
+>>>>>>> origin/Tai_Register_Firebase
