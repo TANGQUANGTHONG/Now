@@ -4,10 +4,9 @@ import React from 'react';
 const Item_search = ({ data, onPress }) => {
   return (
     <TouchableOpacity style={styles.container} onPress={() => onPress(data.id)}>
-      <Image source={{ uri: data.img }} style={styles.img} />
+      <Image source={{ uri: data.img }} style={styles.image} />
       <View>
         <Text style={styles.username}>{data.username}</Text>
-        <Text style={styles.email}>{data.email}</Text>
       </View>
     </TouchableOpacity>
   );

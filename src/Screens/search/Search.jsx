@@ -10,15 +10,11 @@ import React, {useState, useEffect} from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_search from '../../components/items/Item_search';
 // Sử dụng cú pháp import mới từ Firebase Modular SDK
-import {
-  getFirestore,
-  collection,
-  getDocs,
-} from '@react-native-firebase/firestore';
 const {width, height} = Dimensions.get('window');
 import {decryptMessage} from '../../cryption/Encryption';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import {useNavigation} from '@react-navigation/native';
+import { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 
 const Search = () => {
@@ -68,7 +64,7 @@ const Search = () => {
     } else {
       const filtered = users.filter(user => {
         console.log(user.username);
-        return user.username.toLowerCase().includes(text.toLowerCase());
+        return user.username.toLowerCase().includes(text.toLowerCase()) && user.id !== auth().currentUser?.uid;
       });
       setFilteredUsers(filtered);
     }

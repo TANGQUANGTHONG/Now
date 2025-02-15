@@ -3,21 +3,20 @@ import {
   View,
   Text,
   TextInput,
-  Button,
+  TouchableOpacity,
   FlatList,
   StyleSheet,
 } from 'react-native';
 import {useRoute} from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const Single = () => {
   const route = useRoute();
   const {userId, myId, myUsername, username, img} = route.params;
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
-
-  console.log('Người gửi (myId):', myId);
-  console.log('Người nhận (userId):', userId);
 
   useEffect(() => {
     const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
@@ -27,17 +26,20 @@ const Single = () => {
       .doc(chatId)
       .collection('messages');
 
-    const unsubscribe = messagesRef
-      .orderBy('timestamp', 'asc')
-      .onSnapshot(snapshot => {
-        const msgs = snapshot.docs.map(doc => ({
+    const unsubscribe = messagesRef.orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+      const msgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
           id: doc.id,
-          ...doc.data(),
-        }));
-        setMessages(msgs);
+          senderId: data.senderId,
+          text: decryptMessage(data.text),
+          timestamp: data.timestamp,
+        };
       });
+      setMessages(msgs);
+    });
 
-    return () => unsubscribe(); // Hủy lắng nghe khi component unmount
+    return () => unsubscribe();
   }, [userId, myId]);
 
   const sendMessage = async () => {
@@ -49,14 +51,13 @@ const Single = () => {
 
     try {
       const chatSnapshot = await chatRef.get();
-
       if (!chatSnapshot.exists) {
         await chatRef.set({users: [userId, myId]});
       }
 
       await chatRef.collection('messages').add({
-        senderId: myId, // Sửa userId thành myId
-        text,
+        senderId: myId,
+        text: encryptMessage(text),
         timestamp: firestore.FieldValue.serverTimestamp(),
       });
 
@@ -76,8 +77,8 @@ const Single = () => {
           <View
             style={
               item.senderId === myId
-                ? styles.sentContainer // Tin nhắn do mình gửi
-                : styles.receivedContainer // Tin nhắn do người khác gửi
+                ? styles.sentContainer
+                : styles.receivedContainer
             }>
             <Text
               style={
@@ -96,7 +97,13 @@ const Single = () => {
           onChangeText={setText}
           placeholder="Nhập tin nhắn..."
         />
-        <Button title="Gửi" onPress={sendMessage} />
+        <TouchableOpacity onPress={sendMessage} disabled={!text.trim()}>
+          <Icon
+            name={text.trim() ? 'send' : 'microphone'}
+            size={24}
+            color={text.trim() ? '#007bff' : '#aaa'}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -138,13 +145,16 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  input: {
-    flex: 1,
     borderWidth: 1,
     borderColor: '#ccc',
     padding: 8,
-    marginRight: 5,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  input: {
+    flex: 1,
+    padding: 8,
+    fontSize: 16,
   },
 });
 
