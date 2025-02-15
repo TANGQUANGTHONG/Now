@@ -33,21 +33,13 @@ const Home = (props) => {
           }}
         />
       </View>
-      <View style={styles.container_list_friend}>
-        <FlatList
-          data={data}
-          renderItem={({item}) => <Item_home_friend data={item} />}
-          keyExtractor={item => item.id}
-          horizontal
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
       <View style={styles.container_list_chat}>
         <FlatList
           data={data_chat}
           renderItem={({item}) => <Item_home_chat data_chat={item} onPress={() => navigation.navigate('Single')} />}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle = {{paddingBottom: 150}}
         />
       </View>
     </View>
@@ -84,7 +76,7 @@ const styles = StyleSheet.create({
   },
   container_list_chat: {
     width: '100%',
-    height: height * 0.7, 
+    height: height * 1, 
     backgroundColor: 'white',
     marginTop: height * 0.03, 
     borderTopLeftRadius: width * 0.1, 
