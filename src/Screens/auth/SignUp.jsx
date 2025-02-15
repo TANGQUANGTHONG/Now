@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { styles } from '../../Styles/Login_Sign_Up/Sign_up';
-
-
-const { height } = Dimensions.get('window'); // Lấy chiều cao màn hình
+import { styles } from '../../styles/auth/Sign_up';
+import { getAuth, createUserWithEmailAndPassword } from '@react-native-firebase/auth';
+import { getFirestore, doc, setDoc } from '@react-native-firebase/firestore';
+import "react-native-get-random-values";
+import { encryptMessage } from '../../cryption/Encryption';
 
 const SignUp = (props) => {
-  const { navigation } = props
+  const { navigation } = props;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,9 +16,45 @@ const SignUp = (props) => {
   const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
 
+  // Lấy instance của Auth và Firestore
+  const auth = getAuth();
+  const db = getFirestore();
+
+  const Sign_Up = () => {
+    // Đăng ký người dùng
+    createUserWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        const userId = userCredential.user.uid;
+
+        // Mã hóa mật khẩu để lưu vào Firestore (nếu bạn muốn lưu mật khẩu đã mã hóa)
+        // const encryptedPassword = CryptoJS.AES.encrypt(password, 'secret-key').toString();
+
+        // Lưu thông tin người dùng vào Firestore
+        const userRef = doc(db, 'users', userId);
+        setDoc(userRef, {
+          username: encryptMessage(name),
+          email: encryptMessage(email),
+          password: encryptMessage(password)  // Lưu mật khẩu đã mã hóa
+        })
+          .then(() => {
+            Alert.alert("User created and saved to Firestore");
+            navigation.navigate('Login');
+          })
+          .catch((error) => {
+            console.log('Error saving user data to Firestore:', error);
+            Alert.alert('Error saving user data to Firestore');
+          });
+      }) 
+      .catch((err) => {
+        console.log('Error creating user:', err);
+        Alert.alert('Error creating user');
+      });
+  };
+
+
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password) => password.length >= 6;
-  const validateConfirmPassword = (password, confirmPassword) => password === confirmPassword
+  const validateConfirmPassword = (password, confirmPassword) => password === confirmPassword;
 
   const validateFields = () => {
     let newErrors = {};
@@ -54,6 +91,8 @@ const SignUp = (props) => {
             value={name}
             onChangeText={setName}
             autoCapitalize="none"
+            placeholderTextColor={'#8C96A2'}
+            color="black"  // Màu text rõ ràng
           />
           {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
         </View>
@@ -68,12 +107,12 @@ const SignUp = (props) => {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            placeholderTextColor={'#8C96A2'}
+            color="black"  // Màu text rõ ràng
           />
           {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
         </View>
 
-
-        {/* Ô nhập password */}
         <View style={styles.inputContainer}>
           <Text style={styles.validText}>
             Password
@@ -83,7 +122,9 @@ const SignUp = (props) => {
               style={[styles.input, errors.password && styles.errorInput]}
               value={password}
               onChangeText={setPassword}
+              placeholderTextColor="gray"  // Màu placeholder
               secureTextEntry={secureText}
+              color="black"  // Màu text rõ ràng
             />
             <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
               <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
@@ -101,7 +142,9 @@ const SignUp = (props) => {
               style={[styles.input, errors.confirmPassword && styles.errorInput]}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
+              placeholderTextColor={'#8C96A2'}
               secureTextEntry={secureText}
+              color="black"  // Màu text rõ ràng
             />
             <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
               <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
@@ -117,7 +160,8 @@ const SignUp = (props) => {
           style={[styles.loginButton, isFormValid && styles.activeCreateButton]}
           onPress={() => {
             if (validateFields()) {
-              navigation.navigate('Login'); 
+              Sign_Up;  // Gọi hàm đăng ký
+              navigation.navigate('Login');
             }
           }}
         >
