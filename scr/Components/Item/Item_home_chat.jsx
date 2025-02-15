@@ -1,19 +1,28 @@
 import {Image, StyleSheet, Text, View} from 'react-native';
 import React from 'react';
 
-const Item_search = props => {
-  const {data} = props;
-  console.log(data.username);
-  console.log(data.img);
+const Item_home_chat = props => {
+  const {data_chat} = props;
   return (
     <View style={styles.container}>
-      <Image source={{uri: data.img}} style={styles.img} />
-      <Text style={styles.text_name}>{data.username}</Text>
+      <Image source={{uri: data_chat.img}} style={styles.img} />
+      <View style={styles.container_item}>
+        <View style={styles.container_content}>
+          <Text style={styles.text_name}>{data_chat.name}</Text>
+          <Text style={styles.text_content}>{data_chat.content}</Text>
+        </View>
+        <View style={styles.container_content}>
+          <Text style={styles.text_content}>{data_chat.time}</Text>
+          <View style={styles.border}>
+            <Text style={styles.text_notifi}>3</Text>
+          </View>
+        </View>
+      </View>
     </View>
   );
 };
 
-export default Item_search;
+export default Item_home_chat;
 
 const styles = StyleSheet.create({
   img: {
@@ -27,15 +36,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     marginBottom: 30,
-    alignItems:'center',
-    borderBottomWidth:0.5,paddingBottom:10,
-    borderColor:'#D9D9D9',
   },
   text_name: {
     fontSize: 20,
     fontWeight: '500',
     color: 'black',
-    marginLeft:10
   },
   text_time: {
     fontSize: 12,

@@ -1,143 +1,181 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { app } from '../../firebaseConfig'; // Đảm bảo đã cấu hình Firebase
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { styles } from '../../Styles/Login_Sign_Up/Sign_up';
-import { oStackHome } from '../../navigations/HomeNavigation';
-import { auth } from '../../firebaseConfig';
+import {styles} from '../../Styles/auth/Sign_up';
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+} from '@react-native-firebase/auth';
+import {getFirestore, doc, setDoc} from '@react-native-firebase/firestore';
+import {encryptMessage} from '../../cryption/Encryption';
 
-const SignUp = ({ navigation }) => {
+const SignUp = props => {
+  const {navigation} = props;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [secureTextPassword, setSecureTextPassword] = useState(true);
-  const [secureTextConfirm, setSecureTextConfirm] = useState(true);
+  const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
+  const [Image] = useState('https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg');
 
+  const auth = getAuth();
+  const db = getFirestore();
 
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validatePassword = (password) => password.length >= 6;
-  const validateConfirmPassword = (password, confirmPassword) => password === confirmPassword;
-
-
-  const db = getFirestore(app);
+  const Sign_Up = () => {
+    createUserWithEmailAndPassword(auth, email, password)
+      .then(userCredential => {
+        const userId = userCredential.user.uid;
+        const userRef = doc(db, 'users', userId);
+        setDoc(userRef, {
+          username: encryptMessage(name),
+          email: encryptMessage(email),
+          password: encryptMessage(password),
+          Image: encryptMessage(Image),
+        })
+          .then(() => {
+            Alert.alert('User created and saved to Firestore');
+            navigation.navigate('Login');
+          })
+          .catch(error => {
+            Alert.alert('Error saving user data to Firestore');
+          });
+      })
+      .catch(() => {
+        Alert.alert('Error creating user');
+      });
+  };
 
   const validateFields = () => {
     let newErrors = {};
     if (!name.trim()) newErrors.name = 'Name is required';
-    if (!validateEmail(email.trim())) newErrors.email = 'Invalid email address';
-    if (!validatePassword(password)) newErrors.password = 'Password must be at least 6 characters';
-    if (!validateConfirmPassword(password, confirmPassword)) newErrors.confirmPassword = 'Passwords do not match';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      newErrors.email = 'Invalid email address';
+    if (password.length < 6)
+      newErrors.password = 'Password must be at least 6 characters';
+    if (password !== confirmPassword)
+      newErrors.confirmPassword = 'Passwords do not match';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSignUp = async () => {
-    if (!validateFields()) return;
-
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      const userId = userCredential.user.uid;
-
-      // Lưu vào Firestore
-      await setDoc(doc(db, 'users', userId), {
-        uid: userId,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password: password.trim(),
-        createdAt: serverTimestamp(),
-      });
-
-      Alert.alert('Success', 'Account created successfully!');
-      navigation.navigate(oStackHome.Login.name);
-    } catch (error) {
-      console.error('Firebase Auth Error:', error);
-      Alert.alert('Error', error.message);
-      let errorMessage = 'An error occurred. Please try again.';
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already in use.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email format.';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password should be at least 6 characters.';
-      }
-      Alert.alert('Error', errorMessage);
-    }
-  };
-
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Icon name="arrow-left" size={24} color="black" />
-      </TouchableOpacity>
-
-      <View style={styles.content}>
-        <Text style={styles.title}>Sign up with Email</Text>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>Your Name</Text>
-          <TextInput 
-            style={[styles.input, errors.name && styles.errorInput]} 
-            value={name} 
-            onChangeText={setName} 
-          />
-          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>Your Email</Text>
-          <TextInput
-            style={[styles.input, errors.email && styles.errorInput]}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-          />
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>Password</Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[styles.input, errors.password && styles.errorInput]}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={secureTextPassword}
-            />
-            <TouchableOpacity onPress={() => setSecureTextPassword(!secureTextPassword)} style={styles.eyeIcon}>
-              <Icon name={secureTextPassword ? 'eye-off' : 'eye'} size={20} color="gray" />
+    <KeyboardAvoidingView
+      style={{flex: 1}}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView contentContainerStyle={{flexGrow: 1}}>
+          <View style={styles.container}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}>
+              <Icon name="arrow-left" size={24} color="black" />
             </TouchableOpacity>
-          </View>
-          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-        </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.validText}>Confirm Password</Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[styles.input, errors.confirmPassword && styles.errorInput]}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={secureTextConfirm}
-            />
-            <TouchableOpacity onPress={() => setSecureTextConfirm(!secureTextConfirm)} style={styles.eyeIcon}>
-              <Icon name={secureTextConfirm ? 'eye-off' : 'eye'} size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-          {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-        </View>
-      </View>
+            <View style={styles.content}>
+              <Text style={styles.title}>Sign up with Email</Text>
+              <Text style={styles.subtitle}>
+                Get chatting with friends and family today!
+              </Text>
 
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.loginButton} onPress={handleSignUp}>
-          <Text style={styles.loginText}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+              <View style={styles.inputContainer}>
+                <Text style={styles.validText}>Your Name</Text>
+                <TextInput
+                  style={[styles.input, errors.name && styles.errorInput]}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="none"
+                  placeholderTextColor={'#8C96A2'}
+                  color="black"
+                />
+                {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.validText}>Your email</Text>
+                <TextInput
+                  style={[styles.input, errors.email && styles.errorInput]}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor={'#8C96A2'}
+                  color="black"
+                />
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.validText}>Password</Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={[styles.input, errors.password && styles.errorInput]}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholderTextColor="gray"
+                    secureTextEntry={secureText}
+                    color="black"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setSecureText(!secureText)}
+                    style={styles.eyeIcon}>
+                    <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.validText}>Confirm Password</Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={[styles.input, errors.confirmPassword && styles.errorInput]}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholderTextColor={'#8C96A2'}
+                    secureTextEntry={secureText}
+                    color="black"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setSecureText(!secureText)}
+                    style={styles.eyeIcon}>
+                    <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+                  </TouchableOpacity>
+                </View>
+                {errors.confirmPassword && (
+                  <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.bottomContainer}>
+              <TouchableOpacity
+                style={styles.loginButton}
+                onPress={() => {
+                  if (validateFields()) {
+                    Sign_Up();
+                    navigation.navigate('Login');
+                  }
+                }}>
+                <Text style={styles.loginText}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 

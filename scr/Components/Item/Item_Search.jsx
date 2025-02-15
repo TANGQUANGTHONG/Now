@@ -3,12 +3,15 @@ import React from 'react';
 
 const Item_search = props => {
   const {data} = props;
-  console.log(data.username);
-  console.log(data.img);
   return (
     <View style={styles.container}>
       <Image source={{uri: data.img}} style={styles.img} />
-      <Text style={styles.text_name}>{data.username}</Text>
+      <View style={styles.container_item}>
+        <View style={styles.container_content}>
+          <Text style={styles.text_name}>{data.name}</Text>
+          <Text style={styles.text_content}>{data.content}</Text>
+        </View>
+      </View>
     </View>
   );
 };
@@ -27,15 +30,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     marginBottom: 30,
-    alignItems:'center',
-    borderBottomWidth:0.5,paddingBottom:10,
-    borderColor:'#D9D9D9',
   },
   text_name: {
     fontSize: 20,
     fontWeight: '500',
     color: 'black',
-    marginLeft:10
   },
   text_time: {
     fontSize: 12,

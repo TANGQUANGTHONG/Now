@@ -4,10 +4,31 @@ import SingleS from '../../Styles/Chat/SingleS'
 import Icon from 'react-native-vector-icons/Ionicons'
 import Chat from '../../components/chat_single/Chat'
 import Chat2 from '../../components/chat_single/Chat2'
-// import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { encryptMessage, decryptMessage } from './maHoa'
+
 const Single = (props) => {
     const {navigation} = props
-    const data = [
+
+    const [message, setMessage] = useState('')
+
+    const handleSendMessage = () => {
+        if (message.trim()) {
+            // Mã hóa tin nhắn trước khi gửi
+            const encryptedMessage = encryptMessage(message.trim());
+            console.log("Tin ma hoa:", encryptedMessage);
+
+            const tinDaMaHoa = decryptMessage(encryptMessage)
+            console.log("Tin nhan: ", tinDaMaHoa)
+            // Sau khi mã hóa, bạn có thể gửi tin nhắn mã hóa đến server hoặc thực hiện các hành động khác.
+            // Ví dụ:
+            // sendMessageToServer(encryptedMessage);
+            
+            // Xóa ô input sau khi gửi
+            setMessage('');
+        }
+    };
+
+    const data = [ 
         {
             id: 1,
             name: 'Alex Linderson',
@@ -94,7 +115,6 @@ const Single = (props) => {
                 contentContainerStyle={{ paddingVertical: 20, marginHorizontal: 20 }}
             />
 
-
             {/* Input Box */}
             <View style={SingleS.boxbtnTextInput}>
                 <View style={{
@@ -106,11 +126,16 @@ const Single = (props) => {
                 }}>
                     <Icon name="attach" size={25} color="black" />
                     <TextInput
+                        value={message}
+                        onChangeText={setMessage}
+                        placeholderTextColor={'gray'}
                         placeholder="Write your message"
                         style={SingleS.input}
                         multiline={true}
                     />
-                    <Icon name="send" size={25} color="black" />
+                    <Pressable onPress={handleSendMessage}>
+                        <Icon name="send" size={25} color="black" />
+                    </Pressable>
                 </View>
             </View>
         </View>
