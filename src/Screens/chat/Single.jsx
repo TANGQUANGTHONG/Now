@@ -1,145 +1,151 @@
-import { FlatList, Image, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Pressable } from 'react-native'
-import React, { useState, useEffect } from 'react'
-import SingleS from '../../Styles/Chat/SingleS'
-import Icon from 'react-native-vector-icons/Ionicons'
-import Chat from '../../components/chat_single/Chat'
-import Chat2 from '../../components/chat_single/Chat2'
-import { encryptMessage, decryptMessage } from './maHoa'
+import React, {useState, useEffect} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  FlatList,
+  StyleSheet,
+} from 'react-native';
+import {useRoute} from '@react-navigation/native';
+import firestore from '@react-native-firebase/firestore';
 
-const Single = (props) => {
-    const {navigation} = props
+const Single = () => {
+  const route = useRoute();
+  const {userId, myId, myUsername, username, img} = route.params;
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
 
-    const [message, setMessage] = useState('')
+  console.log('Người gửi (myId):', myId);
+  console.log('Người nhận (userId):', userId);
 
-    const handleSendMessage = () => {
-        if (message.trim()) {
-            // Mã hóa tin nhắn trước khi gửi
-            const encryptedMessage = encryptMessage(message.trim());
-            console.log("Tin ma hoa:", encryptedMessage);
+  useEffect(() => {
+    const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
 
-            const tinDaMaHoa = decryptMessage(encryptMessage)
-            console.log("Tin nhan: ", tinDaMaHoa)
-            // Sau khi mã hóa, bạn có thể gửi tin nhắn mã hóa đến server hoặc thực hiện các hành động khác.
-            // Ví dụ:
-            // sendMessageToServer(encryptedMessage);
-            
-            // Xóa ô input sau khi gửi
-            setMessage('');
-        }
-    };
+    const messagesRef = firestore()
+      .collection('chats')
+      .doc(chatId)
+      .collection('messages');
 
-    const data = [ 
-        {
-            id: 1,
-            name: 'Alex Linderson',
-            message: [
-                {
-                    message: 'Hello !!'
-                },
-                {
-                    id: 2,
-                    message: 'How are you?'
-                },
-                {
-                    id: 3,
-                    message: 'Long time no see'
-                },
-            ],
-            image: "https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__"
-        }
-    ]
+    const unsubscribe = messagesRef
+      .orderBy('timestamp', 'asc')
+      .onSnapshot(snapshot => {
+        const msgs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setMessages(msgs);
+      });
 
-    const data2 = [
-        {
-            id: 1,
-            name: 'Kenny',
-            message: [
-                {
-                    message: 'Hi'
-                },
-                {
-                    id: 2,
-                    message: "I'm fine and you?"
-                },
-            ],
-            image: "https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__"
-        }
-    ]
+    return () => unsubscribe(); // Hủy lắng nghe khi component unmount
+  }, [userId, myId]);
 
-    const footer = () => {
-        return (
-            <View style={{ alignSelf: 'flex-start', width: '100%', marginTop: 20 }}>
-                <FlatList
-                    data={data2}
-                    renderItem={({ item }) => <Chat2 data2={item} />}
-                    keyExtractor={item => item.id.toString()}
-                />
-            </View>
-        )
+  const sendMessage = async () => {
+    if (!text.trim()) return;
+
+    const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
+
+    const chatRef = firestore().collection('chats').doc(chatId);
+
+    try {
+      const chatSnapshot = await chatRef.get();
+
+      if (!chatSnapshot.exists) {
+        await chatRef.set({users: [userId, myId]});
+      }
+
+      await chatRef.collection('messages').add({
+        senderId: myId, // Sửa userId thành myId
+        text,
+        timestamp: firestore.FieldValue.serverTimestamp(),
+      });
+
+      setText('');
+    } catch (error) {
+      console.error('Lỗi khi gửi tin nhắn:', error);
     }
+  };
 
-    return (
-        <View style={SingleS.container}>
-            {/* Header */}
-            <View style={{ backgroundColor: "white" }}>
-                <View style={SingleS.header}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Pressable onPress={() => navigation.goBack()}>
-                        <Icon name="arrow-back" size={25} color="black" />
-                        </Pressable>
-                        <Pressable onPress={()=> navigation.navigate('Profile')}>
-                        <View style={SingleS.boxText}>
-                            <Image style={SingleS.avatar} source={{ uri: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',          }} />
-                            <View style={{ marginLeft: 10 }}>
-                                <Text style={SingleS.txtNameHeader}>Alex Linderson</Text>
-                                <Text style={{ fontSize: 13 }}>Active now</Text>
-                            </View>
-                        </View>
-                        </Pressable>
-                    </View>
-                    <View style={{ flexDirection: 'row' }}>
-                        <Icon name="call-outline" size={25} color="black" style={{ marginRight: 10 }} />
-                        <Icon name="videocam-outline" size={25} color="black" />
-                    </View>
-                </View>
-            </View>
+  return (
+    <View style={styles.container}>
+      <Text style={styles.username}>{username}</Text>
+      <FlatList
+        data={messages}
+        keyExtractor={item => item.id}
+        renderItem={({item}) => (
+          <View
+            style={
+              item.senderId === myId
+                ? styles.sentContainer // Tin nhắn do mình gửi
+                : styles.receivedContainer // Tin nhắn do người khác gửi
+            }>
+            <Text
+              style={
+                item.senderId === myId ? styles.sentText : styles.receivedText
+              }>
+              {item.text}
+            </Text>
+          </View>
+        )}
+      />
 
-            {/* Body */}
-            <FlatList
-                data={data}
-                renderItem={({ item }) => <Chat data={item} />}
-                keyExtractor={item => item.id.toString()}
-                ListFooterComponent={footer}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingVertical: 20, marginHorizontal: 20 }}
-            />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={text}
+          onChangeText={setText}
+          placeholder="Nhập tin nhắn..."
+        />
+        <Button title="Gửi" onPress={sendMessage} />
+      </View>
+    </View>
+  );
+};
 
-            {/* Input Box */}
-            <View style={SingleS.boxbtnTextInput}>
-                <View style={{
-                    marginHorizontal: 20,
-                    marginVertical: 20,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                }}>
-                    <Icon name="attach" size={25} color="black" />
-                    <TextInput
-                        value={message}
-                        onChangeText={setMessage}
-                        placeholderTextColor={'gray'}
-                        placeholder="Write your message"
-                        style={SingleS.input}
-                        multiline={true}
-                    />
-                    <Pressable onPress={handleSendMessage}>
-                        <Icon name="send" size={25} color="black" />
-                    </Pressable>
-                </View>
-            </View>
-        </View>
-    )
-}
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 10,
+  },
+  username: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  sentContainer: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#dcf8c6',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 5,
+    maxWidth: '70%',
+  },
+  receivedContainer: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#f1f1f1',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 5,
+    maxWidth: '70%',
+  },
+  sentText: {
+    color: 'black',
+  },
+  receivedText: {
+    color: 'black',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 8,
+    marginRight: 5,
+  },
+});
 
-export default Single
+export default Single;

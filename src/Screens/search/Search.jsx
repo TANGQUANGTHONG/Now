@@ -6,20 +6,37 @@ import {
   View,
   Dimensions,
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_search from '../../components/items/Item_search';
 // Sử dụng cú pháp import mới từ Firebase Modular SDK
-import { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
-const { width, height } = Dimensions.get('window');
-import {decryptMessage } from '../../cryption/Encryption';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+} from '@react-native-firebase/firestore';
+const {width, height} = Dimensions.get('window');
+import {decryptMessage} from '../../cryption/Encryption';
+import {oStackHome} from '../../navigations/HomeNavigation';
+import {useNavigation} from '@react-navigation/native';
+import auth from '@react-native-firebase/auth';
 
 const Search = () => {
   const [searchText, setSearchText] = useState('');
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const navigation = useNavigation();
   console.log(filteredUsers);
 
+  const handleUserPress = (userId, username, img) => {
+    const myId = auth().currentUser?.uid; // Lấy ID user hiện tại từ Firebase
+    navigation.navigate(oStackHome.Single.name, {
+      userId,
+      myId,
+      username,
+      img,
+    });
+  };
   const fetchUsers = async () => {
     try {
       // Sử dụng phương thức mới `getDocs()` từ Firestore Modular SDK
@@ -71,7 +88,12 @@ const Search = () => {
       <View style={styles.list_search}>
         <FlatList
           data={filteredUsers}
-          renderItem={({ item }) => <Item_search data={item} />}
+          renderItem={({item}) => (
+            <Item_search
+              data={item}
+              onPress={() => handleUserPress(item.id, item.username, item.img)}
+            />
+          )}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
         />

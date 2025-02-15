@@ -12,6 +12,7 @@ import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import Login from '../Screens/auth/Login';
 import SignUp from '../Screens/auth/SignUp';
+import ProfileView from '../Screens/Profile_Settings/ProfileView';
 
 // Danh sách tab
 const oTab = {
@@ -87,6 +88,7 @@ const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},
   Profile: {name: 'Profile', component: Profile},
+  ProfileView: {name: 'ProfileView', component: ProfileView},
   Single: {name: 'Single', component: Single},
   Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
