@@ -26,7 +26,7 @@ const AppNavigation = () => {
     <NavigationContainer>
 
         {
-          user ?           <HomeNavigation />  : <UserNavigation/>
+          user ? <HomeNavigation />  : <UserNavigation/>
 
         }
       

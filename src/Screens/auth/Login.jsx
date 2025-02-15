@@ -23,7 +23,6 @@ const Login = (props) => {
       .catch((err) => console.log(err))
   }
 
-
   // Kiểm tra email hợp lệ
   const isValidEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -219,7 +218,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: height * 0.03, // Đặt ở dưới cùng với khoảng cách là 3% chiều cao
+    bottom: height * 0.07, // Đặt ở dưới cùng với khoảng cách là 3% chiều cao
     left: width * 0.05, // Khoảng cách từ trái là 5% chiều rộng
     right: width * 0.05, // Khoảng cách từ phải là 5% chiều rộng
   },
