@@ -11,6 +11,7 @@ import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import Login from '../Screens/auth/Login';
+import SignUp from '../Screens/auth/SignUp';
 
 // Danh sách tab
 const oTab = {
@@ -78,10 +79,10 @@ const TabHome = () => {
   );
 };
 
-
 // Danh sách Stack Home
 
-import Profile from '../Screens/Profile_Settings/Profile';
+import Profile from '../Screens/Profile';
+
 const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},

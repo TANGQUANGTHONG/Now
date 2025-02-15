@@ -10,10 +10,8 @@ import {
 } from 'react-native';
 import React, {useState, useRef} from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import Item_home_friend from '../../Styles/Home_Search/Item_home_friend';
-import Item_home_chat from '../../Styles/Home_Search/Item_home_chat';
-import { oStackHome } from '../../navigations/HomeNavigation';
-import { useNavigation } from '@react-navigation/native';
+import Item_home_friend from '../../Components/Item/Item_home_friend';
+import Item_home_chat from '../../Components/Item/Item_home_chat';
 const Home = () => {
   const [data_chat, setdata_chat] = useState([
     {
