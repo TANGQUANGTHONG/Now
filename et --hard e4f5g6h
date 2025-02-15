@@ -1,0 +1,36 @@
+[33m9327220[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m mahoatinnhan
+[33m31d4c19[m updateChat
+[33m3e31ba6[m newUpdate
+[33m6427751[m[33m ([m[1;31morigin/QThong_FB[m[33m)[m thong_update
+[33m7229ede[m newUpdate
+[33me64688a[m fixloi
+[33mbfd8957[m 15
+[33m079e4d3[m 15
+[33m04b4173[m[33m ([m[1;31morigin/Tai_Fix_Warn_Search[m[33m)[m fix_Warn_Search
+[33m773c598[m[33m ([m[1;31morigin/Do_GiaiMa[m[33m)[m Do_GiaiMaDuLieuTimKiem
+[33ma9a21fa[m nothing
+[33m6bd9f1f[m[33m ([m[1;31morigin/Canh_searchFix[m[33m)[m canh456
+[33ma926da8[m canh123
+[33m6d56616[m[33m ([m[1;31morigin/Do_MaHoa[m[33m)[m fix
+[33mcc6bf90[m[33m ([m[1;31morigin/Canh_search[m[33m)[m search2
+[33m78539a9[m canh1
+[33m61eacd5[m search
+[33m10d37ed[m mahoa
+[33m21c0784[m firebase
+[33md20655f[m[33m ([m[1;31morigin/Tai_Register_Firebase[m[33m)[m Tai_Register
+[33m3977664[m  setup
+[33m03ddea1[m 14-2
+[33m615832a[m[33m ([m[1;31morigin/Tai_BottomTab[m[33m)[m Dimensions_styles
+[33m1c16583[m Tai_BottomTab
+[33m2616b8d[m[33m ([m[1;31morigin/Do_Chat[m[33m)[m Chat
+[33mf4f4830[m 13-2
+[33mf5c76be[m 13-2
+[33m3e252a4[m 13-2
+[33mc48c9e4[m create auth screen
+[33mdefac15[m[33m ([m[1;31morigin/Canh_home_search[m[33m)[m home_search
+[33m98780cc[m 12-2
+[33m8aa3ee1[m Merge pull request #1 from TANGQUANGTHONG/tai
+[33m4c3252e[m[33m ([m[1;31morigin/tai[m[33m)[m giao_dien_Profile
+[33m968bba8[m bottomtab_navigation_profileScreen
+[33m17f92f2[m 11-2
+[33mb8e0d5f[m Initial commit
