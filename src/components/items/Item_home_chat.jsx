@@ -1,24 +1,25 @@
-import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import React from 'react';
 
-const Item_home_chat = ({data_chat, onPress}) => {
+const Item_home_chat = ({ data_chat, onPress }) => {
   return (
     <Pressable onPress={onPress}>
-    <View style={styles.container}>
-      <Image source={{uri: data_chat.img}} style={styles.img} />
-      <View style={styles.container_item}>
-        <View style={styles.container_content}>
-          <Text style={styles.text_name}>{data_chat.name}</Text>
-          <Text style={styles.text_content}>{data_chat.content}</Text>
-        </View>
-        <View style={styles.container_content}>
-          <Text style={styles.text_content}>{data_chat.time}</Text>
-          <View style={styles.border}>
-            <Text style={styles.text_notifi}>3</Text>
+      <View style={styles.container}>
+        <Image
+          source={{ uri: data_chat.img || "https://example.com/default-avatar.png" }}
+          style={styles.img}
+          onError={(e) => console.log("Lỗi tải ảnh:", e.nativeEvent.error)}
+        />
+        <View style={styles.container_item}>
+          <View style={styles.container_content}>
+            <Text style={styles.text_name}>{data_chat.name}</Text>
+            <Text style={styles.text_content}>{data_chat.text}</Text>
+          </View>
+          <View style={styles.container_content}>
+            <Text style={styles.text_content}>{data_chat.time}</Text>
           </View>
         </View>
       </View>
-    </View>
     </Pressable>
   );
 };
