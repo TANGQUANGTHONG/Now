@@ -1,5 +1,5 @@
 // FireBaseConfig.jsx
-import { getApp, initializeApp } from '@react-native-firebase/app';
+import {getApp, initializeApp} from '@react-native-firebase/app';
 import {getAuth} from 'firebase/auth';
 import {getFirestore} from 'firebase/firestore';
 

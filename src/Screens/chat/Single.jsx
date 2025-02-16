@@ -26,18 +26,20 @@ const Single = () => {
       .doc(chatId)
       .collection('messages');
 
-    const unsubscribe = messagesRef.orderBy('timestamp', 'asc').onSnapshot(snapshot => {
-      const msgs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          senderId: data.senderId,
-          text: decryptMessage(data.text),
-          timestamp: data.timestamp,
-        };
+    const unsubscribe = messagesRef
+      .orderBy('timestamp', 'asc')
+      .onSnapshot(snapshot => {
+        const msgs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            senderId: data.senderId,
+            text: decryptMessage(data.text),
+            timestamp: data.timestamp,
+          };
+        });
+        setMessages(msgs);
       });
-      setMessages(msgs);
-    });
 
     return () => unsubscribe();
   }, [userId, myId]);

@@ -13,6 +13,7 @@ import Search from '../Screens/search/Search';
 import Login from '../Screens/auth/Login';
 import SignUp from '../Screens/auth/SignUp';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
+import ChangeDisplayName from '../components/setting/ChangeDisplayName';
 
 // Danh sách tab
 const oTab = {
@@ -93,6 +94,7 @@ const oStackHome = {
   Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
   Login: {name: 'Login', component: Login},
+  ChangeDisplayNamey: {name: 'ChangeDisplayName', component: ChangeDisplayName},
 };
 
 const StackHome = createNativeStackNavigator();
