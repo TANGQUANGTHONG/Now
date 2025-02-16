@@ -1,7 +1,7 @@
 // FireBaseConfig.jsx
-import { getApp, initializeApp } from '@react-native-firebase/app';
-import {getAuth} from 'firebase/auth';
-import {getFirestore} from 'firebase/firestore';
+import { initializeApp } from '@react-native-firebase/app';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -14,9 +14,8 @@ const firebaseConfig = {
   measurementId: 'G-L0044B23WT',
 };
 
-// Initialize Firebase
+// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
 
-export {auth, db, app};
+// Export instances
+export { auth, firestore, app };

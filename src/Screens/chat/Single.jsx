@@ -25,6 +25,8 @@ const Single = () => {
   const [text, setText] = useState('');
   const navigation = useNavigation();
   const firestore = getFirestore();
+  const [hiddenMessages, setHiddenMessages] = useState([]);
+
 
   const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
 
@@ -79,6 +81,7 @@ const Single = () => {
   };
 
   const deleteMessageForMe = async messageId => {
+    setHiddenMessages((prev) => [...prev, messageId]); // Thêm vào danh sách các tin nhắn đã bị ẩn
     try {
       await firestore
         .collection('chats')
@@ -86,14 +89,14 @@ const Single = () => {
         .collection('messages')
         .doc(messageId)
         .update({
-          text: encryptMessage('Đã xóa tin nhắn'), // Mã hóa trước khi lưu
-          deleted: true,
+          deleted: true, // Chỉ đánh dấu là đã xóa (ẩn) chứ không thay đổi nội dung
         });
-
+  
+      // Cập nhật lại danh sách tin nhắn trong trạng thái
       setMessages(prevMessages =>
         prevMessages.map(msg =>
           msg.id === messageId
-            ? {...msg, text: 'Đã xóa tin nhắn', deleted: true}
+            ? {...msg, deleted: true}
             : msg,
         ),
       );
@@ -101,6 +104,7 @@ const Single = () => {
       console.error('Lỗi khi xóa tin nhắn phía bạn:', error);
     }
   };
+  
 
   const deleteMessageForBoth = async messageId => {
     try {
@@ -125,12 +129,13 @@ const Single = () => {
       'Xóa tin nhắn',
       'Bạn muốn xóa tin nhắn này phía bạn hay cả hai?',
       [
-        {text: 'Hủy', style: 'cancel'},
-        {text: 'Xóa phía bạn', onPress: () => deleteMessageForMe(messageId)},
-        {text: 'Xóa cả hai', onPress: () => deleteMessageForBoth(messageId)},
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Xóa phía bạn', onPress: () => deleteMessageForMe(messageId) }, // Gọi hàm chỉ ẩn tin nhắn
+        { text: 'Xóa cả hai', onPress: () => deleteMessageForBoth(messageId) },
       ],
     );
   };
+  
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -162,7 +167,7 @@ const Single = () => {
 
         {/* Tin nhắn & input chat giữ nguyên */}
         <FlatList
-  data={messages}
+  data={messages.filter(msg => !hiddenMessages.includes(msg.id) && !msg.deleted)} // Chỉ lọc ra tin nhắn chưa bị ẩn
   keyExtractor={(item) => item.id}
   renderItem={({ item }) => (
     <View style={item.senderId === myId ? styles.sentWrapper : styles.receivedWrapper}>
@@ -171,14 +176,16 @@ const Single = () => {
         onLongPress={() => confirmDeleteMessage(item.id)}
         style={item.senderId === myId ? styles.sentContainer : styles.receivedContainer}>
         {item.senderId !== myId && <Text style={styles.usernameText}>{username}</Text>}
-        <Text style={item.text === 'Đã xóa tin nhắn' ? styles.deletedText : styles.messageText}>
-          {item.text}
+        <Text style={styles.messageText}>{item.text}</Text>
+        <Text style={styles.timestamp}>
+          {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
-        <Text style={styles.timestamp}>{item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
       </TouchableOpacity>
     </View>
   )}
 />
+
+
 
 
         <View style={styles.inputContainer}>
