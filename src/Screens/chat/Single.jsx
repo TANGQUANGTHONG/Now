@@ -11,12 +11,12 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import {useRoute,useNavigation} from '@react-navigation/native';
-import {getFirestore, serverTimestamp,} from '@react-native-firebase/firestore';
+import {useRoute, useNavigation} from '@react-navigation/native';
+import {getFirestore, serverTimestamp} from '@react-native-firebase/firestore';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { oStackHome } from '../../navigations/HomeNavigation';
-
+import {oStackHome} from '../../navigations/HomeNavigation';
+import SQLite from 'react-native-sqlite-storage';
 
 const Single = () => {
   const route = useRoute();
@@ -26,8 +26,6 @@ const Single = () => {
   const navigation = useNavigation();
   const firestore = getFirestore();
   const [hiddenMessages, setHiddenMessages] = useState([]);
-
-
   const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
 
   useEffect(() => {
@@ -36,7 +34,7 @@ const Single = () => {
       .doc(chatId)
       .collection('messages')
       .orderBy('timestamp', 'asc');
-  
+
     const unsubscribe = messagesRef.onSnapshot(snapshot => {
       const msgs = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -52,10 +50,9 @@ const Single = () => {
       });
       setMessages(msgs);
     });
-  
+
     return () => unsubscribe();
   }, [chatId]);
-  
 
   // gửi tin nhắn
   const sendMessage = async () => {
@@ -81,7 +78,7 @@ const Single = () => {
   };
 
   const deleteMessageForMe = async messageId => {
-    setHiddenMessages((prev) => [...prev, messageId]); // Thêm vào danh sách các tin nhắn đã bị ẩn
+    setHiddenMessages(prev => [...prev, messageId]); // Thêm vào danh sách các tin nhắn đã bị ẩn
     try {
       await firestore
         .collection('chats')
@@ -91,20 +88,17 @@ const Single = () => {
         .update({
           deleted: true, // Chỉ đánh dấu là đã xóa (ẩn) chứ không thay đổi nội dung
         });
-  
+
       // Cập nhật lại danh sách tin nhắn trong trạng thái
       setMessages(prevMessages =>
         prevMessages.map(msg =>
-          msg.id === messageId
-            ? {...msg, deleted: true}
-            : msg,
+          msg.id === messageId ? {...msg, deleted: true} : msg,
         ),
       );
     } catch (error) {
       console.error('Lỗi khi xóa tin nhắn phía bạn:', error);
     }
   };
-  
 
   const deleteMessageForBoth = async messageId => {
     try {
@@ -129,67 +123,128 @@ const Single = () => {
       'Xóa tin nhắn',
       'Bạn muốn xóa tin nhắn này phía bạn hay cả hai?',
       [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Xóa phía bạn', onPress: () => deleteMessageForMe(messageId) }, // Gọi hàm chỉ ẩn tin nhắn
-        { text: 'Xóa cả hai', onPress: () => deleteMessageForBoth(messageId) },
+        {text: 'Hủy', style: 'cancel'},
+        {text: 'Xóa phía bạn', onPress: () => deleteMessageForMe(messageId)}, // Gọi hàm chỉ ẩn tin nhắn
+        {text: 'Xóa cả hai', onPress: () => deleteMessageForBoth(messageId)},
       ],
     );
   };
-  
+
+  // useEffect 1: Tạo bảng SQLite và lấy tin nhắn từ SQLite khi khởi động
+  useEffect(() => {
+    createTable();
+    getMessagesFromSQLite(); // Lấy tin nhắn từ SQLite khi khởi động
+  }, []);
+
+  // useEffect 2: Lắng nghe tin nhắn từ Firestore và lưu vào SQLite
+  useEffect(() => {
+    const messagesRef = firestore
+      .collection('chats')
+      .doc(chatId)
+      .collection('messages')
+      .orderBy('timestamp', 'asc');
+
+    const unsubscribe = messagesRef.onSnapshot(snapshot => {
+      const msgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const decryptedText =
+          data.text === encryptMessage('Đã xóa tin nhắn')
+            ? 'Đã xóa tin nhắn'
+            : decryptMessage(data.text);
+
+        // Lưu vào SQLite
+        insertMessage(
+          doc.id,
+          chatId,
+          data.senderId,
+          decryptedText,
+          data.timestamp ? data.timestamp.toDate().getTime() : Date.now(),
+        );
+
+        return {
+          id: doc.id,
+          senderId: data.senderId,
+          text: decryptedText,
+          timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+        };
+      });
+      setMessages(msgs);
+    });
+
+    return () => unsubscribe();
+  }, [chatId]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        
-      <View style={styles.header}>
-  {/* Nút Back */}
-  <TouchableOpacity onPress={() => navigation.navigate(oStackHome.TabHome.name)} style={styles.backButton}>
-    <Icon name="arrow-left" size={28} color="#000" />
-  </TouchableOpacity>
+        <View style={styles.header}>
+          {/* Nút Back */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate(oStackHome.TabHome.name)}
+            style={styles.backButton}>
+            <Icon name="arrow-left" size={28} color="#000" />
+          </TouchableOpacity>
 
-  {/* Avatar và Username nằm cùng hàng */}
-  <View style={styles.userInfo}>
-    <Image source={{ uri: img }} style={styles.headerAvatar} />
-    <Text style={styles.headerUsername}>{username}</Text>
-  </View>
+          {/* Avatar và Username nằm cùng hàng */}
+          <View style={styles.userInfo}>
+            <Image source={{uri: img}} style={styles.headerAvatar} />
+            <Text style={styles.headerUsername}>{username}</Text>
+          </View>
 
-  {/* Call & Video Call Icons */}
-  <View style={styles.iconContainer}>
-    <TouchableOpacity onPress={() => console.log('Call')} style={styles.iconButton}>
-      <Icon name="phone" size={24} color="#007bff" />
-    </TouchableOpacity>
-    <TouchableOpacity onPress={() => console.log('Video Call')} style={styles.iconButton}>
-      <Icon name="video" size={24} color="#007bff" />
-    </TouchableOpacity>
-  </View>
-</View>
-
+          {/* Call & Video Call Icons */}
+          <View style={styles.iconContainer}>
+            <TouchableOpacity
+              onPress={() => console.log('Call')}
+              style={styles.iconButton}>
+              <Icon name="phone" size={24} color="#007bff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => console.log('Video Call')}
+              style={styles.iconButton}>
+              <Icon name="video" size={24} color="#007bff" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Tin nhắn & input chat giữ nguyên */}
         <FlatList
-  data={messages.filter(msg => !hiddenMessages.includes(msg.id) && !msg.deleted)} // Chỉ lọc ra tin nhắn chưa bị ẩn
-  keyExtractor={(item) => item.id}
-  renderItem={({ item }) => (
-    <View style={item.senderId === myId ? styles.sentWrapper : styles.receivedWrapper}>
-      {item.senderId !== myId && <Image source={{ uri: img }} style={styles.avatar} />}
-      <TouchableOpacity
-        onLongPress={() => confirmDeleteMessage(item.id)}
-        style={item.senderId === myId ? styles.sentContainer : styles.receivedContainer}>
-        {item.senderId !== myId && <Text style={styles.usernameText}>{username}</Text>}
-        <Text style={styles.messageText}>{item.text}</Text>
-        <Text style={styles.timestamp}>
-          {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  )}
-/>
-
-
-
+          data={messages.filter(
+            msg => !hiddenMessages.includes(msg.id) && !msg.deleted,
+          )} // Chỉ lọc ra tin nhắn chưa bị ẩn
+          keyExtractor={item => item.id}
+          renderItem={({item}) => (
+            <View
+              style={
+                item.senderId === myId
+                  ? styles.sentWrapper
+                  : styles.receivedWrapper
+              }>
+              {item.senderId !== myId && (
+                <Image source={{uri: img}} style={styles.avatar} />
+              )}
+              <TouchableOpacity
+                onLongPress={() => confirmDeleteMessage(item.id)}
+                style={
+                  item.senderId === myId
+                    ? styles.sentContainer
+                    : styles.receivedContainer
+                }>
+                {item.senderId !== myId && (
+                  <Text style={styles.usernameText}>{username}</Text>
+                )}
+                <Text style={styles.messageText}>{item.text}</Text>
+                <Text style={styles.timestamp}>
+                  {item.timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
 
         <View style={styles.inputContainer}>
-          
           <TextInput
             style={styles.input}
             value={text}
@@ -197,10 +252,13 @@ const Single = () => {
             placeholder="Nhập tin nhắn..."
           />
           <TouchableOpacity onPress={sendMessage} disabled={!text.trim()}>
-            <Icon name={text.trim() ? 'send' : 'microphone'} size={24} color={text.trim() ? '#007bff' : '#aaa'} />
+            <Icon
+              name={text.trim() ? 'send' : 'microphone'}
+              size={24}
+              color={text.trim() ? '#007bff' : '#aaa'}
+            />
           </TouchableOpacity>
         </View>
-
       </View>
     </TouchableWithoutFeedback>
   );
@@ -284,14 +342,14 @@ const styles = StyleSheet.create({
     color: '#000E08',
     marginLeft: 10, // Thêm khoảng cách với avatar
   },
-  
+
   iconContainer: {
     flexDirection: 'row',
     gap: 10,
   },
   iconButton: {
     padding: 5,
-  }, 
+  },
   backButton: {
     padding: 5,
   },
