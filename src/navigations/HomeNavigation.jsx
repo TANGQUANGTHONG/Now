@@ -10,8 +10,6 @@ import Chat from '../Screens/chat/Single';
 import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
-import Login from '../Screens/auth/Login';
-import SignUp from '../Screens/auth/SignUp';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
 
 // Danh sách tab
@@ -92,7 +90,6 @@ const oStackHome = {
   Single: {name: 'Single', component: Single},
   Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
-  Login: {name: 'Login', component: Login},
 };
 
 const StackHome = createNativeStackNavigator();

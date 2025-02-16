@@ -15,24 +15,27 @@ import {decryptMessage} from '../../cryption/Encryption';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import {useNavigation} from '@react-navigation/native';
 import { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import {getAuth} from '@react-native-firebase/auth';
 
 const Search = () => {
   const [searchText, setSearchText] = useState('');
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const navigation = useNavigation();
+  const auth = getAuth();
   console.log(filteredUsers);
 
   const handleUserPress = (userId, username, img) => {
-    const myId = auth().currentUser?.uid; // Lấy ID user hiện tại từ Firebase
+    const myId = auth.currentUser?.uid; // Lấy ID user hiện tại từ Firebase
     navigation.navigate(oStackHome.Single.name, {
       userId,
       myId,
       username,
       img,
     });
+
   };
+
   const fetchUsers = async () => {
     try {
       // Sử dụng phương thức mới `getDocs()` từ Firestore Modular SDK
@@ -64,7 +67,7 @@ const Search = () => {
     } else {
       const filtered = users.filter(user => {
         console.log(user.username);
-        return user.username.toLowerCase().includes(text.toLowerCase()) && user.id !== auth().currentUser?.uid;
+        return user.username.toLowerCase().includes(text.toLowerCase()) && user.id !== auth.currentUser?.uid;
       });
       setFilteredUsers(filtered);
     }

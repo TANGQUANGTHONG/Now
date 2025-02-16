@@ -13,18 +13,20 @@ import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_home_friend from '../../components/items/Item_home_friend';
 import Item_home_chat from '../../components/items/Item_home_chat';
-import auth from '@react-native-firebase/auth';
+import {getAuth} from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import { db } from '../../../FireBaseConfig';
 import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import { oStackHome } from '../../navigations/HomeNavigation';
 const { width, height } = Dimensions.get('window')
 const Home = (props) => {
   const { navigation } = props
   const [chatList, setChatList] = useState([]);
+  const auth = getAuth();
 
   //hàm lấy tất cả các id đã chat với user
   const getUserChats = async () => {
-    const currentUserId = auth().currentUser?.uid;
+    const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) {
       console.log("Không tìm thấy user hiện tại!");
       return;
@@ -75,7 +77,7 @@ const Home = (props) => {
     const fetchChatUsers = async () => {
       const chats = await getUserChats();
       if (chats) {
-        const currentUserId = auth().currentUser?.uid;
+        const currentUserId = auth.currentUser?.uid;
 
         // Lấy danh sách userId của người đã chat với mình
         const chatData = chats.map(chat => {
@@ -133,6 +135,18 @@ const Home = (props) => {
     fetchChatUsers();
   }, []);
 
+  const handleUserPress = (userId, username, img) => {
+    const myId = auth.currentUser?.uid; // Lấy ID user hiện tại từ Firebase
+    navigation.navigate(oStackHome.Single.name, {
+      userId,
+      myId,
+      username,
+      img,
+    });
+
+  };
+
+
   return (
     <View style={styles.container}>
       <View style={styles.container_title}>
@@ -154,7 +168,7 @@ const Home = (props) => {
           renderItem={({ item }) =>
             <Item_home_chat
               data_chat={item}
-              onPress={() => navigation.navigate("Single", { chatId: item.chatId, otherUser: item })}
+              onPress={() => handleUserPress(item.id, item.name, item.img)}
             />}
           keyExtractor={item => item.chatId}
           showsVerticalScrollIndicator={false}

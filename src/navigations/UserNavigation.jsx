@@ -11,7 +11,7 @@ const UserNavigation = () => {
   return (
     <Stack.Navigator
       screenOptions={{headerShown: false}}
-      initialRouteName="Boarding">
+      initialRouteName="Splash">
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="Splash" component={Splash} />
       <Stack.Screen name="SignUp" component={SignUp} />

@@ -16,7 +16,6 @@ const Setting = (props) => {
   const logOut = () => {
     auth.signOut().then(() =>{
       console.log("Đã đăng xuất");
-      navigation.navigate('Login')
     })
   }
   return (
@@ -51,9 +50,15 @@ const Setting = (props) => {
         <Option icon="help" title="Help" subtitle="Help center, contact us, privacy policy" />
         <Option icon="server" title="Storage and data" subtitle="Network usage, storage usage" />
 
-      <TouchableOpacity onPress={logOut}>
-      <Option1 icon="exit-outline" title="Log out" />
-      </TouchableOpacity>
+       <Pressable onPress={logOut}>
+        <View style={styles.viewLogout}>
+          <View style={styles.optionIcon}>
+          <Icon name="log-out-outline" size={25} color='red'/>
+          </View>
+          <Text style={{ color: "red",fontSize: width * 0.045,fontWeight: "bold", paddingHorizontal: 20}}>Logout</Text>
+          </View>
+       </Pressable>
+      
         
 
         
@@ -63,8 +68,8 @@ const Setting = (props) => {
   );
 };
 
-const Option = ({ icon, title, subtitle }) => (
-  <TouchableOpacity style={styles.option}>
+const Option = ({ icon, title, subtitle, onPress }) => (
+  <TouchableOpacity style={styles.option} onPress={onPress}>
     <View style={[styles.optionIcon]}>
       <Icon name={icon} size={20} color="#555" />
     </View>
@@ -80,13 +85,20 @@ const Option1 = ({ icon, title, subtitle }) => (
       <Icon name={icon} size={20} color="red" />
     </View>
     <View style={styles.optionText}>
-      <Text style={styles.optionTitle1}>{title}</Text>
+<Text style={styles.optionTitle1}>{title}</Text>
       {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
     </View>
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
+  viewLogout:{
+    flexDirection: "row",
+    alignItems: "center",
+    padding: width * 0.04, 
+    backgroundColor: "white",
+    borderRadius: width * 0.03,
+  },
   textColor:{
     color: 'red'
   },
