@@ -1,151 +1,103 @@
 import {
+  Dimensions,
   FlatList,
   Image,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
-  Dimensions,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import Item_home_friend from '../../components/items/Item_home_friend';
 import Item_home_chat from '../../components/items/Item_home_chat';
-import {getAuth} from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
-import { db } from '../../../FireBaseConfig';
+import { getAuth } from '@react-native-firebase/auth';
+import { getFirestore, collection, query, where, getDocs, onSnapshot, doc, getDoc, orderBy, limit } from '@react-native-firebase/firestore';
 import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 import { oStackHome } from '../../navigations/HomeNavigation';
 const { width, height } = Dimensions.get('window')
-const Home = (props) => {
-  const { navigation } = props
+const db = getFirestore(); // Khởi tạo Firestore
+
+const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
   const auth = getAuth();
 
-  //hàm lấy tất cả các id đã chat với user
-  const getUserChats = async () => {
+  useEffect(() => {
     const currentUserId = auth.currentUser?.uid;
-    if (!currentUserId) {
-      console.log("Không tìm thấy user hiện tại!");
-      return;
-    }
+    if (!currentUserId) return;
 
-    try {
-      const chatSnapshot = await firestore()
-        .collection("chats")
-        .where("users", "array-contains", currentUserId)
-        .get();
+    const chatListener = onSnapshot(
+      query(collection(db, "chats"), where("users", "array-contains", currentUserId)),
+      async (chatSnapshot) => {
+        const chatData = chatSnapshot.docs.map(doc => ({
+          chatId: doc.id,
+          users: doc.data().users
+        }));
 
-      const chatIds = chatSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        users: doc.data().users, // Lấy danh sách user trong từng cuộc chat
-      }));
+        console.log("🔥 Cập nhật danh sách chat:", chatData);
 
-      console.log("Danh sách ID chat của tôi:", chatIds);
-      return chatIds;
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách chat:", error);
-    }
-  };
+        const userIds = chatData.map(chat => chat.users.find(userId => userId !== currentUserId));
 
+        if (userIds.length > 0) {
+          const usersInfo = await getUserInfo(userIds);
 
-  //hàm lấy thông tin user từ userID
+          const chatWithLastMessages = await Promise.all(chatData.map(async (chat) => {
+            const otherUser = usersInfo.find(user => user.id === chat.users.find(id => id !== currentUserId));
+            if (!otherUser) return null;
+
+            const lastMessageSnapshot = await getDocs(
+              query(collection(db, "chats", chat.chatId, "messages"), orderBy("timestamp", "desc"), limit(1))
+            );
+
+            let lastMessage = "Chưa có tin nhắn";
+            let lastMessageTime = "";
+            let lastMessageTimestamp = 0;
+
+            if (!lastMessageSnapshot.empty) {
+              const lastMessageData = lastMessageSnapshot.docs[0].data();
+              lastMessage = decryptMessage(lastMessageData.text) || "Tin nhắn bị mã hóa";
+              lastMessageTime = new Date(lastMessageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              lastMessageTimestamp = lastMessageData.timestamp.toMillis();
+            }
+
+            return {
+              chatId: chat.chatId,
+              id: otherUser.id,
+              name: decryptMessage(otherUser.username) || "Unknown",
+              img: decryptMessage(otherUser.Image) || "https://example.com/default-avatar.png",
+              text: lastMessage,
+              time: lastMessageTime,
+              timestamp: lastMessageTimestamp,
+            };
+          }));
+
+          const sortedChatList = chatWithLastMessages.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
+          console.log("📌 Danh sách chat đã sắp xếp:", sortedChatList);
+          setChatList(sortedChatList);
+        }
+      }
+    );
+
+    return () => chatListener();
+  }, []);
+
   const getUserInfo = async (userIds) => {
     try {
       const userPromises = userIds.map(async (userId) => {
-        const userDoc = await firestore().collection("users").doc(userId).get();
-        if (userDoc.exists) {
-          return { id: userId, ...userDoc.data() };
-        }
-        return null;
+        const userDoc = await getDoc(doc(db, "users", userId));
+        return userDoc.exists ? { id: userId, ...userDoc.data() } : null;
       });
-
       const usersInfo = await Promise.all(userPromises);
-      return usersInfo.filter(Boolean); // Lọc bỏ user null (không tồn tại)
+      return usersInfo.filter(Boolean);
     } catch (error) {
       console.error("Lỗi khi lấy thông tin users:", error);
       return [];
     }
   };
 
-
-
-
-  useEffect(() => {
-    const fetchChatUsers = async () => {
-      const chats = await getUserChats();
-      if (chats) {
-        const currentUserId = auth.currentUser?.uid;
-
-        // Lấy danh sách userId của người đã chat với mình
-        const chatData = chats.map(chat => {
-          const otherUserId = chat.users.find(userId => userId !== currentUserId);
-          return { chatId: chat.id, otherUserId };
-        });
-
-        console.log("Danh sách chat có user:", chatData);
-
-        const userIds = chatData.map(chat => chat.otherUserId);
-        if (userIds.length > 0) {
-          const usersInfo = await getUserInfo(userIds);
-
-          // 🔥 Lấy tin nhắn gần nhất từ mỗi cuộc chat
-          const chatWithLastMessages = await Promise.all(chatData.map(async (chat) => {
-            const encryptedUser = usersInfo.find(user => user.id === chat.otherUserId);
-            if (!encryptedUser) return null;
-
-            // 🔍 Truy vấn tin nhắn mới nhất trong cuộc trò chuyện
-            const lastMessageSnapshot = await firestore()
-              .collection("chats")
-              .doc(chat.chatId)
-              .collection("messages")
-              .orderBy("timestamp", "desc")
-              .limit(1)
-              .get();
-
-            let lastMessage = "Chưa có tin nhắn";
-            let lastMessageTime = "";
-
-            if (!lastMessageSnapshot.empty) {
-              const lastMessageData = lastMessageSnapshot.docs[0].data();
-              lastMessage = decryptMessage(lastMessageData.text) || "Tin nhắn bị mã hóa";
-              lastMessageTime = new Date(lastMessageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-
-            return {
-              chatId: chat.chatId,
-              id: encryptedUser.id,
-              name: decryptMessage(encryptedUser.username) || "Unknown",
-              img: decryptMessage(encryptedUser.Image) || "https://example.com/default-avatar.png",
-              text: lastMessage, // Nội dung tin nhắn gần nhất
-              time: lastMessageTime, // Thời gian tin nhắn
-            };
-          }));
-
-          const chatListData = chatWithLastMessages.filter(Boolean); // Loại bỏ phần tử null
-
-          console.log("Danh sách chat list hiển thị:", chatListData);
-          setChatList(chatListData); // Cập nhật danh sách chat
-        }
-      }
-    };
-
-    fetchChatUsers();
-  }, []);
-
   const handleUserPress = (userId, username, img) => {
-    const myId = auth.currentUser?.uid; // Lấy ID user hiện tại từ Firebase
-    navigation.navigate(oStackHome.Single.name, {
-      userId,
-      myId,
-      username,
-      img,
-    });
-
+    const myId = auth.currentUser?.uid;
+    navigation.navigate(oStackHome.Single.name, { userId, myId, username, img });
   };
-
 
   return (
     <View style={styles.container}>
@@ -153,13 +105,10 @@ const Home = (props) => {
         <Pressable style={styles.button_search} onPress={() => navigation.navigate('Search')}>
           <Icon name="search" size={22} color="white" />
         </Pressable>
-
         <Text style={styles.text_title}>Home</Text>
         <Image
           style={styles.img_title}
-          source={{
-            uri: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-          }}
+          source={{ uri: 'https://example.com/default-avatar.png' }}
         />
       </View>
       <View style={styles.container_list_chat}>

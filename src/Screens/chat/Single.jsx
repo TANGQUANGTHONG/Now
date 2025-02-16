@@ -34,8 +34,7 @@ const Single = () => {
       .doc(chatId)
       .collection('messages')
       .orderBy('timestamp', 'asc');
-
-    // Sử dụng phương thức `onSnapshot()` để lắng nghe sự thay đổi của dữ liệu
+  
     const unsubscribe = messagesRef.onSnapshot(snapshot => {
       const msgs = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -46,14 +45,15 @@ const Single = () => {
             data.text === encryptMessage('Đã xóa tin nhắn')
               ? 'Đã xóa tin nhắn'
               : decryptMessage(data.text),
-          timestamp: data.timestamp,
+          timestamp: data.timestamp ? data.timestamp.toDate() : new Date(), // Chuyển timestamp thành Date
         };
       });
       setMessages(msgs);
     });
-
+  
     return () => unsubscribe();
   }, [chatId]);
+  
 
   // gửi tin nhắn
   const sendMessage = async () => {
@@ -162,22 +162,24 @@ const Single = () => {
 
         {/* Tin nhắn & input chat giữ nguyên */}
         <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={item.senderId === myId ? styles.sentWrapper : styles.receivedWrapper}>
-              {item.senderId !== myId && <Image source={{ uri: img }} style={styles.avatar} />}
-              <TouchableOpacity
-                onLongPress={() => confirmDeleteMessage(item.id)}
-                style={item.senderId === myId ? styles.sentContainer : styles.receivedContainer}>
-                {item.senderId !== myId && <Text style={styles.usernameText}>{username}</Text>}
-                <Text style={item.text === 'Đã xóa tin nhắn' ? styles.deletedText : styles.messageText}>
-                  {item.text}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        />
+  data={messages}
+  keyExtractor={(item) => item.id}
+  renderItem={({ item }) => (
+    <View style={item.senderId === myId ? styles.sentWrapper : styles.receivedWrapper}>
+      {item.senderId !== myId && <Image source={{ uri: img }} style={styles.avatar} />}
+      <TouchableOpacity
+        onLongPress={() => confirmDeleteMessage(item.id)}
+        style={item.senderId === myId ? styles.sentContainer : styles.receivedContainer}>
+        {item.senderId !== myId && <Text style={styles.usernameText}>{username}</Text>}
+        <Text style={item.text === 'Đã xóa tin nhắn' ? styles.deletedText : styles.messageText}>
+          {item.text}
+        </Text>
+        <Text style={styles.timestamp}>{item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+      </TouchableOpacity>
+    </View>
+  )}
+/>
+
 
         <View style={styles.inputContainer}>
           
