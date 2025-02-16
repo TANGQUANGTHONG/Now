@@ -14,14 +14,15 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_home_friend from '../../components/items/Item_home_friend';
 import Item_home_chat from '../../components/items/Item_home_chat';
 
-
-const {width, height} = Dimensions.get('window')
-const Home = (props) => {
-  const {navigation} = props
+const {width, height} = Dimensions.get('window');
+const Home = props => {
+  const {navigation} = props;
   return (
     <View style={styles.container}>
       <View style={styles.container_title}>
-        <Pressable style={styles.button_search} onPress={() => navigation.navigate('Search')}>
+        <Pressable
+          style={styles.button_search}
+          onPress={() => navigation.navigate('Search')}>
           <Icon name="search" size={22} color="white" />
         </Pressable>
 
@@ -36,10 +37,22 @@ const Home = (props) => {
       <View style={styles.container_list_chat}>
         <FlatList
           data={data_chat}
-          renderItem={({item}) => <Item_home_chat data_chat={item} onPress={() => navigation.navigate('Single')} />}
+          renderItem={({item}) => (
+            <Item_home_chat
+              data_chat={item}
+              onPress={navigation.navigate('Single', {
+                userId: 'VD9RPcauqLUjq8G4IiE2YuSCxeI3',
+                groupId: 'hadjhasjhdjhashjd',
+                // myId: 'myUser456',
+                // myUsername: 'myUsername',
+                // username: 'otherUser',
+                // img: 'imageURL',
+              })}
+            />
+          )}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle = {{paddingBottom: 150}}
+          contentContainerStyle={{paddingBottom: 150}}
         />
       </View>
     </View>
@@ -55,12 +68,12 @@ const styles = StyleSheet.create({
   },
   text_title: {
     color: 'white',
-    fontSize: width * 0.05, 
+    fontSize: width * 0.05,
     fontWeight: '500',
   },
   img_title: {
-    width: width * 0.12, 
-    height: width * 0.12, 
+    width: width * 0.12,
+    height: width * 0.12,
     borderRadius: (width * 0.12) / 2,
   },
   container_title: {
@@ -76,20 +89,20 @@ const styles = StyleSheet.create({
   },
   container_list_chat: {
     width: '100%',
-    height: height * 1, 
+    height: height * 1,
     backgroundColor: 'white',
-    marginTop: height * 0.03, 
-    borderTopLeftRadius: width * 0.1, 
-    borderTopRightRadius: width * 0.1, 
-    paddingHorizontal: width * 0.06, 
-    paddingTop: height * 0.05, 
+    marginTop: height * 0.03,
+    borderTopLeftRadius: width * 0.1,
+    borderTopRightRadius: width * 0.1,
+    paddingHorizontal: width * 0.06,
+    paddingTop: height * 0.05,
   },
   button_search: {
     borderWidth: 1,
     borderColor: '#363F3B',
-    width: width * 0.12, 
-    height: width * 0.12, 
-    borderRadius: (width * 0.12) / 2, 
+    width: width * 0.12,
+    height: width * 0.12,
+    borderRadius: (width * 0.12) / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },

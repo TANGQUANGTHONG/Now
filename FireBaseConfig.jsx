@@ -1,9 +1,7 @@
-// FireBaseConfig.jsx
-import { getApp, initializeApp } from '@react-native-firebase/app';
-import {getAuth} from 'firebase/auth';
-import {getFirestore} from 'firebase/firestore';
+import {initializeApp} from '@react-native-firebase/app';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 
-// Firebase configuration
 const firebaseConfig = {
   apiKey: 'AIzaSyCNIVWhoJB9gVqV09F_juJXmOVg2RJB940',
   authDomain: 'nowchat-6ba61.firebaseapp.com',
@@ -16,7 +14,5 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
 
-export {auth, db, app};
+export {auth, firestore, app};

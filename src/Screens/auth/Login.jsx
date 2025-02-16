@@ -1,63 +1,102 @@
-import React, { useState } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, Image, 
-  StyleSheet, Dimensions, Pressable, KeyboardAvoidingView, 
-  Platform, ScrollView
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  Dimensions,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { getAuth } from '@react-native-firebase/auth';
+import {getAuth} from '@react-native-firebase/auth';
 
-const { width, height } = Dimensions.get('window');
+import firestore from '@react-native-firebase/firestore';
 
-const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const {width, height} = Dimensions.get('window');
+
+const Login = ({navigation}) => {
+  const [email, setEmail] = useState('phong@gmail.com');
+  const [password, setPassword] = useState('123456');
   const [secureText, setSecureText] = useState(true);
 
   const auth = getAuth();
   const loginWithEmailAndPass = () => {
-    auth.signInWithEmailAndPassword(email, password)
-      .then(() => {
+    auth
+      .signInWithEmailAndPassword(email, password)
+      .then(userCredential => {
+        const user = userCredential.user;
+        addUserToFirestore(user); // Gọi hàm để lưu user vào Firestore
         navigation.navigate('TabHome');
         setPassword('');
         setEmail('');
       })
-      .catch((err) => console.log(err));
+      .catch(err => console.log(err));
   };
 
-  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const addUserToFirestore = async user => {
+    try {
+      await firestore().collection('users').doc(user.uid).set({
+        uid: user.uid, // Lưu UID thay vì email
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      });
+      console.log('User added to Firestore with UID!');
+    } catch (error) {
+      console.log('Error adding user: ', error);
+    }
+  };
+
+  const isValidEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isFormValid = isValidEmail(email) && password.length >= 6;
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView 
-        contentContainerStyle={{ flexGrow: 1 }} 
-        keyboardShouldPersistTaps="handled"
-      >
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView
+        contentContainerStyle={{flexGrow: 1}}
+        keyboardShouldPersistTaps="handled">
         {/* Nút back */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("SignUp")}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate('SignUp')}>
           <Icon name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
 
         <View style={styles.content}>
           <Text style={styles.title}>Log in to Now</Text>
           <Text style={styles.subtitle}>
-            Welcome back! Sign in using your social account or email to continue us
+            Welcome back! Sign in using your social account or email to continue
+            us
           </Text>
 
           {/* Icon đăng nhập bằng mạng xã hội */}
           <View style={styles.socialIcons}>
             <TouchableOpacity style={styles.socialButton}>
-              <Image source={{ uri: 'https://i.imgur.com/yh45vCH.png' }} style={styles.icon} />
+              <Image
+                source={{uri: 'https://i.imgur.com/yh45vCH.png'}}
+                style={styles.icon}
+              />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton}>
-              <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png' }} style={styles.icon} />
+              <Image
+                source={{
+                  uri: 'https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png',
+                }}
+                style={styles.icon}
+              />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton}>
-              <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/640px-Apple_logo_black.svg.png' }} style={styles.icon} />
+              <Image
+                source={{
+                  uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/640px-Apple_logo_black.svg.png',
+                }}
+                style={styles.icon}
+              />
             </TouchableOpacity>
           </View>
 
@@ -95,8 +134,14 @@ const Login = ({ navigation }) => {
                 color="black"
                 secureTextEntry={secureText}
               />
-              <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-                <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+              <TouchableOpacity
+                onPress={() => setSecureText(!secureText)}
+                style={styles.eyeIcon}>
+                <Icon
+                  name={secureText ? 'eye-off' : 'eye'}
+                  size={20}
+                  color="gray"
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -104,12 +149,17 @@ const Login = ({ navigation }) => {
 
         {/* Nút đăng nhập và quên mật khẩu */}
         <View style={styles.bottomContainer}>
-          <TouchableOpacity 
-            style={[styles.loginButton, isFormValid && styles.activeLoginButton]} 
-            disabled={!isFormValid} 
-            onPress={loginWithEmailAndPass}
-          >
-            <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Log in</Text>
+          <TouchableOpacity
+            style={[
+              styles.loginButton,
+              isFormValid && styles.activeLoginButton,
+            ]}
+            disabled={!isFormValid}
+            onPress={loginWithEmailAndPass}>
+            <Text
+              style={[styles.loginText, isFormValid && styles.activeLoginText]}>
+              Log in
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity>
