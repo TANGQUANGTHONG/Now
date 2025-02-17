@@ -12,11 +12,26 @@ import {
   Keyboard,
 } from 'react-native';
 import {useRoute, useNavigation} from '@react-navigation/native';
-import {getFirestore, serverTimestamp} from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  serverTimestamp,
+  collection,
+  getDocs,
+} from '@react-native-firebase/firestore';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
-import SQLite from 'react-native-sqlite-storage';
+import auth from '@react-native-firebase/auth';
+import firestores from '@react-native-firebase/firestore';
+
+import {
+  createChatsTable,
+  insertChatToSQLite,
+  getAllChatsFromSQLite,
+  fetchAndStoreChatsForCurrentUser,
+} from '../storage/dbHelper';
+
+globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 
 const Single = () => {
   const route = useRoute();
@@ -130,49 +145,14 @@ const Single = () => {
     );
   };
 
-  // useEffect 1: Tạo bảng SQLite và lấy tin nhắn từ SQLite khi khởi động
+  // db-local
+
+  // Hàm lấy dữ liệu từ Firestore và lưu vào SQLite
+
   useEffect(() => {
-    createTable();
-    getMessagesFromSQLite(); // Lấy tin nhắn từ SQLite khi khởi động
+    createChatsTable();
+    fetchAndStoreChatsForCurrentUser();
   }, []);
-
-  // useEffect 2: Lắng nghe tin nhắn từ Firestore và lưu vào SQLite
-  useEffect(() => {
-    const messagesRef = firestore
-      .collection('chats')
-      .doc(chatId)
-      .collection('messages')
-      .orderBy('timestamp', 'asc');
-
-    const unsubscribe = messagesRef.onSnapshot(snapshot => {
-      const msgs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const decryptedText =
-          data.text === encryptMessage('Đã xóa tin nhắn')
-            ? 'Đã xóa tin nhắn'
-            : decryptMessage(data.text);
-
-        // Lưu vào SQLite
-        insertMessage(
-          doc.id,
-          chatId,
-          data.senderId,
-          decryptedText,
-          data.timestamp ? data.timestamp.toDate().getTime() : Date.now(),
-        );
-
-        return {
-          id: doc.id,
-          senderId: data.senderId,
-          text: decryptedText,
-          timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
-        };
-      });
-      setMessages(msgs);
-    });
-
-    return () => unsubscribe();
-  }, [chatId]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
