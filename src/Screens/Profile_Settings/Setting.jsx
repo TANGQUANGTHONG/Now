@@ -31,7 +31,6 @@ const Setting = props => {
   const logOut = () => {
     auth.signOut().then(() => {
       console.log('Đã đăng xuất');
-      navigation.navigate('Login');
     });
   };
 

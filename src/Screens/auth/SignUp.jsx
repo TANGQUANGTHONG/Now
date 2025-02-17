@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import {styles} from '../../Styles/auth/Sign_up';
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-} from '@react-native-firebase/auth';
-import {getFirestore, doc, setDoc} from '@react-native-firebase/firestore';
+// import {
+//   getAuth,
+//   createUserWithEmailAndPassword,
+// } from '@react-native-firebase/auth';
+// import {getFirestore, doc, setDoc} from '@react-native-firebase/firestore';
 import {encryptMessage} from '../../cryption/Encryption';
+import auth from '@react-native-firebase/auth';
+import database from '@react-native-firebase/database';
 
 const SignUp = props => {
   const {navigation} = props;
@@ -29,33 +31,6 @@ const SignUp = props => {
   const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
   const [Image] = useState('https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg');
-
-  const auth = getAuth();
-  const db = getFirestore();
-
-  const Sign_Up = () => {
-    createUserWithEmailAndPassword(auth, email, password)
-      .then(userCredential => {
-        const userId = userCredential.user.uid;
-        const userRef = doc(db, 'users', userId);
-        setDoc(userRef, {
-          username: encryptMessage(name),
-          email: encryptMessage(email),
-          password: encryptMessage(password),
-          Image: encryptMessage(Image),
-        })
-          .then(() => {
-            Alert.alert('User created and saved to Firestore');
-            navigation.navigate('Login');
-          })
-          .catch(error => {
-            Alert.alert('Error saving user data to Firestore');
-          });
-      })
-      .catch(() => {
-        Alert.alert('Error creating user');
-      });
-  };
 
   const validateFields = () => {
     let newErrors = {};
@@ -70,6 +45,37 @@ const SignUp = props => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  const Sign_Up = async () => {
+    if (!name || !email || !password || password !== confirmPassword) {
+      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin và kiểm tra mật khẩu.');
+      return;
+    }
+  
+    try {
+      // Tạo tài khoản trên Firebase Authentication
+      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+      const userId = userCredential.user.uid; // Lấy UID của user mới tạo
+  
+      // Lưu thông tin user vào Firebase Realtime Database
+      await database()
+        .ref(`/users/${userId}`)
+        .set({
+          name: encryptMessage(name),
+          email: encryptMessage(email),
+          Image: encryptMessage(Image),
+        });
+  
+      Alert.alert('Thành công', 'Tài khoản đã được tạo!');
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('Lỗi khi tạo tài khoản:', error);
+      Alert.alert('Lỗi', error.message);
+    }
+  };
+   
+ 
+
 
   return (
     <KeyboardAvoidingView
@@ -162,11 +168,11 @@ const SignUp = props => {
 
             <View style={styles.bottomContainer}>
               <TouchableOpacity
-                style={styles.loginButton}
+                style={styles.loginButton} 
                 onPress={() => {
                   if (validateFields()) {
                     Sign_Up();
-                    navigation.navigate('Login');
+                    // navigation.navigate('Login');
                   }
                 }}>
                 <Text style={styles.loginText}>Sign Up</Text>

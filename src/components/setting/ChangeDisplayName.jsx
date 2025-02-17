@@ -46,7 +46,7 @@ const ChangeUserInfo = () => {
         };
       });
 
-      console.log(userList);
+      // console.log(userList);
       setUsers(userList);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -58,7 +58,7 @@ const ChangeUserInfo = () => {
   }, []);
   const myId = auth.currentUser?.uid;
   const filtered = users.filter(user => user.id === myId);
-  console.log(filtered);
+  // console.log(filtered);
   // Cập nhật Username trong Firestore
   const handleUpdateUsername = async () => {
     if (!username.trim()) {

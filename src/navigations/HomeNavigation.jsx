@@ -7,6 +7,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Home from '../Screens/home/Home';
 import Setting from '../Screens/Profile_Settings/Setting';
 import Chat from '../Screens/chat/Single';
+import Login from '../Screens/auth/Login';
 import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
@@ -91,6 +92,8 @@ const oStackHome = {
   Single: {name: 'Single', component: Single},
   Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
+  Login: {name: 'Login', component: Login},
+  ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
 };
 
 const StackHome = createNativeStackNavigator();

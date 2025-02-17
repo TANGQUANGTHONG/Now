@@ -7,6 +7,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { getAuth } from '@react-native-firebase/auth';
 
+
 const { width, height } = Dimensions.get('window');
 
 const Login = ({ navigation }) => {
