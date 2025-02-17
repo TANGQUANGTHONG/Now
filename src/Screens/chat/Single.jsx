@@ -16,6 +16,7 @@ import {getFirestore, serverTimestamp,} from '@react-native-firebase/firestore';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { oStackHome } from '../../navigations/HomeNavigation';
+globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 
 
 const Single = () => {

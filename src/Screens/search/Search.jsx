@@ -14,8 +14,12 @@ const {width, height} = Dimensions.get('window');
 import {decryptMessage} from '../../cryption/Encryption';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import {useNavigation} from '@react-navigation/native';
-import { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
 import {getAuth} from '@react-native-firebase/auth';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+} from '@react-native-firebase/firestore';
 
 const Search = () => {
   const [searchText, setSearchText] = useState('');
@@ -23,7 +27,6 @@ const Search = () => {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const navigation = useNavigation();
   const auth = getAuth();
-  console.log(filteredUsers);
 
   const handleUserPress = (userId, username, img) => {
     const myId = auth.currentUser?.uid; // Lấy ID user hiện tại từ Firebase
@@ -38,17 +41,24 @@ const Search = () => {
 
   const fetchUsers = async () => {
     try {
-      // Sử dụng phương thức mới `getDocs()` từ Firestore Modular SDK
-      const querySnapshot = await getDocs(collection(getFirestore(), 'users'));
+      const firestore = getFirestore(); // Lấy instance Firestore
+      const querySnapshot = await getDocs(collection(firestore, 'users')); // Lấy danh sách user
+
       const userList = querySnapshot.docs.map(doc => {
         const data = doc.data();
+
         return {
           id: doc.id,
-          username: decryptMessage(data.username),
-          email: decryptMessage(data.email),
-          img: decryptMessage(data.Image),
+          username: data.username
+            ? decryptMessage(data.username)
+            : 'Không có tên',
+          email: data.email ? decryptMessage(data.email) : 'Không có email',
+          img: data.Image
+            ? decryptMessage(data.Image)
+            : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
         };
       });
+
       console.log(userList);
       setUsers(userList);
     } catch (error) {
@@ -67,7 +77,10 @@ const Search = () => {
     } else {
       const filtered = users.filter(user => {
         console.log(user.username);
-        return user.username.toLowerCase().includes(text.toLowerCase()) && user.id !== auth.currentUser?.uid;
+        return (
+          user.username.toLowerCase().includes(text.toLowerCase()) &&
+          user.id !== auth.currentUser?.uid
+        );
       });
       setFilteredUsers(filtered);
     }

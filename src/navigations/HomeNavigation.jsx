@@ -11,6 +11,7 @@ import Single from '../Screens/chat/Single';
 import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
+import ChangeDisplayName from '../components/setting/ChangeDisplayName';
 
 // Danh sách tab
 const oTab = {
