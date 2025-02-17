@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, Image, 
   StyleSheet, Dimensions, Pressable, KeyboardAvoidingView, 
-  Platform, ScrollView
+  Platform, ScrollView,
+  Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { getAuth } from '@react-native-firebase/auth';
@@ -25,7 +26,12 @@ const Login = ({ navigation }) => {
       })
       .catch((err) => console.log(err));
   };
-
+const onForgotPassword = () => {navigation.navigate('ForgotPassword');}
+  // const forgotPassword = () => {
+  //   auth.sendPasswordResetEmail(auth.currentUser.email)
+  //   .then(() => {Alert.alert('xem mail đi thằng ngu')  
+  //   }).catch((err) => console.log(err));
+  // }
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isFormValid = isValidEmail(email) && password.length >= 6;
 
@@ -113,7 +119,7 @@ const Login = ({ navigation }) => {
             <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Log in</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={onForgotPassword}>
             <Text style={styles.forgotPassword}>Forgot password?</Text>
           </TouchableOpacity>
         </View>
