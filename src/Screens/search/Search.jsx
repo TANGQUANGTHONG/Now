@@ -1,25 +1,15 @@
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  Dimensions,
-} from 'react-native';
-import React, {useState, useEffect} from 'react';
+import { FlatList, StyleSheet, Text, TextInput, View, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_search from '../../components/items/Item_search';
-// Sử dụng cú pháp import mới từ Firebase Modular SDK
-const {width, height} = Dimensions.get('window');
-import {decryptMessage} from '../../cryption/Encryption';
-import {oStackHome} from '../../navigations/HomeNavigation';
-import {useNavigation} from '@react-navigation/native';
-import {getAuth} from '@react-native-firebase/auth';
-import {
-  getFirestore,
-  collection,
-  getDocs,
-} from '@react-native-firebase/firestore';
+import { decryptMessage } from '../../cryption/Encryption';
+import { oStackHome } from '../../navigations/HomeNavigation';
+import { useNavigation } from '@react-navigation/native';
+import { getAuth } from '@react-native-firebase/auth';
+import database from '@react-native-firebase/database';
+import { debounce } from 'lodash'; // Thêm thư viện lodash để tối ưu hoá tìm kiếm
+
+const { width, height } = Dimensions.get('window');
 
 const Search = () => {
   const [searchText, setSearchText] = useState('');
@@ -29,62 +19,58 @@ const Search = () => {
   const auth = getAuth();
 
   const handleUserPress = (userId, username, img) => {
-    const myId = auth.currentUser?.uid; // Lấy ID user hiện tại từ Firebase
+    const myId = auth.currentUser?.uid;
     navigation.navigate(oStackHome.Single.name, {
       userId,
       myId,
       username,
       img,
     });
-
   };
 
-  const fetchUsers = async () => {
-    try {
-      const firestore = getFirestore(); // Lấy instance Firestore
-      const querySnapshot = await getDocs(collection(firestore, 'users')); // Lấy danh sách user
+  const fetchUsers = () => {
+    const usersRef = database().ref('users');
 
-      const userList = querySnapshot.docs.map(doc => {
-        const data = doc.data();
+    usersRef.on('value', snapshot => {
+      const usersData = snapshot.val();
+  
+      if (usersData) {
+        const userList = Object.keys(usersData).map(key => {
+          const user = usersData[key];
+          return {
+            id: key,
+            username: user.name ? decryptMessage(user.name) : 'Không có tên',
+            email: user.email ? decryptMessage(user.email) : 'Không có email',
+            img: user.Image ? decryptMessage(user.Image) : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
+          };
+        });
+        console.log('Dữ liệu người dùng:', userList);
+        setUsers(userList);
+      } else {
+        console.log('Không có dữ liệu người dùng');
+      }
+    });
 
-        return {
-          id: doc.id,
-          username: data.username
-            ? decryptMessage(data.username)
-            : 'Không có tên',
-          email: data.email ? decryptMessage(data.email) : 'Không có email',
-          img: data.Image
-            ? decryptMessage(data.Image)
-            : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
-        };
-      });
-
-      console.log(userList);
-      setUsers(userList);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
+    return () => usersRef.off('value');
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const handleSearch = text => {
+  // Tối ưu tìm kiếm với debounce
+  const handleSearch = debounce((text) => {
     setSearchText(text);
     if (text === '') {
       setFilteredUsers([]);
     } else {
-      const filtered = users.filter(user => {
-        console.log(user.username);
-        return (
-          user.username.toLowerCase().includes(text.toLowerCase()) &&
-          user.id !== auth.currentUser?.uid
-        );
-      });
+      const filtered = users.filter(user => 
+        user.username.toLowerCase().includes(text.toLowerCase()) &&
+        user.id !== auth.currentUser?.uid
+      );
       setFilteredUsers(filtered);
     }
-  };
+  }, 500); // Đặt debounce time là 500ms
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -94,13 +80,13 @@ const Search = () => {
           placeholder="Search"
           style={styles.input}
           value={searchText}
-          onChangeText={handleSearch}
+          onChangeText={handleSearch} // Gọi hàm debounce
         />
       </View>
       <View style={styles.list_search}>
         <FlatList
           data={filteredUsers}
-          renderItem={({item}) => (
+          renderItem={({ item }) => (
             <Item_search
               data={item}
               onPress={() => handleUserPress(item.id, item.username, item.img)}
@@ -119,95 +105,22 @@ export default Search;
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
-    paddingHorizontal: width * 0.06, // Adjust padding based on screen width
-    paddingTop: height * 0.02, // Adjust padding based on screen height
+    paddingHorizontal: width * 0.06,
+    paddingTop: height * 0.02,
     flex: 1,
   },
   container_search: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F6F6',
-    paddingHorizontal: width * 0.05, // Adjust padding based on screen width
-    borderRadius: width * 0.03, // Set the radius relative to screen width
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.03,
   },
   input: {
-    marginLeft: width * 0.025, // Adjust margin based on screen width
-    fontSize: width * 0.03, // Adjust font size based on screen width
+    marginLeft: width * 0.025,
+    fontSize: width * 0.03,
   },
   list_search: {
-    marginTop: height * 0.06, // Adjust margin based on screen height
+    marginTop: height * 0.06,
   },
 });
-
-const data = [
-  {
-    id: 1,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 2,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 3,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 4,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 5,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 6,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 7,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 8,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 9,
-    name: 'Alex Linderson',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-  {
-    id: 10,
-    name: 'Canhphan',
-    content: 'How are you today?',
-    time: '2 min ago',
-    img: 'https://s3-alpha-sig.figma.com/img/b1fb/7717/906c952085307b6af6e1051a901bdb02?Expires=1740355200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=nBkyYc18nxN1ZNDTOx0kCar-~PZ0P-mdH-hX3OjKhfGBeAqvBYCT24jSuKpW2FxFXg~ReLXQyLJOUVtWuGGVCqc3lVPzQcjy2RZqAaiOYqElERFPcugC7~M9KZOA34uJvrirarwBxUOV~u~ZXftITHv~zG93FfYSVSS2lEpiGGBPahee3SRlQ0H763oidcQr4Zmi-U7hutgMqouoH8kpkUfdbE9McjE0HlgpngFgWszMpaEdanATHouGUoHfG9RGztvXP9gefvvHnEDGw11rkKaJN7sX6qyVMTYqA4KI7pzi-PX3zZQretCvCEuZwmPUYPKdYzHlZnxR3ZGP4UOjZA__',
-  },
-];

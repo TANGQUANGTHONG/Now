@@ -59,26 +59,31 @@ const Single = () => {
   // }, [chatId]);
 
 // lấy tin nhắn realtime
-  useEffect(() => {
-    const messagesRef = database().ref(`/chats/${chatId}/messages`);
-    
-    const onMessageChange = messagesRef.on('value', snapshot => {
-      if (snapshot.exists()) {
-        const msgs = Object.entries(snapshot.val()).map(([id, data]) => ({
-          id,
-          senderId: data.senderId,
-          text:
-            data.text === encryptMessage('Đã xóa tin nhắn')
-              ? 'Đã xóa tin nhắn'
-              : decryptMessage(data.text),
-          timestamp: new Date(data.timestamp),
-        }));
-        setMessages(msgs);
-      }
-    });
+useEffect(() => {
+  const messagesRef = database().ref(`/chats/${chatId}/messages`);
   
-    return () => messagesRef.off('value', onMessageChange);
-  }, [chatId]);
+  const onMessageChange = messagesRef.on('value', snapshot => {
+    if (snapshot.exists()) {
+      // Lấy dữ liệu từ snapshot và chuyển nó thành mảng tin nhắn
+      const msgs = Object.entries(snapshot.val()).map(([id, data]) => ({
+        id,
+        senderId: data.senderId,
+        text:
+          data.text === encryptMessage('Đã xóa tin nhắn')
+            ? 'Đã xóa tin nhắn'
+            : decryptMessage(data.text),
+        timestamp: new Date(data.timestamp), // Đảm bảo timestamp là đối tượng Date
+      }));
+      
+      // Sắp xếp tin nhắn theo thời gian tăng dần
+      const sortedMessages = msgs.sort((a, b) => a.timestamp - b.timestamp);
+      setMessages(sortedMessages);
+    }
+  });
+
+  return () => messagesRef.off('value', onMessageChange);
+}, [chatId]);
+
   
 
   // gửi tin nhắn
@@ -109,18 +114,37 @@ const Single = () => {
     if (!text.trim()) return;
   
     try {
-      const newMessageRef = database().ref(`/chats/${chatId}/messages`).push();
+      const chatRef = database().ref(`/chats/${chatId}`);
+  
+      // Kiểm tra xem cuộc trò chuyện đã tồn tại chưa
+      const chatSnapshot = await chatRef.once('value');
+  
+      if (!chatSnapshot.exists()) {
+        // Nếu chưa có, tạo mới với danh sách user
+        await chatRef.set({
+          users: {
+            [userId]: true,
+            [myId]: true
+          }
+        });
+      }
+  
+      // Thêm tin nhắn vào danh sách messages
+      const newMessageRef = chatRef.child('messages').push();
       await newMessageRef.set({
         senderId: myId,
         text: encryptMessage(text),
-        timestamp: database.ServerValue.TIMESTAMP, // Dùng timestamp của Firebase
+        timestamp: database.ServerValue.TIMESTAMP,
       });
   
       setText('');
     } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
     }
+    console.log('user:', userId);
+    console.log('myid:', myId);
   };
+  
   
 
   // xóa tin nhắn phía bạn
