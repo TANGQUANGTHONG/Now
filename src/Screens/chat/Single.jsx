@@ -22,13 +22,11 @@ import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import auth from '@react-native-firebase/auth';
-import firestores from '@react-native-firebase/firestore';
 
 import {
   createChatsTable,
-  insertChatToSQLite,
-  getAllChatsFromSQLite,
   fetchAndStoreChatsForCurrentUser,
+  getMessagesByUserId,
 } from '../storage/dbHelper';
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
@@ -146,13 +144,17 @@ const Single = () => {
   };
 
   // db-local
-
-  // Hàm lấy dữ liệu từ Firestore và lưu vào SQLite
-
+  const [messLocal, setMessLocal] = useState();
   useEffect(() => {
     createChatsTable();
     fetchAndStoreChatsForCurrentUser();
-  }, []);
+    const currentUserId = auth().currentUser?.uid;
+    if (currentUserId) {
+      getMessagesByUserId(currentUserId, setMessLocal);
+    }
+
+    console.log('Day la message theo Id User', messLocal);
+  }, [messLocal]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>

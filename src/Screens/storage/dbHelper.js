@@ -161,4 +161,43 @@ export const fetchAndStoreChatsForCurrentUser = async () => {
   }
 };
 
+// 6. Hàm truy vấn lấy tin nhắn theo idUser trong sqlite
+
+// const currentUserId = auth().currentUser?.uid; // Lấy ID người dùng hiện tại từ auth
+// if (currentUserId) {
+//   getMessagesByUserId(currentUserId, setMessLocal); // Gọi hàm với userId và hàm setState
+// }
+export const getMessagesByUserId = async (userId, setMessages) => {
+  try {
+    db.transaction(tx => {
+      tx.executeSql(
+        `SELECT * FROM chats;`,
+        [],
+        (tx, results) => {
+          let messages = [];
+          for (let i = 0; i < results.rows.length; i++) {
+            let item = results.rows.item(i);
+            let users = JSON.parse(item.users);
+            if (users.includes(userId)) {
+              let decryptedLastMessage = decryptMessage(item.lastMessage);
+              messages.push({
+                id: item.id,
+                users: users,
+                lastMessage: decryptedLastMessage,
+                timestamp: new Date(item.timestamp),
+              });
+            }
+          }
+          setMessages(prev =>
+            JSON.stringify(prev) !== JSON.stringify(messages) ? messages : prev,
+          );
+        },
+        error => console.log('Error fetching messages by userId:', error),
+      );
+    });
+  } catch (err) {
+    console.error('Error in getMessagesByUserId:', err);
+  }
+};
+
 export default db;
