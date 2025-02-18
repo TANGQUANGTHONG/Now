@@ -12,13 +12,11 @@ import {
   Keyboard,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { getFirestore, serverTimestamp } from '@react-native-firebase/firestore';
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import { getFirestore } from '@react-native-firebase/firestore';
+import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { oStackHome } from '../../navigations/HomeNavigation';
 import database from '@react-native-firebase/database';
-
-globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 
 const Single = () => {
   const route = useRoute();
@@ -26,47 +24,45 @@ const Single = () => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const navigation = useNavigation();
-  const firestore = getFirestore();
-  const [hiddenMessages, setHiddenMessages] = useState([]);
-
   const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
+  const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
 
-  // lấy tin nhắn realtime
+  // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-    const secretKey = generateSecretKey(userId, myId);
-  
+
     const onMessageChange = messagesRef.on('value', snapshot => {
       if (snapshot.exists()) {
         const msgs = Object.entries(snapshot.val()).map(([id, data]) => ({
           id,
           senderId: data.senderId,
-          text: decryptMessage(data.text, secretKey),
+          text: decryptMessage(data.text, secretKey), // Giải mã tin nhắn
           timestamp: new Date(data.timestamp),
         }));
-  
-        setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp));
+
+        setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp)); // Sắp xếp theo thời gian
       }
     });
-  
+
     return () => messagesRef.off('value', onMessageChange);
-  }, [chatId]);
-  
+  }, [chatId, secretKey]);
 
-
-  // realtime gửi tin nhắn
+  // 🔹 Gửi tin nhắn
   const sendMessage = async () => {
     if (!text.trim()) return;
 
-    const secretKey = generateSecretKey(userId, myId);
-    const encryptedText = encryptMessage(text, secretKey);
-
     try {
       const chatRef = database().ref(`/chats/${chatId}`);
+      const chatSnapshot = await chatRef.once('value');
+
+      if (!chatSnapshot.exists()) {
+        await chatRef.set({ users: { [userId]: true, [myId]: true } });
+      }
+
       const newMessageRef = chatRef.child('messages').push();
       await newMessageRef.set({
         senderId: myId,
-        text: encryptedText,
+        text: encryptMessage(text, secretKey), // Mã hóa tin nhắn
         timestamp: database.ServerValue.TIMESTAMP,
       });
 
@@ -76,40 +72,23 @@ const Single = () => {
     }
   };
 
-
-
-  // xóa tin nhắn phía bạn realtime
-  const deleteMessageForMe = async messageId => {
-    setHiddenMessages(prev => [...prev, messageId]);
-  };
-
-
-
-  // xóa tin nhắn cả hai realtime
+  // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
     try {
       await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
-
       setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
     } catch (error) {
       console.error('Lỗi khi xóa tin nhắn:', error);
     }
   };
 
-
-  // xác nhận xóa tin nhắn
+  // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
-    Alert.alert(
-      'Xóa tin nhắn',
-      'Bạn muốn xóa tin nhắn này phía bạn hay cả hai?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        // { text: 'Xóa phía bạn', onPress: () => deleteMessageForMe(messageId) }, // Gọi hàm chỉ ẩn tin nhắn
-        { text: 'Xóa cả hai', onPress: () => deleteMessageForBoth(messageId) },
-      ],
-    );
+    Alert.alert('Xóa tin nhắn', 'Bạn muốn xóa tin nhắn này?', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Xóa', onPress: () => deleteMessageForBoth(messageId) },
+    ]);
   };
-
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
@@ -140,9 +119,9 @@ const Single = () => {
         </View>
 
         <FlatList
-          data={messages.filter(
-            msg => !hiddenMessages.includes(msg.id) && !msg.deleted,
-          )} // Chỉ lọc ra tin nhắn chưa bị ẩn
+          data={messages
+           
+          } // Chỉ lọc ra tin nhắn chưa bị ẩn
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View

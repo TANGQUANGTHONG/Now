@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,69 +12,77 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import {styles} from '../../Styles/auth/Sign_up';
-// import {
-//   getAuth,
-//   createUserWithEmailAndPassword,
-// } from '@react-native-firebase/auth';
-// import {getFirestore, doc, setDoc} from '@react-native-firebase/firestore';
-import {encryptMessage} from '../../cryption/Encryption';
+import { styles } from '../../Styles/auth/Sign_up';
+import { encryptMessage } from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 
-const SignUp = props => {
-  const {navigation} = props;
+const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
-  const [Image] = useState('https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg');
+  const defaultImage = 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg';
 
+  // 🔹 Xác thực dữ liệu nhập
   const validateFields = () => {
     let newErrors = {};
-    if (!name.trim()) newErrors.name = 'Name is required';
+    if (!name.trim()) newErrors.name = 'Tên không được để trống';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      newErrors.email = 'Invalid email address';
+      newErrors.email = 'Email không hợp lệ';
     if (password.length < 6)
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     if (password !== confirmPassword)
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Mật khẩu không khớp';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // 🔹 Xử lý đăng ký
   const Sign_Up = async () => {
-    if (!name || !email || !password || password !== confirmPassword) {
-      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin và kiểm tra mật khẩu.');
+    if (!validateFields()) {
+      Alert.alert('Lỗi', 'Vui lòng kiểm tra lại thông tin nhập vào.');
       return;
     }
-  
+
     try {
-      // Tạo tài khoản trên Firebase Authentication
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const userId = userCredential.user.uid; // Lấy UID của user mới tạo
-  
-      // Lưu thông tin user vào Firebase Realtime Database
+
+      // 🔹 Lưu user vào Realtime Database
       await database()
         .ref(`/users/${userId}`)
         .set({
           name: encryptMessage(name),
           email: encryptMessage(email),
-          Image: encryptMessage(Image),
+          Image: encryptMessage(defaultImage),
+          createdAt: database.ServerValue.TIMESTAMP, // Lưu thời gian tạo
         });
-  
+
       Alert.alert('Thành công', 'Tài khoản đã được tạo!');
       navigation.navigate('Login');
     } catch (error) {
       console.error('Lỗi khi tạo tài khoản:', error);
-      Alert.alert('Lỗi', error.message);
+      Alert.alert('Lỗi', getFirebaseErrorMessage(error.code));
     }
   };
-   
- 
+
+  // 🔹 Xử lý lỗi Firebase
+  const getFirebaseErrorMessage = (errorCode) => {
+    switch (errorCode) {
+      case 'auth/email-already-in-use':
+        return 'Email này đã được sử dụng';
+      case 'auth/invalid-email':
+        return 'Email không hợp lệ';
+      case 'auth/weak-password':
+        return 'Mật khẩu quá yếu, hãy chọn mật khẩu mạnh hơn';
+      default:
+        return 'Có lỗi xảy ra, vui lòng thử lại';
+    }
+  };
 
 
   return (
