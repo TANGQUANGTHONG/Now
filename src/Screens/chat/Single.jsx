@@ -119,9 +119,7 @@ const Single = () => {
         </View>
 
         <FlatList
-          data={messages.filter(
-            msg => !hiddenMessages.includes(msg.id) && !msg.deleted,
-          )} // Chỉ lọc ra tin nhắn chưa bị ẩn
+          data={messages}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <View
