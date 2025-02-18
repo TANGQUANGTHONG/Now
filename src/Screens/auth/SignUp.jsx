@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { styles } from '../../Styles/auth/Sign_up';
 import { encryptMessage } from '../../cryption/Encryption';
-import auth from '@react-native-firebase/auth';
+import auth, { firebase } from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 
 const SignUp = ({ navigation }) => {
@@ -47,28 +47,31 @@ const SignUp = ({ navigation }) => {
       Alert.alert('Lỗi', 'Vui lòng kiểm tra lại thông tin nhập vào.');
       return;
     }
-
+  
     try {
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
-      const userId = userCredential.user.uid; // Lấy UID của user mới tạo
-
-      // 🔹 Lưu user vào Realtime Database
-      await database()
-        .ref(`/users/${userId}`)
-        .set({
-          name: encryptMessage(name),
-          email: encryptMessage(email),
-          Image: encryptMessage(defaultImage),
-          createdAt: database.ServerValue.TIMESTAMP, // Lưu thời gian tạo
-        });
-
-      Alert.alert('Thành công', 'Tài khoản đã được tạo!');
-      navigation.navigate('Login');
+      const userId = userCredential.user.uid;
+  
+      // Gửi email xác thực
+      await userCredential.user.sendEmailVerification();
+      Alert.alert('Yêu cầu xác thực', 'Vui lòng kiểm tra email để xác thực tài khoản.');
+  
+      // Lưu user vào Firebase Database
+      await database().ref(`/users/${userId}`).set({
+        name: encryptMessage(name),
+        email: encryptMessage(email),
+        Image: encryptMessage(defaultImage),
+        createdAt: database.ServerValue.TIMESTAMP,
+      });
+  
+      // Chuyển hướng đến trang DashBoard thay vì Home
     } catch (error) {
       console.error('Lỗi khi tạo tài khoản:', error);
       Alert.alert('Lỗi', getFirebaseErrorMessage(error.code));
     }
   };
+  
+  
 
   // 🔹 Xử lý lỗi Firebase
   const getFirebaseErrorMessage = (errorCode) => {

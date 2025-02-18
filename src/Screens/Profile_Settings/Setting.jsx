@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,20 +11,14 @@ import {
   ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {getAuth} from '@react-native-firebase/auth';
-import {
-  getFirestore,
-  doc,
-  getDocs,
-  updateDoc,
-  collection,
-} from '@react-native-firebase/firestore';
-import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import { getAuth } from '@react-native-firebase/auth';
+import database from '@react-native-firebase/database'; // Import Realtime Database
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 
-const {width, height} = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const Setting = props => {
-  const {navigation} = props;
+  const { navigation } = props;
   const auth = getAuth();
   const [users, setUsers] = useState([]);
 
@@ -40,38 +34,36 @@ const Setting = props => {
 
   const fetchUsers = async () => {
     try {
-      const firestore = getFirestore(); // Lấy instance Firestore
-      const querySnapshot = await getDocs(collection(firestore, 'users')); // Lấy danh sách user
-
-      const userList = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-
-        return {
-          id: doc.id,
-          username: data.username
-            ? decryptMessage(data.username)
-            : 'Không có tên',
-
-          email: data.email ? decryptMessage(data.email) : 'Không có email',
-          img: data.Image
-            ? decryptMessage(data.Image)
-            : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
-        };
+      const userRef = database().ref('/users'); // Đường dẫn đến bảng users trong Realtime Database
+      userRef.on('value', snapshot => {
+        const usersData = snapshot.val();
+        if (usersData) {
+          const userList = Object.keys(usersData).map(userId => {
+            const data = usersData[userId];
+            return {
+              id: userId,
+              username: data.name ? decryptMessage(data.name) : 'Không có tên',
+              email: data.email ? decryptMessage(data.email) : 'Không có email',
+              img: data.Image
+                ? decryptMessage(data.Image)
+                : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
+            };
+          });
+          setUsers(userList);
+        }
       });
-
-      setUsers(userList);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
   };
+
   const myId = auth.currentUser?.uid;
   const filtered = users.filter(user => user.id === myId);
 
   useEffect(() => {
     fetchUsers();
-  }, [filtered]);
+  }, []);
 
-  // console.log(filtered);
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -150,7 +142,7 @@ const Setting = props => {
   );
 };
 
-const Option = ({icon, title, subtitle}) => (
+const Option = ({ icon, title, subtitle }) => (
   <View style={styles.option}>
     <View style={[styles.optionIcon]}>
       <Icon name={icon} size={20} color="#555" />
@@ -161,22 +153,19 @@ const Option = ({icon, title, subtitle}) => (
     </View>
   </View>
 );
-const Option1 = ({icon, title, subtitle}) => (
+const Option1 = ({ icon, title, subtitle }) => (
   <View style={styles.option}>
     <View style={[styles.optionIcon]}>
       <Icon name={icon} size={20} color="red" />
     </View>
     <View style={styles.optionText}>
-<Text style={styles.optionTitle1}>{title}</Text>
+      <Text style={styles.optionTitle1}>{title}</Text>
       {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
     </View>
   </View>
 );
 
 const styles = StyleSheet.create({
-  textColor: {
-    color: 'red',
-  },
   container: {
     flex: 1,
     backgroundColor: '#000',
@@ -193,32 +182,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: width * 0.1,
     flex: 1,
   },
-  label: {
-    fontSize: width * 0.035,
-    color: 'gray',
-    marginTop: height * 0.01,
-  },
-  value: {
-    fontSize: width * 0.04,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  section: {
-    paddingVertical: width * 0.02,
-  },
-  rectangle: {
-    alignItems: 'center',
-  },
-  rectangleLine: {
-    width: width * 0.1,
-    borderRadius: width * 0.05,
-    height: height * 0.006,
-    backgroundColor: 'gray',
-  },
   textSetting: {
     fontSize: width * 0.05,
     fontWeight: '500',
-    color: '#fff', // Add color for better contrast
+    color: '#fff',
   },
   option: {
     flexDirection: 'row',

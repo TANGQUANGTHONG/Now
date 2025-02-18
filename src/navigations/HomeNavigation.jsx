@@ -101,8 +101,7 @@ const StackHome = createNativeStackNavigator();
 const HomeNavigation = () => {
   return (
     <StackHome.Navigator
-      screenOptions={{headerShown: false}}
-      initialRouteName="Splash">
+      screenOptions={{headerShown: false}}>
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen
           key={index}

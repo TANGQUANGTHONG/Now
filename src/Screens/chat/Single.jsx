@@ -40,7 +40,7 @@ const Single = () => {
           timestamp: new Date(data.timestamp),
         }));
 
-        setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp)); // Sắp xếp theo thời gian
+        setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp)); 
       }
     });
 
