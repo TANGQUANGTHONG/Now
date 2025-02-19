@@ -11,24 +11,14 @@ const App = () => {
 
   const [chats, setChats] = useState([]); 
 
-  // useEffect(() => {
-  //   connectDb().then(() => {
-  //     getChatsFromSQLite((data) => {
-  //       console.log('Dữ liệu lấy từ SQLite:\n', JSON.stringify(data, null, 2));
-  //       setChats(data);
-  //     });
-  //   });
-  // }, []);
-
-  // useEffect(() => {
-  //   PushNotification.localNotification({
-  //     channelId: 'default-channel',
-  //     title: ' Tin nhắn mới!',
-  //     message: 'Đây là thông báo test!', // Cần có `message`
-  //     playSound: true,
-  //     soundName: 'default',
-  //   });
-  // }, []);
+  useEffect(() => {
+    connectDb().then(() => {
+      getChatsFromSQLite((data) => {
+        console.log('Dữ liệu lấy từ SQLite:\n', JSON.stringify(data, null, 2));
+        setChats(data);
+      });
+    });
+  }, []);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
