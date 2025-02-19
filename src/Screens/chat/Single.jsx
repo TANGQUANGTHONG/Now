@@ -154,8 +154,8 @@ const Single = () => {
                 {item.senderId !== myId && (
                   <Text style={styles.usernameText}>{username}</Text>
                 )}
-                <Text style={styles.messageText}>{item.text}</Text>
-                <Text style={styles.timestamp}>
+                <Text style={ item.senderId === myId ? styles.SendmessageText : styles.ReceivedmessageText  }>{item.text}</Text>
+                <Text style={item.senderId === myId ? styles.SendmessageText : styles.ReceivedmessageText}>
                   {item.timestamp.toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -173,19 +173,24 @@ const Single = () => {
 </TouchableOpacity>
 
 
-          <TextInput
-            style={styles.input}
-            value={text}
-            onChangeText={setText}
-            placeholder="Nhập tin nhắn..."
-          />
-          <TouchableOpacity onPress={sendMessage} disabled={!text.trim()}>
-            <Icon
-              name={text.trim() ? 'send' : 'microphone'}
-              size={24}
-              color={text.trim() ? '#007bff' : '#aaa'}
-            />
-          </TouchableOpacity>
+  <View style={styles.inputWrapper}>
+    <TextInput
+      style={styles.input}
+      value={text}
+      onChangeText={setText}
+      placeholder="Nhập tin nhắn..."
+    />
+  </View>
+
+  <TouchableOpacity onPress={sendMessage} disabled={!text.trim()} style={styles.sendButton}>
+    <Icon
+      name="send"
+      size={24}
+      color={text.trim() ? '#007bff' : '#aaa'}
+    />
+  </TouchableOpacity>
+
+
         </View>
       </View>
     </TouchableWithoutFeedback>
@@ -218,7 +223,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sentContainer: {
-    backgroundColor: '#20A090',
+    backgroundColor: '#002DE3',
     padding: 12,
     borderRadius: 20,
     maxWidth: '70%',
@@ -226,27 +231,29 @@ const styles = StyleSheet.create({
     marginBottom: 10, // Thêm khoảng cách giữa các tin nhắn gửi
   },
   receivedContainer: {
-    backgroundColor: '#F2F7FB',
+    backgroundColor: '#FFFFFF',
     padding: 12,
     borderRadius: 20,
     maxWidth: '70%',
     marginBottom: 10, // Thêm khoảng cách giữa các tin nhắn nhận
   },
 
-  messageText: { fontSize: 16, color: '#000E08' },
+  SendmessageText: { fontSize: 16, color: '#FFFFFF' },
+  ReceivedmessageText: { fontSize: 16, color: '#0F1828' },
   deletedText: { fontSize: 16, color: '#999', fontStyle: 'italic' },
-  timestamp: { fontSize: 12, color: '#666', marginTop: 5, alignSelf: 'flex-end' },
+  Sendtimestamp: { fontSize: 12, color: '#FFFFFF', marginTop: 5, alignSelf: 'flex-end' },
+  Revecivedtimestamp: { fontSize: 12, color: '#ADB5BD', marginTop: 5, alignSelf: 'flex-end' },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ccc',
-    padding: 8,
-    borderRadius: 20,
+    padding: 10,
+    borderRadius: 10,
     marginTop: 10,
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
   },
-  input: { flex: 1, padding: 8, fontSize: 16 },
+  input: { flex: 1, padding: 8, fontSize: 16, backgroundColor: '#F7F7FC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -275,11 +282,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  iconButton: {
-    padding: 5,
-  },
+
   backButton: {
     padding: 5,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  
+  inputWrapper: {
+    flex: 1, // Chiếm hết phần còn lại
+    backgroundColor: '#F7F7FC',
+    borderRadius: 10,
+    marginRight: 10, // Tạo khoảng cách với nút gửi
+  },
+  
+  input: {
+    fontSize: 16,
+    color: '#0F1828',
+  },
+  
+  sendButton: {
+    padding: 10,
+    borderRadius: 20,
   },
 });
 
