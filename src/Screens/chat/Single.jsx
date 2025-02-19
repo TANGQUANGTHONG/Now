@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -11,27 +11,31 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { getFirestore } from '@react-native-firebase/firestore';
-import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
+import {useRoute, useNavigation} from '@react-navigation/native';
+import {getFirestore} from '@react-native-firebase/firestore';
+import {
+  encryptMessage,
+  decryptMessage,
+  generateSecretKey,
+} from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { oStackHome } from '../../navigations/HomeNavigation';
+import {oStackHome} from '../../navigations/HomeNavigation';
 import database from '@react-native-firebase/database';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
   const route = useRoute();
-  const { userId, myId, username, img } = route.params;
+  const {userId, myId, username, img} = route.params;
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const navigation = useNavigation();
   const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
-  const [isSelfDestruct, setIsSelfDestruct] = useState(false);  
+  const [isSelfDestruct, setIsSelfDestruct] = useState(false);
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-  
+
     const onMessageChange = messagesRef.on('value', snapshot => {
       if (snapshot.exists()) {
         const msgs = Object.entries(snapshot.val()).map(([id, data]) => ({
@@ -41,9 +45,9 @@ const Single = () => {
           timestamp: new Date(data.timestamp),
           selfDestruct: data.selfDestruct || false, // Kiểm tra tin nhắn tự hủy
         }));
-  
+
         setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp));
-  
+
         // Xóa các tin nhắn tự hủy sau 5 giây nếu có
         msgs.forEach(msg => {
           if (msg.selfDestruct) {
@@ -54,23 +58,22 @@ const Single = () => {
         });
       }
     });
-  
+
     return () => messagesRef.off('value', onMessageChange);
   }, [chatId, secretKey]);
-  
 
   // 🔹 Gửi tin nhắn
   const sendMessage = async () => {
     if (!text.trim()) return;
-  
+
     try {
       const chatRef = database().ref(`/chats/${chatId}`);
       const chatSnapshot = await chatRef.once('value');
-  
+
       if (!chatSnapshot.exists()) {
-        await chatRef.set({ users: { [userId]: true, [myId]: true } });
+        await chatRef.set({users: {[userId]: true, [myId]: true}});
       }
-  
+
       const newMessageRef = chatRef.child('messages').push();
       await newMessageRef.set({
         senderId: myId,
@@ -78,18 +81,20 @@ const Single = () => {
         timestamp: database.ServerValue.TIMESTAMP,
         selfDestruct: isSelfDestruct, // Lưu trạng thái tin nhắn tự hủy
       });
-  
+
       setText('');
     } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
     }
   };
-  
+
   // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
     try {
       await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
-      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+      setMessages(prevMessages =>
+        prevMessages.filter(msg => msg.id !== messageId),
+      );
     } catch (error) {
       console.error('Lỗi khi xóa tin nhắn:', error);
     }
@@ -98,8 +103,8 @@ const Single = () => {
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
     Alert.alert('Xóa tin nhắn', 'Bạn muốn xóa tin nhắn này?', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Xóa', onPress: () => deleteMessageForBoth(messageId) },
+      {text: 'Hủy', style: 'cancel'},
+      {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
     ]);
   };
   return (
@@ -113,7 +118,7 @@ const Single = () => {
           </TouchableOpacity>
 
           <View style={styles.userInfo}>
-            <Image source={{ uri: img }} style={styles.headerAvatar} />
+            <Image source={{uri: img}} style={styles.headerAvatar} />
             <Text style={styles.headerUsername}>{username}</Text>
           </View>
 
@@ -134,7 +139,7 @@ const Single = () => {
         <FlatList
           data={messages}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => (
+          renderItem={({item}) => (
             <View
               style={
                 item.senderId === myId
@@ -142,7 +147,7 @@ const Single = () => {
                   : styles.receivedWrapper
               }>
               {item.senderId !== myId && (
-                <Image source={{ uri: img }} style={styles.avatar} />
+                <Image source={{uri: img}} style={styles.avatar} />
               )}
               <TouchableOpacity
                 onLongPress={() => confirmDeleteMessage(item.id)}
@@ -167,11 +172,15 @@ const Single = () => {
         />
 
         <View style={styles.inputContainer}>
-
-        <TouchableOpacity onPress={() => setIsSelfDestruct(!isSelfDestruct)} style={styles.iconButton}>
-  <Icon name={isSelfDestruct ? "timer-sand" : "timer-off"} size={24} color={isSelfDestruct ? "red" : "#007bff"} />
-</TouchableOpacity>
-
+          <TouchableOpacity
+            onPress={() => setIsSelfDestruct(!isSelfDestruct)}
+            style={styles.iconButton}>
+            <Icon
+              name={isSelfDestruct ? 'timer-sand' : 'timer-off'}
+              size={24}
+              color={isSelfDestruct ? 'red' : '#007bff'}
+            />
+          </TouchableOpacity>
 
           <TextInput
             style={styles.input}
@@ -193,7 +202,7 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: '#f5f5f5' },
+  container: {flex: 1, padding: 10, backgroundColor: '#f5f5f5'},
   username: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -210,7 +219,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 5,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 8 },
+  avatar: {width: 40, height: 40, borderRadius: 20, marginRight: 8},
   usernameText: {
     fontSize: 14,
     color: '#007bff',
@@ -233,9 +242,9 @@ const styles = StyleSheet.create({
     marginBottom: 10, // Thêm khoảng cách giữa các tin nhắn nhận
   },
 
-  messageText: { fontSize: 16, color: '#000E08' },
-  deletedText: { fontSize: 16, color: '#999', fontStyle: 'italic' },
-  timestamp: { fontSize: 12, color: '#666', marginTop: 5, alignSelf: 'flex-end' },
+  messageText: {fontSize: 16, color: '#000E08'},
+  deletedText: {fontSize: 16, color: '#999', fontStyle: 'italic'},
+  timestamp: {fontSize: 12, color: '#666', marginTop: 5, alignSelf: 'flex-end'},
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -246,7 +255,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     backgroundColor: 'white',
   },
-  input: { flex: 1, padding: 8, fontSize: 16 },
+  input: {flex: 1, padding: 8, fontSize: 16},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
