@@ -25,7 +25,7 @@ export const decryptMessage = (encryptedMessage, userId, myId) => {
   }
 };
 
-// 🔹 Mã hóa userId (Bảo mật ID của người dùng)
+// // 🔹 Mã hóa userId (Bảo mật ID của người dùng)
 // export const encryptUserId = (userId) => {
 //   return CryptoJS.AES.encrypt(userId, "SuperSecureKey").toString();
 // };
@@ -39,4 +39,4 @@ export const decryptMessage = (encryptedMessage, userId, myId) => {
 //     console.error("Lỗi giải mã userId:", error);
 //     return null;
 //   }
-// };
+// };+
