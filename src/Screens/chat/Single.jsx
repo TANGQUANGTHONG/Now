@@ -153,6 +153,8 @@ const Single = () => {
               </TouchableOpacity>
             </View>
           )}
+          showsHorizontalScrollIndicator = {false}
+          showsVerticalScrollIndicator = {false}
         />
 
         <View style={styles.inputContainer}>
