@@ -1,70 +1,94 @@
-import React, { useState } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, Image, 
-  StyleSheet, Dimensions, Pressable, KeyboardAvoidingView, 
-  Platform, ScrollView,
-  Alert
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  Dimensions,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { getAuth } from '@react-native-firebase/auth';
+import {getAuth} from '@react-native-firebase/auth';
 
+const {width, height} = Dimensions.get('window');
 
-const { width, height } = Dimensions.get('window');
-
-const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const Login = ({navigation}) => {
+  const [email, setEmail] = useState('nguyenhongphong1010.02@gmail.com');
+  const [password, setPassword] = useState('111111');
   const [secureText, setSecureText] = useState(true);
 
   const auth = getAuth();
   const loginWithEmailAndPass = () => {
-    auth.signInWithEmailAndPassword(email, password)
+    auth
+      .signInWithEmailAndPassword(email, password)
       .then(() => {
         navigation.navigate('TabHome');
         setPassword('');
         setEmail('');
       })
-      .catch((err) => console.log(err));
+      .catch(err => console.log(err));
   };
-const onForgotPassword = () => {navigation.navigate('ForgotPassword');}
+  const onForgotPassword = () => {
+    navigation.navigate('ForgotPassword');
+  };
   // const forgotPassword = () => {
   //   auth.sendPasswordResetEmail(auth.currentUser.email)
-  //   .then(() => {Alert.alert('xem mail đi thằng ngu')  
+  //   .then(() => {Alert.alert('xem mail đi thằng ngu')
   //   }).catch((err) => console.log(err));
   // }
-  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isFormValid = isValidEmail(email) && password.length >= 6;
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView 
-        contentContainerStyle={{ flexGrow: 1 }} 
-        keyboardShouldPersistTaps="handled"
-      >
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView
+        contentContainerStyle={{flexGrow: 1}}
+        keyboardShouldPersistTaps="handled">
         {/* Nút back */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("SignUp")}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate('SignUp')}>
           <Icon name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
 
         <View style={styles.content}>
           <Text style={styles.title}>Log in to Now</Text>
           <Text style={styles.subtitle}>
-            Welcome back! Sign in using your social account or email to continue us
+            Welcome back! Sign in using your social account or email to continue
+            us
           </Text>
 
           {/* Icon đăng nhập bằng mạng xã hội */}
           <View style={styles.socialIcons}>
             <TouchableOpacity style={styles.socialButton}>
-              <Image source={{ uri: 'https://i.imgur.com/yh45vCH.png' }} style={styles.icon} />
+              <Image
+                source={{uri: 'https://i.imgur.com/yh45vCH.png'}}
+                style={styles.icon}
+              />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton}>
-              <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png' }} style={styles.icon} />
+              <Image
+                source={{
+                  uri: 'https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png',
+                }}
+                style={styles.icon}
+              />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton}>
-              <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/640px-Apple_logo_black.svg.png' }} style={styles.icon} />
+              <Image
+                source={{
+                  uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/640px-Apple_logo_black.svg.png',
+                }}
+                style={styles.icon}
+              />
             </TouchableOpacity>
           </View>
 
@@ -102,8 +126,14 @@ const onForgotPassword = () => {navigation.navigate('ForgotPassword');}
                 color="black"
                 secureTextEntry={secureText}
               />
-              <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-                <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+              <TouchableOpacity
+                onPress={() => setSecureText(!secureText)}
+                style={styles.eyeIcon}>
+                <Icon
+                  name={secureText ? 'eye-off' : 'eye'}
+                  size={20}
+                  color="gray"
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -111,12 +141,17 @@ const onForgotPassword = () => {navigation.navigate('ForgotPassword');}
 
         {/* Nút đăng nhập và quên mật khẩu */}
         <View style={styles.bottomContainer}>
-          <TouchableOpacity 
-            style={[styles.loginButton, isFormValid && styles.activeLoginButton]} 
-            disabled={!isFormValid} 
-            onPress={loginWithEmailAndPass}
-          >
-            <Text style={[styles.loginText, isFormValid && styles.activeLoginText]}>Log in</Text>
+          <TouchableOpacity
+            style={[
+              styles.loginButton,
+              isFormValid && styles.activeLoginButton,
+            ]}
+            disabled={!isFormValid}
+            onPress={loginWithEmailAndPass}>
+            <Text
+              style={[styles.loginText, isFormValid && styles.activeLoginText]}>
+              Log in
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onForgotPassword}>

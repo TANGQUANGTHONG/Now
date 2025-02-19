@@ -1,15 +1,25 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native'
-import React from 'react'
-import AppNavigation from './src/navigations/AppNavigation'
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import AppNavigation from './src/navigations/AppNavigation';
+import { connectDb, getChatsFromSQLite } from './src/storage/SQLiteService';
 
 const App = () => {
+  const [chats, setChats] = useState([]); 
+
+  useEffect(() => {
+    connectDb().then(() => {
+      getChatsFromSQLite((data) => {
+        console.log('Dữ liệu lấy từ SQLite:\n', JSON.stringify(data, null, 2));
+        setChats(data);
+      });
+    });
+  }, []);
+
   return (
-    <>
-        <AppNavigation/>
-    </>
-  )
-}
+    <SafeAreaView style={{ flex: 1 }}>
+      <AppNavigation />
+    </SafeAreaView>
+  );
+};
 
-export default App
-
-const styles = StyleSheet.create({})
+export default App;
