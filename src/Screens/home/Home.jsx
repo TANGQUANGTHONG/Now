@@ -11,11 +11,14 @@ import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Item_home_chat from '../../components/items/Item_home_chat';
 import { getAuth } from '@react-native-firebase/auth';
-import { getFirestore, collection, query, where, getDocs, onSnapshot, doc, getDoc, orderBy, limit } from '@react-native-firebase/firestore';
+import { 
+  getFirestore, collection, query, where, onSnapshot, doc, orderBy, limit 
+} from '@react-native-firebase/firestore';
 import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 import { oStackHome } from '../../navigations/HomeNavigation';
-const { width, height } = Dimensions.get('window')
-const db = getFirestore(); // Khởi tạo Firestore
+
+const { width, height } = Dimensions.get('window');
+const db = getFirestore();
 
 const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
@@ -25,59 +28,76 @@ const Home = ({ navigation }) => {
     const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) return;
 
-    const chatListener = onSnapshot(
-      query(collection(db, "chats"), where("users", "array-contains", currentUserId)),
-      async (chatSnapshot) => {
-        const chatData = chatSnapshot.docs.map(doc => ({
-          chatId: doc.id,
-          users: doc.data().users
-        }));
-
-        console.log("🔥 Cập nhật danh sách chat:", chatData);
-
-        const userIds = chatData.map(chat => chat.users.find(userId => userId !== currentUserId));
-
-        if (userIds.length > 0) {
-          const usersInfo = await getUserInfo(userIds);
-
-          const chatWithLastMessages = await Promise.all(chatData.map(async (chat) => {
-            const otherUser = usersInfo.find(user => user.id === chat.users.find(id => id !== currentUserId));
-            if (!otherUser) return null;
-
-            const lastMessageSnapshot = await getDocs(
-              query(collection(db, "chats", chat.chatId, "messages"), orderBy("timestamp", "desc"), limit(1))
-            );
-
-            let lastMessage = "Chưa có tin nhắn";
-            let lastMessageTime = "";
-            let lastMessageTimestamp = 0;
-
-            if (!lastMessageSnapshot.empty) {
-              const lastMessageData = lastMessageSnapshot.docs[0].data();
-              lastMessage = decryptMessage(lastMessageData.text) || "Tin nhắn bị mã hóa";
-              lastMessageTime = new Date(lastMessageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              lastMessageTimestamp = lastMessageData.timestamp.toMillis();
-            }
-
-            return {
-              chatId: chat.chatId,
-              id: otherUser.id,
-              name: decryptMessage(otherUser.username) || "Unknown",
-              img: decryptMessage(otherUser.Image) || "https://example.com/default-avatar.png",
-              text: lastMessage,
-              time: lastMessageTime,
-              timestamp: lastMessageTimestamp,
-            };
-          }));
-
-          const sortedChatList = chatWithLastMessages.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
-          console.log("📌 Danh sách chat đã sắp xếp:", sortedChatList);
-          setChatList(sortedChatList);
-        }
-      }
+    const chatQuery = query(
+      collection(db, "chats"),
+      where("users", "array-contains", currentUserId)
     );
 
-    return () => chatListener();
+    const unsubscribeChats = onSnapshot(chatQuery, (chatSnapshot) => {
+      const chatData = chatSnapshot.docs.map(doc => ({
+        chatId: doc.id,
+        users: doc.data().users
+      }));
+
+      console.log("🔥 Cập nhật danh sách chat:", chatData);
+
+      const userIds = chatData.map(chat => chat.users.find(userId => userId !== currentUserId));
+
+      if (userIds.length > 0) {
+        getUserInfo(userIds).then(usersInfo => {
+          // Lắng nghe tin nhắn mới nhất của từng cuộc trò chuyện
+          const chatListeners = chatData.map(chat => {
+            return onSnapshot(
+              query(
+                collection(db, "chats", chat.chatId, "messages"),
+                orderBy("timestamp", "desc"),
+                limit(1)
+              ),
+              (messageSnapshot) => {
+                if (!messageSnapshot.empty) {
+                  const lastMessageData = messageSnapshot.docs[0].data();
+                  const otherUser = usersInfo.find(user => user.id === chat.users.find(id => id !== currentUserId));
+                  if (!otherUser) return;
+
+                  const lastMessage = decryptMessage(lastMessageData.text) || "Tin nhắn bị mã hóa";
+                  const lastMessageTime = new Date(lastMessageData.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const lastMessageTimestamp = lastMessageData.timestamp.toMillis();
+
+                  setChatList(prevChats => {
+                    const updatedChats = [...prevChats];
+                    const chatIndex = updatedChats.findIndex(c => c.chatId === chat.chatId);
+
+                    const chatInfo = {
+                      chatId: chat.chatId,
+                      id: otherUser.id,
+                      name: decryptMessage(otherUser.username) || "Unknown",
+                      img: decryptMessage(otherUser.Image) || "https://example.com/default-avatar.png",
+                      text: lastMessage,
+                      time: lastMessageTime,
+                      timestamp: lastMessageTimestamp,
+                    };
+
+                    if (chatIndex !== -1) {
+                      updatedChats[chatIndex] = chatInfo;
+                    } else {
+                      updatedChats.push(chatInfo);
+                    }
+
+                    return updatedChats.sort((a, b) => b.timestamp - a.timestamp);
+                  });
+                }
+              }
+            );
+          });
+
+          return () => {
+            chatListeners.forEach(unsub => unsub());
+          };
+        });
+      }
+    });
+
+    return () => unsubscribeChats();
   }, []);
 
   const getUserInfo = async (userIds) => {
@@ -151,10 +171,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: width * 0.06,
     marginTop: height * 0.02,
     alignItems: 'center',
-  },
-  container_list_friend: {
-    marginLeft: width * 0.06,
-    marginTop: height * 0.05,
   },
   container_list_chat: {
     width: '100%',

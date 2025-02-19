@@ -17,6 +17,8 @@ import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryptio
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { oStackHome } from '../../navigations/HomeNavigation';
 import database from '@react-native-firebase/database';
+globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
+
 
 const Single = () => {
   const route = useRoute();
@@ -26,52 +28,65 @@ const Single = () => {
   const navigation = useNavigation();
   const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
+  const [isSelfDestruct, setIsSelfDestruct] = useState(false);  
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-
+  
     const onMessageChange = messagesRef.on('value', snapshot => {
       if (snapshot.exists()) {
         const msgs = Object.entries(snapshot.val()).map(([id, data]) => ({
           id,
           senderId: data.senderId,
-          text: decryptMessage(data.text, secretKey), // Giải mã tin nhắn
+          text: decryptMessage(data.text, secretKey),
           timestamp: new Date(data.timestamp),
+          selfDestruct: data.selfDestruct || false, // Kiểm tra tin nhắn tự hủy
         }));
-
-        setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp)); // Sắp xếp theo thời gian
+  
+        setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp));
+  
+        // Xóa các tin nhắn tự hủy sau 5 giây nếu có
+        msgs.forEach(msg => {
+          if (msg.selfDestruct) {
+            setTimeout(() => {
+              database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+            }, 5000);
+          }
+        });
       }
     });
-
+  
     return () => messagesRef.off('value', onMessageChange);
   }, [chatId, secretKey]);
+  
 
   // 🔹 Gửi tin nhắn
   const sendMessage = async () => {
     if (!text.trim()) return;
-
+  
     try {
       const chatRef = database().ref(`/chats/${chatId}`);
       const chatSnapshot = await chatRef.once('value');
-
+  
       if (!chatSnapshot.exists()) {
         await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
-
+  
       const newMessageRef = chatRef.child('messages').push();
       await newMessageRef.set({
         senderId: myId,
-        text: encryptMessage(text, secretKey), // Mã hóa tin nhắn
+        text: encryptMessage(text, secretKey),
         timestamp: database.ServerValue.TIMESTAMP,
+        selfDestruct: isSelfDestruct, // Lưu trạng thái tin nhắn tự hủy
       });
-
+  
       setText('');
     } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
     }
   };
-
+  
   // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
     try {
@@ -154,6 +169,12 @@ const Single = () => {
         />
 
         <View style={styles.inputContainer}>
+
+        <TouchableOpacity onPress={() => setIsSelfDestruct(!isSelfDestruct)} style={styles.iconButton}>
+  <Icon name={isSelfDestruct ? "timer-sand" : "timer-off"} size={24} color={isSelfDestruct ? "red" : "#007bff"} />
+</TouchableOpacity>
+
+
           <TextInput
             style={styles.input}
             value={text}

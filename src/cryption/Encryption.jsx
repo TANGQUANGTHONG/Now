@@ -26,17 +26,17 @@ export const decryptMessage = (encryptedMessage, userId, myId) => {
 };
 
 // 🔹 Mã hóa userId (Bảo mật ID của người dùng)
-export const encryptUserId = (userId) => {
-  return CryptoJS.AES.encrypt(userId, "SuperSecureKey").toString();
-};
+// export const encryptUserId = (userId) => {
+//   return CryptoJS.AES.encrypt(userId, "SuperSecureKey").toString();
+// };
 
-// 🔹 Giải mã userId (Lấy lại ID user đã mã hóa)
-export const decryptUserId = (encryptedUserId) => {
-  try {
-    const bytes = CryptoJS.AES.decrypt(encryptedUserId, "SuperSecureKey");
-    return bytes.toString(CryptoJS.enc.Utf8);
-  } catch (error) {
-    console.error("Lỗi giải mã userId:", error);
-    return null;
-  }
-};
+// // 🔹 Giải mã userId (Lấy lại ID user đã mã hóa)
+// export const decryptUserId = (encryptedUserId) => {
+//   try {
+//     const bytes = CryptoJS.AES.decrypt(encryptedUserId, "SuperSecureKey");
+//     return bytes.toString(CryptoJS.enc.Utf8);
+//   } catch (error) {
+//     console.error("Lỗi giải mã userId:", error);
+//     return null;
+//   }
+// };
