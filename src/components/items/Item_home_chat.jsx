@@ -1,14 +1,14 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import React from 'react';
-
+import { decryptMessage } from '../../cryption/Encryption';
 const Item_home_chat = ({ data_chat, onPress }) => {
   return (
     <Pressable onPress={onPress}>
       <View style={styles.container}>
         <Image
-          source={{ uri: data_chat.img || "https://example.com/default-avatar.png" }}
+          source={{ uri: data_chat.img}}
           style={styles.img}
-          onError={(e) => console.log("Lỗi tải ảnh:", e.nativeEvent.error)}
+          onError={() => setError(true)}
         />
         <View style={styles.container_item}>
           <View style={styles.container_content}>
