@@ -18,8 +18,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { oStackHome } from '../../navigations/HomeNavigation';
 import database from '@react-native-firebase/database';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
-
-
 const Single = () => {
   const route = useRoute();
   const { userId, myId, username, img } = route.params;
