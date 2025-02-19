@@ -20,7 +20,6 @@ const App = () => {
     });
   }, []);
 
-
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <AppNavigation />
