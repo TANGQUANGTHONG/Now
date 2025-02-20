@@ -57,12 +57,20 @@ const SignUp = ({ navigation }) => {
       Alert.alert('Yêu cầu xác thực', 'Vui lòng kiểm tra email để xác thực tài khoản.');
   
       // Lưu user vào Firebase Database
-      await database().ref(`/users/${userId}`).set({
+      await database()
+      .ref(`/users/${userId}`)
+      .set({
         name: encryptMessage(name),
         email: encryptMessage(email),
         Image: encryptMessage(defaultImage),
         createdAt: database.ServerValue.TIMESTAMP,
-      });
+        messageQuota: 5, // Mỗi ngày có 5 lượt nhắn tin
+        lastMessageDate: new Date().toISOString().split('T')[0], // Lưu ngày tạo tài khoản
+      })
+      .then(() => console.log('User saved successfully'))
+      .catch((error) => console.error('Firebase Database Error:', error));
+    
+      
   
       // Chuyển hướng đến trang DashBoard thay vì Home
     } catch (error) {
