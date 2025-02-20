@@ -21,6 +21,7 @@ const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nickname, setnickname] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
@@ -63,6 +64,7 @@ const SignUp = ({ navigation }) => {
         name: encryptMessage(name),
         email: encryptMessage(email),
         Image: encryptMessage(defaultImage),
+        nickname: encryptMessage(nickname),
         createdAt: database.ServerValue.TIMESTAMP,
       })
       .then(() => console.log('User saved successfully'))

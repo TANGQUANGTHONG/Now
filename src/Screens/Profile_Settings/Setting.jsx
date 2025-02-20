@@ -11,16 +11,21 @@ import {
   ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { getAuth } from '@react-native-firebase/auth';
-import database from '@react-native-firebase/database'; // Import Realtime Database
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import {getAuth} from '@react-native-firebase/auth';
+import {
+  getDatabase,
+  ref,
+  onValue,
+  update,
+} from '@react-native-firebase/database';
 
 const { width, height } = Dimensions.get('window');
 
 const Setting = props => {
   const { navigation } = props;
   const auth = getAuth();
-  const [users, setUsers] = useState([]);
+  const [myUser, setMyUser] = useState(null);
 
   const logOut = () => {
     auth.signOut().then(() => {
@@ -31,38 +36,36 @@ const Setting = props => {
   const Next_ChangeDisplayName = () => {
     navigation.navigate('ChangeDisplayName');
   };
+  const Next_ChangeDisplayPass = () => {
+    navigation.navigate('ChangePasswordScreen');
+  };
+  useEffect(() => {
+    const fetchUser =  () => {
+      const id = auth.currentUser?.uid;
+      if (!id) return;
 
-  const fetchUsers = async () => {
-    try {
-      const userRef = database().ref('/users'); // Đường dẫn đến bảng users trong Realtime Database
-      userRef.on('value', snapshot => {
-        const usersData = snapshot.val();
-        if (usersData) {
-          const userList = Object.keys(usersData).map(userId => {
-            const data = usersData[userId];
-            return {
-              id: userId,
-              username: data.name ? decryptMessage(data.name) : 'Không có tên',
-              email: data.email ? decryptMessage(data.email) : 'Không có email',
-              img: data.Image
-                ? decryptMessage(data.Image)
-                : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
-            };
+      const userRef = ref(getDatabase(), `users/${id}`);
+      onValue(userRef, snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setMyUser({
+            id: id,
+            name: data.name
+              ? decryptMessage(data.name)
+              : 'Không có tên',
+            email: data.email ? decryptMessage(data.email) : 'Không có email',
+            nickname: data.nickname ? decryptMessage(data.nickname) : 'Không có nickname',
+            img: data.Image
+              ? decryptMessage(data.Image)
+              : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
           });
-          setUsers(userList);
         }
       });
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
+    };
 
-  const myId = auth.currentUser?.uid;
-  const filtered = users.filter(user => user.id === myId);
-
-  useEffect(() => {
-    fetchUsers();
+    fetchUser();
   }, []);
+  console.log(myUser)
 
   return (
     <View style={styles.container}>
@@ -81,23 +84,17 @@ const Setting = props => {
             <Image
               source={{
                 uri:
-                  filtered.length > 0 && filtered[0].img
-                    ? filtered[0].img
-                    : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
+                  myUser?.img ? myUser.img : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg'
               }}
               style={styles.avatar}
             />
           </Pressable>
           <View style={styles.profileInfo}>
             <Text style={styles.name}>
-              {filtered.length > 0 && filtered[0].username
-                ? filtered[0].username
-                : 'không có tên'}
+              {myUser?.name}
             </Text>
             <Text style={styles.status}>
-              {filtered.length > 0 && filtered[0].email
-                ? filtered[0].email
-                : 'không có email'}
+              <Text>@</Text>{myUser?.nickname}
             </Text>
           </View>
           <Icon name="qr-code-outline" size={22} color="black" />
@@ -111,12 +108,14 @@ const Setting = props => {
               subtitle="Privacy, security, change number"
             />
           </TouchableOpacity>
-
+          <TouchableOpacity onPress={Next_ChangeDisplayPass}>
           <Option
             icon="chatbubble-ellipses-outline"
             title="Chat"
             subtitle="Chat history, theme, wallpapers"
           />
+          </TouchableOpacity>
+          
           <Option
             icon="notifications"
             title="Notifications"

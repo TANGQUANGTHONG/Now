@@ -7,6 +7,7 @@ const Item_search = ({ data, onPress }) => {
       <Image source={{ uri: data.img }} style={styles.image} />
       <View>
         <Text style={styles.username}>{data.username}</Text>
+        <Text style={styles.username}>{data.nickname}</Text>
       </View>
     </TouchableOpacity>
   );
