@@ -55,7 +55,6 @@ const SignUp = ({ navigation }) => {
       
       // Gửi email xác thực
       await userCredential.user.sendEmailVerification();
-      Alert.alert('Yêu cầu xác thực', 'Vui lòng kiểm tra email để xác thực tài khoản.');
       
       // Lưu user vào Firebase Database
       await database().ref(`/users/${userId}`).set({
@@ -65,9 +64,7 @@ const SignUp = ({ navigation }) => {
         createdAt: database.ServerValue.TIMESTAMP,
       });
   
-      // Chuyển hướng đến trang DashBoard thay vì Home
     } catch (error) {
-      console.error('Lỗi khi tạo tài khoản:', error);
       Alert.alert('Lỗi', getFirebaseErrorMessage(error.code));
     }
   };
@@ -144,7 +141,7 @@ const SignUp = ({ navigation }) => {
                 />
                 {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
-                
+
               <View style={styles.inputContainer}>
                 <Text style={styles.validText}>Password</Text>
                 <View style={styles.passwordContainer}>
