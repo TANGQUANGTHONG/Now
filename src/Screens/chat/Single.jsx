@@ -66,54 +66,73 @@ const Single = () => {
   const sendMessage = async () => {
     if (!text.trim()) return;
   
-    const userRef = database().ref(`/users/${userId}`);
-    const snapshot = await userRef.once('value');
-    const userData = snapshot.val();
+    try {
+      const chatRef = database().ref(`/chats/${chatId}`);
+      const chatSnapshot = await chatRef.once('value');
+      let userData = chatSnapshot.val();
   
-    if (!userData) {
-      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
-      return;
-    }
-  
-    if (userData.messageQuota > 0) {
-      // Mã hóa tin nhắn
-      const encryptedText = encryptMessage(text, secretKey);
-      const newMessageRef = database().ref(`/chats/${chatId}/messages`).push();
-  
-      // Lưu tin nhắn vào database
-      await newMessageRef.set({
-        senderId: myId,
-        text: encryptedText,
-        timestamp: Date.now(),
-        selfDestruct: isSelfDestruct,
-      });
-  
-      // Giảm số tin nhắn còn lại
-      await userRef.update({
-        messageQuota: userData.messageQuota - 1,
-      });
-  
-      setText('');
-  
-      // Nếu hết lượt, bắt đầu bộ đếm ngược 10 giây
-      if (userData.messageQuota - 1 === 0) {
-        Alert.alert('Hết lượt', 'Vui lòng đợi 10 giây để gửi tin nhắn tiếp.');
-  
-        setTimeout(async () => {
-          await userRef.update({
-            messageQuota: 5, // Reset lại số lượng tin nhắn
-          });
-  
-          Alert.alert('Lượt nhắn tin đã được đặt lại!', 'Bạn có thể tiếp tục nhắn tin.');
-        }, 10000); // Đợi 10 giây
+      // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
+      if (!chatSnapshot.exists()) {
+        await chatRef.set({ 
+          users: { [userId]: true, [myId]: true },
+          messageQuota: { [myId]: 5 } // Chỉ giới hạn cho myId
+        });
+        userData = { messageQuota: { [myId]: 5 } }; // Gán giá trị mặc định
       }
-    } else {
-      Alert.alert('Hết lượt', 'Vui lòng đợi 10 giây để tiếp tục nhắn tin.');
+      
+      
+  
+      if (userData.messageQuota?.[myId] > 0) {
+        const newMessageRef = chatRef.child('messages').push();
+        await newMessageRef.set({
+          senderId: myId,
+          text: encryptMessage(text, secretKey),
+          timestamp: database.ServerValue.TIMESTAMP,
+          selfDestruct: isSelfDestruct,
+        });
+      
+        // Giảm quota chỉ của myId
+        await chatRef.child('messageQuota').update({
+          [myId]: userData.messageQuota[myId] - 1
+        });
+      
+        setText('');
+      
+        // Nếu myId hết lượt, bắt đầu bộ đếm ngược 10 giây
+        if (userData.messageQuota[myId] - 1 === 0) {
+          Alert.alert('Hết lượt', 'Vui lòng đợi 10 giây để gửi tin nhắn tiếp.');
+      
+          setTimeout(async () => {
+            await chatRef.child('messageQuota').update({
+              [myId]: 5, // Reset lại quota chỉ cho myId
+            });
+            Alert.alert('Lượt nhắn tin đã được đặt lại!', 'Bạn có thể tiếp tục nhắn tin.');
+          }, 10000);
+        }
+      } else {
+        Alert.alert('Hết lượt', 'Vui lòng đợi 10 giây để tiếp tục nhắn tin.');
+      }
+      
+    } catch (error) {
+      console.error('Lỗi khi gửi tin nhắn:', error);
     }
   };
   
+    
   
-  
+
+
+  // 🔹 Xóa tin nhắn cả hai
+  const deleteMessageForBoth = async messageId => {
+    try {
+      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
+      setMessages(prevMessages =>
+        prevMessages.filter(msg => msg.id !== messageId),
+      );
+    } catch (error) {
+      console.error('Lỗi khi xóa tin nhắn:', error);
+    }
+  };
 
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
