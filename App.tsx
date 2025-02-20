@@ -11,14 +11,14 @@ const App = () => {
 
   const [chats, setChats] = useState([]); 
 
-  useEffect(() => {
-    connectDb().then(() => {
-      getChatsFromSQLite((data) => {
-        console.log('Dữ liệu lấy từ SQLite:\n', JSON.stringify(data, null, 2));
-        setChats(data);
-      });
-    });
-  }, []);
+  // useEffect(() => {
+  //   connectDb().then(() => {
+  //     getChatsFromSQLite((data) => {
+  //       console.log('Dữ liệu lấy từ SQLite:\n', JSON.stringify(data, null, 2));
+  //       setChats(data);
+  //     });
+  //   });
+  // }, []);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
