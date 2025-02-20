@@ -33,14 +33,13 @@ const Single = () => {
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-const listRef  = useRef(null);
-  
+  const listRef = useRef(null);
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     if (shouldAutoScroll && listRef.current) {
       setTimeout(() => {
-        listRef.current.scrollToEnd({ animated: true });
+        listRef.current.scrollToEnd({animated: true});
         setShouldAutoScroll(false); // Tắt auto-scroll sau khi load
       }, 500);
     }
@@ -80,63 +79,63 @@ const listRef  = useRef(null);
     setShouldAutoScroll(true);
 
     try {
-        const userRef = database().ref(`/users/${myId}`);
-        const chatRef = database().ref(`/chats/${chatId}`);
-        const chatSnapshot = await chatRef.once('value');
-        const userSnapshot = await userRef.once('value');
+      const userRef = database().ref(`/users/${myId}`);
+      const chatRef = database().ref(`/chats/${chatId}`);
+      const chatSnapshot = await chatRef.once('value');
+      const userSnapshot = await userRef.once('value');
 
-        let userData = userSnapshot.val();
-        let chatData = chatSnapshot.val();
+      let userData = userSnapshot.val();
+      let chatData = chatSnapshot.val();
 
-        if (!chatSnapshot.exists()) {
-            // Nếu cuộc trò chuyện chưa tồn tại, tạo mới và lưu danh sách users
-            await chatRef.set({ users: { [userId]: true, [myId]: true } });
-        }
+      if (!chatSnapshot.exists()) {
+        // Nếu cuộc trò chuyện chưa tồn tại, tạo mới và lưu danh sách users
+        await chatRef.set({users: {[userId]: true, [myId]: true}});
+      }
 
-        if (!userData) {
-            Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
-            return;
-        }
+      if (!userData) {
+        Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
+        return;
+      }
 
-        const maxCount = userData.count || 5; // Số tin nhắn tối đa theo tài khoản
-        const countChat = userData.countChat || 0; // Số tin đã gửi
+      const maxCount = userData.count || 5; // Số tin nhắn tối đa theo tài khoản
+      const countChat = userData.countChat || 0; // Số tin đã gửi
 
-        // Kiểm tra nếu user đã đạt giới hạn
-        if (countChat >= maxCount) {
-            Alert.alert('Hết lượt nhắn tin', 'Bạn đã hết lượt nhắn tin, vui lòng đợi 10 giây để tiếp tục.');
+      // Kiểm tra nếu user đã đạt giới hạn
+      if (countChat >= maxCount) {
+        Alert.alert(
+          'Hết lượt nhắn tin',
+          'Bạn đã hết lượt nhắn tin, vui lòng đợi 10 giây để tiếp tục.',
+        );
 
-            // Sau 10 giây reset lại số lượt nhắn tin
-            setTimeout(async () => {
-                await userRef.update({ countChat: 0 });
-                Alert.alert('Lượt nhắn tin đã được đặt lại!', 'Bạn có thể tiếp tục nhắn tin.');
-            }, 10000);
+        // Sau 10 giây reset lại số lượt nhắn tin
+        setTimeout(async () => {
+          await userRef.update({countChat: 0});
+          Alert.alert(
+            'Lượt nhắn tin đã được đặt lại!',
+            'Bạn có thể tiếp tục nhắn tin.',
+          );
+        }, 10000);
 
-            return;
-        }
+        return;
+      }
 
-        // Gửi tin nhắn
-        const newMessageRef = chatRef.child('messages').push();
-        await newMessageRef.set({
-            senderId: myId,
-            text: encryptMessage(text, secretKey),
-            timestamp: database.ServerValue.TIMESTAMP,
-            selfDestruct: isSelfDestruct,
-        });
+      // Gửi tin nhắn
+      const newMessageRef = chatRef.child('messages').push();
+      await newMessageRef.set({
+        senderId: myId,
+        text: encryptMessage(text, secretKey),
+        timestamp: database.ServerValue.TIMESTAMP,
+        selfDestruct: isSelfDestruct,
+      });
 
-        // Tăng countChat của user
-        await userRef.update({ countChat: countChat + 1 });
+      // Tăng countChat của user
+      await userRef.update({countChat: countChat + 1});
 
-        setText('');
+      setText('');
     } catch (error) {
-        console.error('Lỗi khi gửi tin nhắn:', error);
+      console.error('Lỗi khi gửi tin nhắn:', error);
     }
-};
-
-
-
-    
-  
-
+  };
 
   // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
@@ -187,7 +186,7 @@ const listRef  = useRef(null);
         </View>
 
         <FlatList
-        ref={listRef}
+          ref={listRef}
           data={messages}
           keyExtractor={item => item.id}
           renderItem={({item}) => (
@@ -224,16 +223,23 @@ const listRef  = useRef(null);
                       ? styles.SendmessageText
                       : styles.ReceivedmessageText
                   }>
-                  {item.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  <Text
+                    style={
+                      item.senderId === myId
+                        ? styles.Sendtimestamp
+                        : styles.Revecivedtimestamp
+                    }>
+                    {item.timestamp.toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
                 </Text>
               </TouchableOpacity>
             </View>
           )}
-          showsHorizontalScrollIndicator = {false}
-          showsVerticalScrollIndicator = {false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
         />
 
         <View style={styles.inputContainer}>
