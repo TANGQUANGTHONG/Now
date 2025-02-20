@@ -4,59 +4,45 @@ const { width, height } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
   container: {
-    height: height,
+    flex: 1,
     backgroundColor: '#fff',
-    padding: width * 0.02,
   },
   content: {
     justifyContent: 'center',
-    marginTop: width * 0.05,
-  },
-  errorInput: {
-    borderBottomColor: 'red',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: width * 0.033,
-    alignSelf: 'flex-end',
-    marginTop: width * 0.05, 
+    paddingHorizontal: width * 0.05,
   },
   backButton: {
     position: 'absolute',
-    top: width * 0.05,
+    top: height * 0.03,
     left: width * 0.05,
   },
   title: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: 'black',
-    marginTop: width * 0.1,
+    color: '#002DE3',
+    marginTop: height * 0.07,
   },
   subtitle: {
-    fontSize: width * 0.05,
+    fontSize: width * 0.045,
     textAlign: 'center',
     color: 'gray',
-    marginVertical: 0.05
-  },
-  activeCreateButton: {
-    backgroundColor: '#24786D',
+    marginVertical: height * 0.015,
   },
   inputContainer: {
-    width: '100%',
-    marginTop: width * 0.07,
+    marginTop: height * 0.03,
   },
   validText: {
-    color: '#24786D',
+    color: '#002DE3',
     fontWeight: 'bold',
   },
   input: {
     width: '100%',
-    height: width * 0.15,
-    borderBottomWidth: width * 0.004,
+    height: height * 0.07,
+    borderBottomWidth: 1,
     borderBottomColor: '#CDD1D0',
-    fontSize: width * 0.04,
-    paddingHorizontal: width * 0.01,
+    fontSize: width * 0.045,
+    paddingHorizontal: width * 0.03,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -64,35 +50,69 @@ export const styles = StyleSheet.create({
   },
   eyeIcon: {
     position: 'absolute',
-    right: width * 0.02,
+    right: width * 0.03,
   },
   bottomContainer: {
-    position: 'absolute',
-    bottom: width * 0.2,
-    left: width * 0.02,
-    right: width * 0.02,
+    marginVertical : width * 0.2,
+    paddingHorizontal: width * 0.05,
   },
   loginButton: {
-    width: '100%',
-    backgroundColor: '#f5f5f5',
-    padding: width * 0.03,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 15,
+    backgroundColor: '#002DE3',
+    height: height * 0.06,
+    justifyContent: 'center',
+    marginHorizontal: width * 0.04,
     alignItems: 'center',
-    borderRadius: width * 0.07,
-    marginVertical: width * 0.04
-  },
-  activeLoginButton: {
-    backgroundColor: '#24786D',
+    borderRadius: width * 0.03,
+    
   },
   loginText: {
-    color: 'gray',
-    fontSize: width * 0.05,
-  },
-  activeLoginText: {
-    color: 'white',
+    color: '#fff',
+    fontWeight: 'bold',
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   forgotPassword: {
     textAlign: 'center',
-    color: '#24786D',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  textforgotPassword:{
+    color: '#002DE3',
     fontWeight: 'bold',
   },
+  textforgotPassword2:{
+    fontWeight: 'bold',
+    color: 'gray',
+  },
+  socialContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: height * 0.03,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.02,
+    borderRadius: width * 1,
+    marginHorizontal: width * 0.02,
+  },
+  socialIcon: {
+    width: width * 0.08,
+    height: width * 0.08,
+  },
+  socialText: {
+    fontSize: width * 0.02,
+    fontWeight: 'bold',
+    color: 'black',
+  },
+  errorText:{
+    color: 'red'
+  }
 });

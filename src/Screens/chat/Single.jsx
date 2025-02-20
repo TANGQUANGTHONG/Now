@@ -232,7 +232,8 @@ const listRef  = useRef(null);
               </TouchableOpacity>
             </View>
           )}
-          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator = {false}
+          showsVerticalScrollIndicator = {false}
         />
 
         <View style={styles.inputContainer}>
