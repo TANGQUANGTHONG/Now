@@ -10,7 +10,8 @@ import {
   Pressable,
   ScrollView,
   Modal,
-  TextInput
+  TextInput,
+  Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
