@@ -17,7 +17,7 @@ const Search = () => {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const navigation = useNavigation();
   const auth = getAuth();
-
+  
   const handleUserPress = (userId, username, img) => {
     const myId = auth.currentUser?.uid;
     navigation.navigate(oStackHome.Single.name, {
@@ -29,13 +29,14 @@ const Search = () => {
   };
 
   const fetchUsers = () => {
+    const myId = auth.currentUser?.uid;
     const usersRef = database().ref('users');
 
     usersRef.on('value', snapshot => {
       const usersData = snapshot.val();
   
       if (usersData) {
-        const userList = Object.keys(usersData).map(key => {
+        const userList = Object.keys(usersData).filter(key => key !== myId).map(key => {
           const user = usersData[key];
           return {
             id: key,
