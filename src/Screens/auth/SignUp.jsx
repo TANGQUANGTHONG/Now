@@ -17,6 +17,7 @@ import { styles } from '../../Styles/auth/Sign_up';
 import { encryptMessage } from '../../cryption/Encryption';
 import auth, { firebase } from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
+import { oStackHome } from '../../navigations/HomeNavigation';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -103,7 +104,7 @@ const SignUp = ({ navigation }) => {
           <View style={styles.container}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.goBack()}>
+              onPress={() => navigation.navigate('Boarding')}>
               <Icon name="arrow-left" size={24} color="black" />
             </TouchableOpacity>
 

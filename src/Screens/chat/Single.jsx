@@ -32,11 +32,23 @@ const Single = () => {
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
 
   const listRef = useRef(null);
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
+    const typingRef = database().ref(`/chats/${chatId}/typing`);
+
+    typingRef.on('value', snapshot => {
+      if (snapshot.exists()) {
+        const typingData = snapshot.val();
+        setIsTyping(typingData.isTyping && typingData.userId !== myId);
+      } else {
+        setIsTyping(false);
+      }
+    });
+
     if (shouldAutoScroll && listRef.current) {
       setTimeout(() => {
         listRef.current.scrollToEnd({animated: true});
@@ -68,15 +80,17 @@ const Single = () => {
       }
     });
 
-    return () => messagesRef.off('value', onMessageChange);
+    return () => {
+      messagesRef.off('value', onMessageChange);
+      typingRef.off(); // Cleanup khi rời khỏi màn hình
+    };
   }, [chatId, secretKey, shouldAutoScroll]);
 
   // 🔹 Gửi tin nhắn
   const sendMessage = async () => {
     if (!text.trim()) return;
 
-    // Gọi lại auto-scroll mỗi khi gửi tin nhắn
-    setShouldAutoScroll(true);
+    setShouldAutoScroll(true); // Kích hoạt auto-scroll
 
     try {
       const userRef = database().ref(`/users/${myId}`);
@@ -85,29 +99,29 @@ const Single = () => {
       const userSnapshot = await userRef.once('value');
 
       let userData = userSnapshot.val();
-      let chatData = chatSnapshot.val();
 
-      if (!chatSnapshot.exists()) {
-        // Nếu cuộc trò chuyện chưa tồn tại, tạo mới và lưu danh sách users
-        await chatRef.set({users: {[userId]: true, [myId]: true}});
-      }
-
-      if (!userData) {
+      if (!userSnapshot.exists()) {
         Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
         return;
       }
 
-      const maxCount = userData.count || 5; // Số tin nhắn tối đa theo tài khoản
-      const countChat = userData.countChat || 0; // Số tin đã gửi
+      if (!chatSnapshot.exists()) {
+        // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
+        await chatRef.set({
+          users: {[userId]: true, [myId]: true},
+      
+        });
+      }
 
-      // Kiểm tra nếu user đã đạt giới hạn
+      const maxCount = userData.count || 5;
+      const countChat = userData.countChat || 0;
+
       if (countChat >= maxCount) {
         Alert.alert(
           'Hết lượt nhắn tin',
           'Bạn đã hết lượt nhắn tin, vui lòng đợi 10 giây để tiếp tục.',
         );
 
-        // Sau 10 giây reset lại số lượt nhắn tin
         setTimeout(async () => {
           await userRef.update({countChat: 0});
           Alert.alert(
@@ -128,7 +142,7 @@ const Single = () => {
         selfDestruct: isSelfDestruct,
       });
 
-      // Tăng countChat của user
+      // Cập nhật số lượng tin nhắn đã gửi
       await userRef.update({countChat: countChat + 1});
 
       setText('');
@@ -156,6 +170,18 @@ const Single = () => {
       {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
     ]);
   };
+
+  const handleTyping = isTyping => {
+    database().ref(`/chats/${chatId}`).update({
+      typing: {
+        userId: myId,
+        isTyping: isTyping,
+      },
+      users: {[userId]: true, [myId]: true},
+    });
+  };
+  
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
@@ -169,6 +195,7 @@ const Single = () => {
           <View style={styles.userInfo}>
             <Image source={{uri: img}} style={styles.headerAvatar} />
             <Text style={styles.headerUsername}>{username}</Text>
+          
           </View>
 
           <View style={styles.iconContainer}>
@@ -238,11 +265,14 @@ const Single = () => {
               </TouchableOpacity>
             </View>
           )}
+          
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
+          
         />
-
+ {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
         <View style={styles.inputContainer}>
+          
           <TouchableOpacity
             onPress={() => setIsSelfDestruct(!isSelfDestruct)}
             style={styles.iconButton}>
@@ -257,8 +287,12 @@ const Single = () => {
             <TextInput
               style={styles.input}
               value={text}
-              onChangeText={setText}
+              onChangeText={value => {
+                setText(value); // Cập nhật tin nhắn
+                handleTyping(value.length > 0); // Cập nhật trạng thái nhập
+              }}
               placeholder="Nhập tin nhắn..."
+              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập
             />
           </View>
 
@@ -397,6 +431,17 @@ const styles = StyleSheet.create({
   sendButton: {
     padding: 10,
     borderRadius: 20,
+  },
+  typingText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#007bff',
+    marginLeft: 5,
+    alignItems: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    width: '25%',
+    borderRadius: 10,
+    padding: 2,
   },
 });
 
