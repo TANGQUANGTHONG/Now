@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,82 +9,82 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import {useNavigation} from '@react-navigation/native';
-import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
-import {
-  getFirestore,
-  doc,
-  getDocs,
-  updateDoc,
-  collection,
-} from '@react-native-firebase/firestore';
-
-import {getAuth} from '@react-native-firebase/auth';
+import { useNavigation } from '@react-navigation/native';
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import { getAuth } from '@react-native-firebase/auth';
+import { getDatabase, ref, onValue, update } from '@react-native-firebase/database';
 
 const ChangeUserInfo = () => {
   const navigation = useNavigation();
   const auth = getAuth();
-  const [users, setUsers] = useState([]);
-  const [username, setUsername] = useState('');
-  const [myUser, setmyUser] = useState([]);
-
-  const fetchUsers = async () => {
-    try {
-      const firestore = getFirestore(); // Lấy instance Firestore
-      const querySnapshot = await getDocs(collection(firestore, 'users')); // Lấy danh sách user
-
-      const userList = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-
-        return {
-          id: doc.id,
-          username: data.username
-            ? decryptMessage(data.username)
-            : 'Không có tên',
-          email: data.email ? decryptMessage(data.email) : 'Không có email',
-          img: data.Image ? decryptMessage(data.Image) : null,
-        };
-      });
-
-      // console.log(userList);
-      setUsers(userList);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
+  const [name, setName] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [myUser, setMyUser] = useState(null);
 
   useEffect(() => {
-    fetchUsers();
+    const fetchUser = () => {
+      const id = auth.currentUser?.uid;
+      if (!id) return;
+
+      const userRef = ref(getDatabase(), `users/${id}`);
+      onValue(userRef, snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const decryptedName = data.name ? decryptMessage(data.name) : 'Không có tên';
+          let decryptedNickname = data.nickname ? decryptMessage(data.nickname) : '';
+
+          // Thêm @ vào trước nickname nếu chưa có
+          if (decryptedNickname && !decryptedNickname.startsWith('@')) {
+            decryptedNickname = `@${decryptedNickname}`;
+          }
+
+          setMyUser({
+            id: id,
+            name: decryptedName,
+            nickname: decryptedNickname,
+          });
+
+          setName(decryptedName);
+          setNickname(decryptedNickname);
+        }
+      });
+    };
+
+    fetchUser();
   }, []);
-  const myId = auth.currentUser?.uid;
-  const filtered = users.filter(user => user.id === myId);
-  // console.log(filtered);
-  // Cập nhật Username trong Firestore
+
   const handleUpdateUsername = async () => {
-    if (!username.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên mới!');
+    if (!name.trim() || !nickname.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ!');
       return;
     }
+
     try {
       const id = auth.currentUser?.uid;
       if (!id) {
         Alert.alert('Lỗi', 'Không tìm thấy ID người dùng!');
         return;
       }
+      let formattedNickname = nickname;
+      if (formattedNickname.startsWith('@')) {
+        formattedNickname = formattedNickname.substring(1); // Bỏ @ trước khi lưu
+      }
 
-      const userRef = doc(getFirestore(), 'users', id);
-      await updateDoc(userRef, {username: encryptMessage(username)});
-
-      Alert.alert('Thành công', 'Tên đã được cập nhật!');
+      const userRef = ref(getDatabase(), `users/${id}`);
+      await update(userRef, { name: encryptMessage(name) });
+      await update(userRef, { nickname: encryptMessage(formattedNickname) });
       navigation.goBack();
+      
     } catch (error) {
       Alert.alert('Lỗi', error.message);
-      console.log('Lỗi cập nhật username:', error);
+      console.log('Lỗi cập nhật name:', error);
     }
   };
 
+
   return (
     <View style={styles.container}>
+      <View style = {styles.containerHearder}>
       <Pressable onPress={() => navigation.goBack()}>
         <Icon
           style={styles.iconBack}
@@ -93,26 +93,46 @@ const ChangeUserInfo = () => {
           color="black"
         />
       </Pressable>
+      <TouchableOpacity onPress={handleUpdateUsername}>
+      <Text style={styles.text_hearder}>Xong</Text>
+      </TouchableOpacity>
+     
+      </View>
+      
 
-      {/* Cập nhật Username */}
       <Text style={styles.label}>Thay đổi tên</Text>
       <TextInput
         placeholder="Nhập tên mới"
         style={styles.input}
-        value={username}
-        onChangeText={setUsername}
+        value={name}
+        onChangeText={setName}
       />
-      <TouchableOpacity style={styles.button} onPress={handleUpdateUsername}>
-        <Text style={styles.buttonText}>Đổi tên</Text>
-      </TouchableOpacity>
+
+      <Text style={styles.label}>Đặt biệt danh</Text>
+      <TextInput
+        placeholder="@Nhập biệt danh mới"
+        style={styles.input}
+        value={nickname}
+        onChangeText={(text) => {
+          if (!text.startsWith('@')) {
+            setNickname(`@${text}`); // Đảm bảo luôn có @ phía trước
+          } else {
+            setNickname(text);
+          }
+        }}
+      />
+      
+      {/* <TouchableOpacity style={styles.button} onPress={handleUpdateUsername}>
+        <Text style={styles.buttonText}>xác nhận</Text>
+      </TouchableOpacity> */}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1, padding: 20, backgroundColor: 'white'},
-  iconBack: {marginBottom: 20},
-  label: {fontSize: 18, fontWeight: 'bold', marginBottom: 10},
+  container: { flex: 1, padding: 20, backgroundColor: 'white' },
+  iconBack: { marginBottom: 20 },
+  label: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 ,color:'black'},
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -127,7 +147,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  buttonText: {color: '#fff', fontSize: 16},
+  buttonText: { color: '#fff', fontSize: 16 },
+  containerHearder:{
+    flexDirection: 'row',
+    alignItems:'center',
+    justifyContent: 'space-between'
+  },
+  text_hearder:{
+    fontSize: 16,
+    fontWeight:'600',
+    color:'#24786D'
+  }
 });
 
 export default ChangeUserInfo;

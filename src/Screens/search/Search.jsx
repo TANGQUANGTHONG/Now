@@ -17,7 +17,7 @@ const Search = () => {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const navigation = useNavigation();
   const auth = getAuth();
-
+  
   const handleUserPress = (userId, username, img) => {
     const myId = auth.currentUser?.uid;
     navigation.navigate(oStackHome.Single.name, {
@@ -29,17 +29,19 @@ const Search = () => {
   };
 
   const fetchUsers = () => {
+    const myId = auth.currentUser?.uid;
     const usersRef = database().ref('users');
 
     usersRef.on('value', snapshot => {
       const usersData = snapshot.val();
   
       if (usersData) {
-        const userList = Object.keys(usersData).map(key => {
+        const userList = Object.keys(usersData).filter(key => key !== myId).map(key => {
           const user = usersData[key];
           return {
             id: key,
             username: user.name ? decryptMessage(user.name) : 'Không có tên',
+            nickname: user.nickname ? decryptMessage(user.nickname) : '',
             email: user.email ? decryptMessage(user.email) : 'Không có email',
             img: user.Image ? decryptMessage(user.Image) : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
           };
@@ -55,18 +57,18 @@ const Search = () => {
   };
 
   // Tối ưu tìm kiếm với debounce
-  const handleSearch = debounce((text) => {
+  const handleSearch = (text) => {
     setSearchText(text);
     if (text === '') {
       setFilteredUsers([]);
     } else {
       const filtered = users.filter(user => 
-        user.username.toLowerCase().includes(text.toLowerCase()) &&
-        user.id !== auth.currentUser?.uid
+        user.username.toLowerCase().includes(text.toLowerCase()) ||
+        user.nickname.toLowerCase().includes(text.toLowerCase())
       );
       setFilteredUsers(filtered);
     }
-  }, 500); // Đặt debounce time là 500ms
+  }// Đặt debounce time là 500ms
 
   useEffect(() => {
     fetchUsers();

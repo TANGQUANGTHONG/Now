@@ -10,6 +10,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { styles } from '../../Styles/auth/Sign_up';
@@ -21,6 +22,7 @@ const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nickname, setnickname] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
@@ -47,26 +49,30 @@ const SignUp = ({ navigation }) => {
       Alert.alert('Lỗi', 'Vui lòng kiểm tra lại thông tin nhập vào.');
       return;
     }
-
+    
     try {
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const userId = userCredential.user.uid;
-  
+      
       // Gửi email xác thực
       await userCredential.user.sendEmailVerification();
-      Alert.alert('Yêu cầu xác thực', 'Vui lòng kiểm tra email để xác thực tài khoản.');
-  
+      
       // Lưu user vào Firebase Database
-      await database().ref(`/users/${userId}`).set({
+      await database()
+      .ref(`/users/${userId}`)
+      .set({
         name: encryptMessage(name),
         email: encryptMessage(email),
         Image: encryptMessage(defaultImage),
+        nickname: encryptMessage(nickname),
         createdAt: database.ServerValue.TIMESTAMP,
-      });
+      })
+      .then(() => console.log('User saved successfully'))
+      .catch((error) => console.error('Firebase Database Error:', error));
+    
+      
   
-      // Chuyển hướng đến trang DashBoard thay vì Home
     } catch (error) {
-      console.error('Lỗi khi tạo tài khoản:', error);
       Alert.alert('Lỗi', getFirebaseErrorMessage(error.code));
     }
   };
@@ -106,6 +112,16 @@ const SignUp = ({ navigation }) => {
               <Text style={styles.subtitle}>
                 Get chatting with friends and family today!
               </Text>
+
+                    <View style={styles.socialContainer}>
+                <TouchableOpacity style={styles.socialButton}>
+                  <Image source={require('../auth/assets/icon/google.png')} style={styles.socialIcon} />
+                </TouchableOpacity>
+              
+                <TouchableOpacity style={styles.socialButton}>
+                  <Image source={require('../auth/assets/icon/facebook.png')} style={styles.socialIcon} />
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.validText}>Your Name</Text>
@@ -183,7 +199,6 @@ const SignUp = ({ navigation }) => {
                 onPress={() => {
                   if (validateFields()) {
                     Sign_Up();
-                    // navigation.navigate('Login');
                   }
                 }}>
                 <Text style={styles.loginText}>Sign Up</Text>

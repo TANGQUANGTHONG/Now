@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,26 @@ import {
   Dimensions,
   Pressable,
   ScrollView,
+  Modal,
+  TextInput,
+  Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { getAuth } from '@react-native-firebase/auth';
-import database from '@react-native-firebase/database'; // Import Realtime Database
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import {getAuth} from '@react-native-firebase/auth';
+import {
+  getDatabase,
+  ref,
+  onValue,
+  update,
+} from '@react-native-firebase/database';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
 const Setting = props => {
-  const { navigation } = props;
+  const {navigation} = props;
   const auth = getAuth();
-  const [users, setUsers] = useState([]);
+  const [myUser, setMyUser] = useState(null);
 
   const logOut = () => {
     auth.signOut().then(() => {
@@ -31,38 +39,77 @@ const Setting = props => {
   const Next_ChangeDisplayName = () => {
     navigation.navigate('ChangeDisplayName');
   };
+  const Next_ChangeDisplayPass = () => {
+    navigation.navigate('ChangePasswordScreen');
+  };
+  const Next_ChangeDisplayDelete = () => {
+    navigation.navigate('DeleteAccountScreen');
+  };
+  useEffect(() => {
+    const fetchUser = () => {
+      const id = auth.currentUser?.uid;
+      if (!id) return;
 
-  const fetchUsers = async () => {
-    try {
-      const userRef = database().ref('/users'); // Đường dẫn đến bảng users trong Realtime Database
-      userRef.on('value', snapshot => {
-        const usersData = snapshot.val();
-        if (usersData) {
-          const userList = Object.keys(usersData).map(userId => {
-            const data = usersData[userId];
-            return {
-              id: userId,
-              username: data.name ? decryptMessage(data.name) : 'Không có tên',
-              email: data.email ? decryptMessage(data.email) : 'Không có email',
-              img: data.Image
-                ? decryptMessage(data.Image)
-                : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
-            };
+      const userRef = ref(getDatabase(), `users/${id}`);
+      onValue(userRef, snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setMyUser({
+            id: id,
+            name: data.name ? decryptMessage(data.name) : 'Không có tên',
+            email: data.email ? decryptMessage(data.email) : 'Không có email',
+            nickname: data.nickname
+              ? decryptMessage(data.nickname)
+              : 'Không có nickname',
+            img: data.Image
+              ? decryptMessage(data.Image)
+              : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
           });
-          setUsers(userList);
         }
       });
+    };
+
+    fetchUser();
+  }, []);
+  console.log(myUser);
+
+  // xóa tài khoản
+  const [password, setPassword] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (!password) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
+      return;
+    }
+
+    try {
+      const user = auth().currentUser;
+      if (!user) throw new Error('Bạn chưa đăng nhập.');
+
+      // Xác thực lại người dùng
+      const credential = auth.EmailAuthProvider.credential(
+        user.email,
+        password,
+      );
+      await user.reauthenticateWithCredential(credential);
+
+      // Xóa dữ liệu trong Realtime Database
+      await database().ref(`/users/${user.uid}`).remove();
+
+      // Xóa tài khoản
+      await user.delete();
+
+      Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
+
+      // Đóng modal
+      setModalVisible(false);
+
+      // Điều hướng về màn hình đăng nhập (tuỳ vào ứng dụng của bạn)
     } catch (error) {
-      console.error('Error fetching users:', error);
+      Alert.alert('Lỗi', error.message);
     }
   };
-
-  const myId = auth.currentUser?.uid;
-  const filtered = users.filter(user => user.id === myId);
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
 
   return (
     <View style={styles.container}>
@@ -80,24 +127,18 @@ const Setting = props => {
           <Pressable>
             <Image
               source={{
-                uri:
-                  filtered.length > 0 && filtered[0].img
-                    ? filtered[0].img
-                    : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
+                uri: myUser?.img
+                  ? myUser.img
+                  : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
               }}
               style={styles.avatar}
             />
           </Pressable>
           <View style={styles.profileInfo}>
-            <Text style={styles.name}>
-              {filtered.length > 0 && filtered[0].username
-                ? filtered[0].username
-                : 'không có tên'}
-            </Text>
+            <Text style={styles.name}>{myUser?.name}</Text>
             <Text style={styles.status}>
-              {filtered.length > 0 && filtered[0].email
-                ? filtered[0].email
-                : 'không có email'}
+              <Text>@</Text>
+              {myUser?.nickname}
             </Text>
           </View>
           <Icon name="qr-code-outline" size={22} color="black" />
@@ -107,42 +148,84 @@ const Setting = props => {
           <TouchableOpacity onPress={Next_ChangeDisplayName}>
             <Option
               icon="person"
-              title="Change username"
+              title="Change user name"
               subtitle="Privacy, security, change number"
             />
           </TouchableOpacity>
-
-          <Option
-            icon="chatbubble-ellipses-outline"
-            title="Chat"
-            subtitle="Chat history, theme, wallpapers"
-          />
-          <Option
-            icon="notifications"
-            title="Notifications"
-            subtitle="Messages, group and others"
-          />
-          <Option
-            icon="help"
-            title="Help"
-            subtitle="Help center, contact us, privacy policy"
-          />
-          <Option
-            icon="server"
-            title="Storage and data"
-            subtitle="Network usage, storage usage"
-          />
-
+          <TouchableOpacity onPress={Next_ChangeDisplayPass}>
+            <Option
+              icon="chatbubble-ellipses-outline"
+              title="Change password"
+              subtitle="Chat history, theme, wallpapers"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={Next_ChangeDisplayDelete}>
+            <TouchableOpacity onPress={() => setModalVisible(true)} >
+              <Option
+                icon="notifications"
+                title="Delete account"
+                subtitle="Messages, group and others"
+              />
+            </TouchableOpacity>
+          </TouchableOpacity>
           <TouchableOpacity onPress={logOut}>
             <Option1 icon="exit-outline" title="Log out" />
           </TouchableOpacity>
         </ScrollView>
       </View>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}>
+          <View
+            style={{
+              width: 300,
+              backgroundColor: 'white',
+              padding: 20,
+              borderRadius: 10,
+            }}>
+            <Text style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10}}>
+              Nhập mật khẩu
+            </Text>
+
+            <TextInput
+              placeholder="Nhập mật khẩu để xác nhận"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              style={{borderBottomWidth: 0.5, marginBottom: 20}}
+            />
+
+            <View
+              style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={{padding: 10}}>
+                <Text style={{color: 'blue'}}>Hủy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDeleteAccount}
+                style={{padding: 10}}>
+                <Text style={{color: 'red'}}>Xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
-const Option = ({ icon, title, subtitle }) => (
+const Option = ({icon, title, subtitle}) => (
   <View style={styles.option}>
     <View style={[styles.optionIcon]}>
       <Icon name={icon} size={20} color="#555" />
@@ -153,7 +236,7 @@ const Option = ({ icon, title, subtitle }) => (
     </View>
   </View>
 );
-const Option1 = ({ icon, title, subtitle }) => (
+const Option1 = ({icon, title, subtitle}) => (
   <View style={styles.option}>
     <View style={[styles.optionIcon]}>
       <Icon name={icon} size={20} color="red" />
@@ -168,12 +251,12 @@ const Option1 = ({ icon, title, subtitle }) => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#002DE3',
   },
   header: {
     alignItems: 'center',
     padding: height * 0.06,
-    backgroundColor: '#0a0f14',
+    backgroundColor: '#002DE3',
   },
   body: {
     backgroundColor: '#fff',

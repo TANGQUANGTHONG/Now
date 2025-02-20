@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -31,9 +31,18 @@ const Single = () => {
   const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  const listRef = useRef(null);
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
+    if (shouldAutoScroll && listRef.current) {
+      setTimeout(() => {
+        listRef.current.scrollToEnd({animated: true});
+        setShouldAutoScroll(false); // Tắt auto-scroll sau khi load
+      }, 500);
+    }
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
 
     const onMessageChange = messagesRef.on('value', snapshot => {
@@ -60,27 +69,67 @@ const Single = () => {
     });
 
     return () => messagesRef.off('value', onMessageChange);
-  }, [chatId, secretKey]);
+  }, [chatId, secretKey, shouldAutoScroll]);
 
   // 🔹 Gửi tin nhắn
   const sendMessage = async () => {
     if (!text.trim()) return;
 
+    // Gọi lại auto-scroll mỗi khi gửi tin nhắn
+    setShouldAutoScroll(true);
+
     try {
+      const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
       const chatSnapshot = await chatRef.once('value');
+      const userSnapshot = await userRef.once('value');
+
+      let userData = userSnapshot.val();
+      let chatData = chatSnapshot.val();
 
       if (!chatSnapshot.exists()) {
+        // Nếu cuộc trò chuyện chưa tồn tại, tạo mới và lưu danh sách users
         await chatRef.set({users: {[userId]: true, [myId]: true}});
       }
 
+      if (!userData) {
+        Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
+        return;
+      }
+
+      const maxCount = userData.count || 5; // Số tin nhắn tối đa theo tài khoản
+      const countChat = userData.countChat || 0; // Số tin đã gửi
+
+      // Kiểm tra nếu user đã đạt giới hạn
+      if (countChat >= maxCount) {
+        Alert.alert(
+          'Hết lượt nhắn tin',
+          'Bạn đã hết lượt nhắn tin, vui lòng đợi 10 giây để tiếp tục.',
+        );
+
+        // Sau 10 giây reset lại số lượt nhắn tin
+        setTimeout(async () => {
+          await userRef.update({countChat: 0});
+          Alert.alert(
+            'Lượt nhắn tin đã được đặt lại!',
+            'Bạn có thể tiếp tục nhắn tin.',
+          );
+        }, 10000);
+
+        return;
+      }
+
+      // Gửi tin nhắn
       const newMessageRef = chatRef.child('messages').push();
       await newMessageRef.set({
         senderId: myId,
         text: encryptMessage(text, secretKey),
         timestamp: database.ServerValue.TIMESTAMP,
-        selfDestruct: isSelfDestruct, // Lưu trạng thái tin nhắn tự hủy
+        selfDestruct: isSelfDestruct,
       });
+
+      // Tăng countChat của user
+      await userRef.update({countChat: countChat + 1});
 
       setText('');
     } catch (error) {
@@ -137,6 +186,7 @@ const Single = () => {
         </View>
 
         <FlatList
+          ref={listRef}
           data={messages}
           keyExtractor={item => item.id}
           renderItem={({item}) => (
@@ -173,14 +223,23 @@ const Single = () => {
                       ? styles.SendmessageText
                       : styles.ReceivedmessageText
                   }>
-                  {item.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  <Text
+                    style={
+                      item.senderId === myId
+                        ? styles.Sendtimestamp
+                        : styles.Revecivedtimestamp
+                    }>
+                    {item.timestamp.toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
                 </Text>
               </TouchableOpacity>
             </View>
           )}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
         />
 
         <View style={styles.inputContainer}>

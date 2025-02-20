@@ -6,14 +6,17 @@ const Item_home_chat = ({ data_chat, onPress }) => {
     <Pressable onPress={onPress}>
       <View style={styles.container}>
         <Image
-          source={{ uri: data_chat.img}}
+          source={{ uri: data_chat.img }}
           style={styles.img}
           onError={() => setError(true)}
         />
         <View style={styles.container_item}>
           <View style={styles.container_content}>
             <Text style={styles.text_name}>{data_chat.name}</Text>
-            <Text style={styles.text_content}>{data_chat.text}</Text>
+            <Text style={styles.text_content}
+              numberOfLines={1} // Số dòng tối đa
+              ellipsizeMode="tail" // Cách hiển thị dấu 3 chấm (tail: ở cuối)
+            >{data_chat.text}</Text>
           </View>
           <View style={styles.container_content}>
             <Text style={styles.text_content}>{data_chat.time}</Text>
