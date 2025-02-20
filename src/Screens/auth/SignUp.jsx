@@ -21,6 +21,7 @@ const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nickname, setnickname] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [errors, setErrors] = useState({});
@@ -60,7 +61,9 @@ const SignUp = ({ navigation }) => {
       await database().ref(`/users/${userId}`).set({
         name: encryptMessage(name),
         email: encryptMessage(email),
+        password: encryptMessage(password),
         Image: encryptMessage(defaultImage),
+        nickname: encryptMessage(nickname),
         createdAt: database.ServerValue.TIMESTAMP,
       });
   
