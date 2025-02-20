@@ -64,8 +64,6 @@ const SignUp = ({ navigation }) => {
         email: encryptMessage(email),
         Image: encryptMessage(defaultImage),
         createdAt: database.ServerValue.TIMESTAMP,
-        messageQuota: 5, // Mỗi ngày có 5 lượt nhắn tin
-        lastMessageDate: new Date().toISOString().split('T')[0], // Lưu ngày tạo tài khoản
       })
       .then(() => console.log('User saved successfully'))
       .catch((error) => console.error('Firebase Database Error:', error));
