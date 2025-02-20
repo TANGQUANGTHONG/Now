@@ -38,7 +38,7 @@ const Login = ({ navigation }) => {
         contentContainerStyle={{ flexGrow: 1 }} 
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Boarding")}>
           <Icon name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
 
