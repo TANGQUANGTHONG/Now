@@ -34,14 +34,21 @@ const Single = () => {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
 
-  
-
   const listRef = useRef(null);
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
+    const typingRef = database().ref(`/chats/${chatId}/typing`);
 
-    const typingRef = database().ref(`/chats/${chatId}/typing`);    
+    typingRef.on('value', snapshot => {
+      if (snapshot.exists()) {
+        const typingData = snapshot.val();
+        setIsTyping(typingData.isTyping && typingData.userId !== myId);
+      } else {
+        setIsTyping(false);
+      }
+    });
+
     if (shouldAutoScroll && listRef.current) {
       setTimeout(() => {
         listRef.current.scrollToEnd({animated: true});
@@ -70,49 +77,51 @@ const Single = () => {
             }, 5000);
           }
         });
-
       }
     });
 
-    return () => messagesRef.off('value', onMessageChange);
+    return () => {
+      messagesRef.off('value', onMessageChange);
+      typingRef.off(); // Cleanup khi rời khỏi màn hình
+    };
   }, [chatId, secretKey, shouldAutoScroll]);
 
   // 🔹 Gửi tin nhắn
   const sendMessage = async () => {
     if (!text.trim()) return;
-  
+
     setShouldAutoScroll(true); // Kích hoạt auto-scroll
-  
+
     try {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
       const chatSnapshot = await chatRef.once('value');
       const userSnapshot = await userRef.once('value');
-  
+
       let userData = userSnapshot.val();
-  
+
       if (!userSnapshot.exists()) {
         Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
         return;
       }
-  
+
       if (!chatSnapshot.exists()) {
         // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
         await chatRef.set({
           users: {[userId]: true, [myId]: true},
-          typing: { userId: "", isTyping: false } // Thêm trường `typing` khi tạo chat
+      
         });
       }
-  
+
       const maxCount = userData.count || 5;
       const countChat = userData.countChat || 0;
-  
+
       if (countChat >= maxCount) {
         Alert.alert(
           'Hết lượt nhắn tin',
           'Bạn đã hết lượt nhắn tin, vui lòng đợi 10 giây để tiếp tục.',
         );
-  
+
         setTimeout(async () => {
           await userRef.update({countChat: 0});
           Alert.alert(
@@ -120,10 +129,10 @@ const Single = () => {
             'Bạn có thể tiếp tục nhắn tin.',
           );
         }, 10000);
-  
+
         return;
       }
-  
+
       // Gửi tin nhắn
       const newMessageRef = chatRef.child('messages').push();
       await newMessageRef.set({
@@ -132,16 +141,15 @@ const Single = () => {
         timestamp: database.ServerValue.TIMESTAMP,
         selfDestruct: isSelfDestruct,
       });
-  
+
       // Cập nhật số lượng tin nhắn đã gửi
       await userRef.update({countChat: countChat + 1});
-  
+
       setText('');
     } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
     }
   };
-  
 
   // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
@@ -163,7 +171,16 @@ const Single = () => {
     ]);
   };
 
-
+  const handleTyping = isTyping => {
+    database().ref(`/chats/${chatId}`).update({
+      typing: {
+        userId: myId,
+        isTyping: isTyping,
+      },
+      users: {[userId]: true, [myId]: true},
+    });
+  };
+  
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -267,8 +284,12 @@ const Single = () => {
             <TextInput
               style={styles.input}
               value={text}
-              onChangeText={setText}
+              onChangeText={value => {
+                setText(value); // Cập nhật tin nhắn
+                handleTyping(value.length > 0); // Cập nhật trạng thái nhập
+              }}
               placeholder="Nhập tin nhắn..."
+              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập
             />
           </View>
 
@@ -414,7 +435,6 @@ const styles = StyleSheet.create({
     color: '#007bff',
     marginLeft: 5,
   },
-  
 });
 
 export default Single;
