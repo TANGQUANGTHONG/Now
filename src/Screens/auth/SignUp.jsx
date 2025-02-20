@@ -10,6 +10,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { styles } from '../../Styles/auth/Sign_up';
@@ -47,15 +48,15 @@ const SignUp = ({ navigation }) => {
       Alert.alert('Lỗi', 'Vui lòng kiểm tra lại thông tin nhập vào.');
       return;
     }
-  
+    
     try {
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const userId = userCredential.user.uid;
-  
+      
       // Gửi email xác thực
       await userCredential.user.sendEmailVerification();
       Alert.alert('Yêu cầu xác thực', 'Vui lòng kiểm tra email để xác thực tài khoản.');
-  
+      
       // Lưu user vào Firebase Database
       await database().ref(`/users/${userId}`).set({
         name: encryptMessage(name),
@@ -107,6 +108,16 @@ const SignUp = ({ navigation }) => {
                 Get chatting with friends and family today!
               </Text>
 
+                    <View style={styles.socialContainer}>
+                <TouchableOpacity style={styles.socialButton}>
+                  <Image source={require('../auth/assets/icon/google.png')} style={styles.socialIcon} />
+                </TouchableOpacity>
+              
+                <TouchableOpacity style={styles.socialButton}>
+                  <Image source={require('../auth/assets/icon/facebook.png')} style={styles.socialIcon} />
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.inputContainer}>
                 <Text style={styles.validText}>Your Name</Text>
                 <TextInput
@@ -133,7 +144,7 @@ const SignUp = ({ navigation }) => {
                 />
                 {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
-
+                
               <View style={styles.inputContainer}>
                 <Text style={styles.validText}>Password</Text>
                 <View style={styles.passwordContainer}>
@@ -183,7 +194,6 @@ const SignUp = ({ navigation }) => {
                 onPress={() => {
                   if (validateFields()) {
                     Sign_Up();
-                    // navigation.navigate('Login');
                   }
                 }}>
                 <Text style={styles.loginText}>Sign Up</Text>
