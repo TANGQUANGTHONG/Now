@@ -195,7 +195,7 @@ const Single = () => {
           <View style={styles.userInfo}>
             <Image source={{uri: img}} style={styles.headerAvatar} />
             <Text style={styles.headerUsername}>{username}</Text>
-            {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
+          
           </View>
 
           <View style={styles.iconContainer}>
@@ -265,11 +265,14 @@ const Single = () => {
               </TouchableOpacity>
             </View>
           )}
+          
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
+          
         />
-
+ {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
         <View style={styles.inputContainer}>
+          
           <TouchableOpacity
             onPress={() => setIsSelfDestruct(!isSelfDestruct)}
             style={styles.iconButton}>
@@ -434,6 +437,11 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#007bff',
     marginLeft: 5,
+    alignItems: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    width: '25%',
+    borderRadius: 10,
+    padding: 2,
   },
 });
 
