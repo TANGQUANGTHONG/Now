@@ -36,6 +36,9 @@ const Setting = props => {
   const Next_ChangeDisplayName = () => {
     navigation.navigate('ChangeDisplayName');
   };
+  const Next_ChangeDisplayPass = () => {
+    navigation.navigate('ChangePasswordScreen');
+  };
   useEffect(() => {
     const fetchUser =  () => {
       const id = auth.currentUser?.uid;
@@ -105,12 +108,14 @@ const Setting = props => {
               subtitle="Privacy, security, change number"
             />
           </TouchableOpacity>
-
+          <TouchableOpacity onPress={Next_ChangeDisplayPass}>
           <Option
             icon="chatbubble-ellipses-outline"
             title="Chat"
             subtitle="Chat history, theme, wallpapers"
           />
+          </TouchableOpacity>
+          
           <Option
             icon="notifications"
             title="Notifications"

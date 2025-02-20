@@ -61,7 +61,6 @@ const SignUp = ({ navigation }) => {
       await database().ref(`/users/${userId}`).set({
         name: encryptMessage(name),
         email: encryptMessage(email),
-        password: encryptMessage(password),
         Image: encryptMessage(defaultImage),
         nickname: encryptMessage(nickname),
         createdAt: database.ServerValue.TIMESTAMP,

@@ -13,6 +13,7 @@ import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
 import ChangeDisplayName from '../components/setting/ChangeDisplayName';
+import ChangePasswordScreen from '../components/setting/ChangePassWord';
 
 // Danh sách tab
 const oTab = {
@@ -94,6 +95,8 @@ const oStackHome = {
   Search: {name: 'Search', component: Search},
   Login: {name: 'Login', component: Login},
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
+  ChangePasswordScreen: {name: 'ChangePasswordScreen', component: ChangePasswordScreen},
+
 };
 
 const StackHome = createNativeStackNavigator();
