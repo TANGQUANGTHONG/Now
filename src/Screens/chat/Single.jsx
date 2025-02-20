@@ -32,17 +32,24 @@ const Single = () => {
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
 
   const listRef = useRef(null);
 
   // 🔹 Lấy tin nhắn realtime
+  // Lắng nghe trạng thái "Đang nhập..."
   useEffect(() => {
-    if (shouldAutoScroll && listRef.current) {
-      setTimeout(() => {
-        listRef.current.scrollToEnd({animated: true});
-        setShouldAutoScroll(false); // Tắt auto-scroll sau khi load
-      }, 500);
-    }
+    const typingRef = database().ref(`/chats/${chatId}/typing/${userId}`);
+
+    typingRef.on('value', snapshot => {
+      setIsTyping(snapshot.val() === true);
+    });
+
+    return () => typingRef.off(); // Cleanup khi component unmount
+  }, [chatId, userId]);
+
+  // Lắng nghe tin nhắn và xử lý tự hủy
+  useEffect(() => {
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
 
     const onMessageChange = messagesRef.on('value', snapshot => {
@@ -65,6 +72,14 @@ const Single = () => {
             }, 5000);
           }
         });
+
+        // Auto scroll khi có tin nhắn mới
+        if (shouldAutoScroll && listRef.current) {
+          setTimeout(() => {
+            listRef.current.scrollToEnd({animated: true});
+            setShouldAutoScroll(false); // Tắt auto-scroll sau khi load
+          }, 500);
+        }
       }
     });
 
@@ -135,6 +150,7 @@ const Single = () => {
     } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
     }
+    await database().ref(`/chats/${chatId}/typing/${myId}`).set(false);
   };
 
   // 🔹 Xóa tin nhắn cả hai
@@ -156,6 +172,20 @@ const Single = () => {
       {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
     ]);
   };
+
+  const handleTextChange = text => {
+    setText(text);
+
+    // Cập nhật trạng thái "đang nhập" lên Firebase
+    const typingRef = database().ref(`/chats/${chatId}/typing/${myId}`);
+
+    if (text.trim()) {
+      typingRef.set(true);
+    } else {
+      typingRef.set(false);
+    }
+  };
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
@@ -168,7 +198,12 @@ const Single = () => {
 
           <View style={styles.userInfo}>
             <Image source={{uri: img}} style={styles.headerAvatar} />
-            <Text style={styles.headerUsername}>{username}</Text>
+            <View>
+              <Text style={styles.headerUsername}>{username}</Text>
+              {isTyping && (
+                <Text style={styles.typingIndicator}>Đang nhập...</Text>
+              )}
+            </View>
           </View>
 
           <View style={styles.iconContainer}>
@@ -257,7 +292,7 @@ const Single = () => {
             <TextInput
               style={styles.input}
               value={text}
-              onChangeText={setText}
+              onChangeText={handleTextChange}
               placeholder="Nhập tin nhắn..."
             />
           </View>
@@ -397,6 +432,13 @@ const styles = StyleSheet.create({
   sendButton: {
     padding: 10,
     borderRadius: 20,
+  },
+  typingIndicator: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: 'gray',
+    marginLeft: 10,
+    marginBottom: 5,
   },
 });
 
