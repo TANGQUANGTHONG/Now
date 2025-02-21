@@ -30,7 +30,7 @@ export const sendLocalNotification = (title, message) => {
   }
 
   lastNotificationTimestamp = now;
-  console.log(`🔔 Gửi thông báo: ${title} - ${message}`);
+  console.log(`Gửi thông báo: ${title} - ${message}`);
 
   PushNotification.localNotification({
     channelId: 'default-channel-id',
