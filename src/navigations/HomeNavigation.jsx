@@ -13,7 +13,6 @@ import Setting from '../Screens/Profile_Settings/Setting';
 import Chat from '../Screens/chat/Single';
 import Login from '../Screens/auth/Login';
 import Single from '../Screens/chat/Single';
-import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
 import ChangeDisplayName from '../components/setting/ChangeDisplayName';
@@ -96,7 +95,6 @@ const oStackHome = {
   Profile: {name: 'Profile', component: Profile},
   ProfileView: {name: 'ProfileView', component: ProfileView},
   Single: {name: 'Single', component: Single},
-  Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
   Login: {name: 'Login', component: Login},
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},

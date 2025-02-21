@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
-
+globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const {width, height} = Dimensions.get('window');
 
 const Setting = ({navigation}) => {
@@ -155,12 +155,12 @@ const Option = ({icon, title, subtitle, color = "black"}) => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#002DE3',
+    backgroundColor: '#ADD8E6',
   },
   header: {
     alignItems: 'center',
     padding: height * 0.06,
-    backgroundColor: '#002DE3',
+    backgroundColor: '#ADD8E6',
   },
   body: {
     backgroundColor: '#fff',
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   textSetting: {
     fontSize: width * 0.05,
     fontWeight: '500',
-    color: '#fff',
+    color: 'black',
   },
   option: {
     flexDirection: 'row',

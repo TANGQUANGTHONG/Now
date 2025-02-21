@@ -112,16 +112,8 @@ export const getChats = async () => {
       if (!userSnapshot.exists()) return null;
 
       const userInfo = userSnapshot.val();
-      const decryptedName = safeDecrypt(
-        userInfo?.name,
-        otherUserId,
-        currentUserId,
-      );
-      const decryptedImage = safeDecrypt(
-        userInfo?.Image,
-        otherUserId,
-        currentUserId,
-      );
+       const decryptedName = safeDecrypt(userInfo?.name);
+      const decryptedImage = safeDecrypt(userInfo?.Image);
 
       // Lấy tin nhắn mới nhất
       const messagesRef = query(
@@ -198,20 +190,20 @@ export const fetchChats = async () => {
 
 // Hàm giải mã an toàn
 const safeDecrypt = (encryptedText, userId, myId) => {
-  try {
-    if (!encryptedText) return 'Nội dung trống';
+    try {
+      if (!encryptedText) return 'Nội dung trống';
 
-    // Giải mã bằng khóa bí mật của phòng chat
-    const decryptedText = decryptMessage(encryptedText, userId, myId);
+      // Giải mã bằng khóa bí mật của phòng chat
+      const decryptedText = decryptMessage(encryptedText, userId, myId);
 
-    // Kiểm tra nếu giải mã thất bại
-    if (!decryptedText || decryptedText === 'Lỗi giải mã') {
+      // Kiểm tra nếu giải mã thất bại
+      if (!decryptedText || decryptedText === '❌ Lỗi giải mã') {
+        return 'Tin nhắn bị mã hóa';
+      }
+
+      return decryptedText;
+    } catch (error) {
+      console.error('❌ Lỗi giải mã:', error);
       return 'Tin nhắn bị mã hóa';
     }
-
-    return decryptedText;
-  } catch (error) {
-    console.error('Lỗi giải mã:', error);
-    return 'Tin nhắn bị mã hóa';
-  }
-};
+  };

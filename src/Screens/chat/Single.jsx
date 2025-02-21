@@ -33,12 +33,43 @@ const Single = () => {
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
+  const [remainingMessages, setRemainingMessages] = useState(0)
+  const [countdown, setCountdown] = useState(0);
 
   const listRef = useRef(null);
+  const timerRef = useRef(null);  
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
+
+    const userRef = database().ref(`/users/${myId}`);
+  
+    const onUserDataChange = userRef.on('value', snapshot => {
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        const maxCount = userData.count || 5;
+        const countChat = userData.countChat || 0;
+        const remaining = maxCount - countChat;
+        setRemainingMessages(remaining);
+        if( remaining === 0){
+          setCountdown(10);
+           // Nếu có bộ đếm trước đó, clear trước khi tạo mới
+        if (timerRef.current) clearInterval(timerRef.current);
+        let timeLeft = 10;
+        timerRef.current = setInterval(() => {
+          timeLeft -= 1;
+          setCountdown(timeLeft);
+
+          if (timeLeft <= 0) {
+            clearInterval(timerRef.current);
+            setRemainingMessages(maxCount); // Reset lại số tin nhắn có thể gửi
+            userRef.update({ countChat: 0 }); // Reset trên Firebase
+          }
+        }, 1000);
+        }
+      }
+    });
 
     typingRef.on('value', snapshot => {
       if (snapshot.exists()) {
@@ -79,16 +110,39 @@ const Single = () => {
         });
       }
     });
+    
 
     return () => {
       messagesRef.off('value', onMessageChange);
       typingRef.off(); // Cleanup khi rời khỏi màn hình
+      userRef.off('value', onUserDataChange);
     };
-  }, [chatId, secretKey, shouldAutoScroll]);
+  }, [chatId, secretKey, shouldAutoScroll,myId]);
+
+
+  useEffect(() => {
+    let timer;
+    if (remainingMessages === 0) {
+      setCountdown(10); // Bắt đầu đếm ngược từ 10 giây
+      timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev === 1) {
+            clearInterval(timer);
+            setRemainingMessages(5); // Reset lượt nhắn tin sau khi đếm ngược xong
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [remainingMessages]);
+
+
 
   // 🔹 Gửi tin nhắn
   const sendMessage = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || remainingMessages === 0) return;
 
     setShouldAutoScroll(true); // Kích hoạt auto-scroll
 
@@ -99,6 +153,7 @@ const Single = () => {
       const userSnapshot = await userRef.once('value');
 
       let userData = userSnapshot.val();
+      const countChat = userData.countChat || 0;
 
       if (!userSnapshot.exists()) {
         Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
@@ -111,26 +166,6 @@ const Single = () => {
           users: {[userId]: true, [myId]: true},
       
         });
-      }
-
-      const maxCount = userData.count || 5;
-      const countChat = userData.countChat || 0;
-
-      if (countChat >= maxCount) {
-        Alert.alert(
-          'Hết lượt nhắn tin',
-          'Bạn đã hết lượt nhắn tin, vui lòng đợi 10 giây để tiếp tục.',
-        );
-
-        setTimeout(async () => {
-          await userRef.update({countChat: 0});
-          Alert.alert(
-            'Lượt nhắn tin đã được đặt lại!',
-            'Bạn có thể tiếp tục nhắn tin.',
-          );
-        }, 10000);
-
-        return;
       }
 
       // Gửi tin nhắn
@@ -198,18 +233,11 @@ const Single = () => {
           
           </View>
 
-          <View style={styles.iconContainer}>
-            <TouchableOpacity
-              onPress={() => console.log('Call')}
-              style={styles.iconButton}>
-              <Icon name="phone" size={24} color="#007bff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => console.log('Video Call')}
-              style={styles.iconButton}>
-              <Icon name="video" size={24} color="#007bff" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.remainingText}>
+        {remainingMessages > 0
+          ? `Còn ${remainingMessages} lượt nhắn tin`
+          : `Hãy chờ ${countdown}s để tiếp tục`}
+      </Text>
         </View>
 
         <FlatList
@@ -292,18 +320,20 @@ const Single = () => {
                 handleTyping(value.length > 0); // Cập nhật trạng thái nhập
               }}
               placeholder="Nhập tin nhắn..."
-              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập
+              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập 
+              editable={remainingMessages > 0} // Chỉ cho nhập khi còn lượt nhắn
             />
           </View>
 
           <TouchableOpacity
+          
             onPress={sendMessage}
-            disabled={!text.trim()}
-            style={styles.sendButton}>
+            disabled={!text.trim() || remainingMessages === 0}
+            style={[styles.disendButton, remainingMessages === 0 && styles.disabledButton]}>
             <Icon
               name="send"
               size={24}
-              color={text.trim() ? '#007bff' : '#aaa'}
+              color={text.trim() || remainingMessages  === 0 ? '#007bff' : '#aaa'}
             />
           </TouchableOpacity>
         </View>
@@ -432,6 +462,9 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 20,
   },
+  disabledButton: {
+    opacity: 0.5, // Làm mờ nút khi bị vô hiệu hóa
+  },
   typingText: {
     fontSize: 14,
     fontStyle: 'italic',
@@ -443,6 +476,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 2,
   },
+  remainingText: {
+    textAlign: 'center',
+    color: 'red',
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  
 });
 
 export default Single;

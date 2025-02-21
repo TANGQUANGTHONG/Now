@@ -77,10 +77,10 @@ const Home = ({navigation}) => {
         let lastMessageTime = '';
         let lastMessageTimestamp = 0;
         const secretKey = generateSecretKey(otherUserId, currentUserId);
-        console.log(
-          `🔑 Secret Key (${currentUserId}_${otherUserId}):`,
-          secretKey,
-        );
+        // console.log(
+        //   `🔑 Secret Key (${currentUserId}_${otherUserId}):`,
+        //   secretKey,
+        // );
 
         if (messagesSnapshot.exists()) {
           const lastMessageData = Object.values(messagesSnapshot.val())[0];
@@ -128,7 +128,7 @@ const Home = ({navigation}) => {
 
       return decryptedText;
     } catch (error) {
-      console.error('❌ Lỗi giải mã:', error);
+      // console.error('❌ Lỗi giải mã:', error);
       return 'Tin nhắn bị mã hóa';
     }
   };

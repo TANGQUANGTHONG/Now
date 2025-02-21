@@ -130,34 +130,41 @@ const ChangeUserInfo = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: 'white' },
-  iconBack: { marginBottom: 20 },
-  label: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 ,color:'black'},
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: '#24786D',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  buttonText: { color: '#fff', fontSize: 16 },
-  containerHearder:{
-    flexDirection: 'row',
-    alignItems:'center',
-    justifyContent: 'space-between'
-  },
-  text_hearder:{
-    fontSize: 16,
-    fontWeight:'600',
-    color:'#24786D'
-  }
+    container: {
+      flex: 1,
+      backgroundColor: 'white',
+      paddingHorizontal: 20,
+      paddingTop: 40,
+    },
+    containerHearder: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    iconBack: {
+      padding: 10,
+    },
+    text_hearder: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#24786D',
+    },
+    label: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: 'black',
+      marginBottom: 5,
+    },
+    input: {
+      backgroundColor: '#f5f5f5',
+      padding: 12,
+      borderRadius: 10,
+      marginBottom: 15,
+      fontSize: 16,
+      color: 'black',
+    },
+  
 });
 
 export default ChangeUserInfo;
