@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,17 +13,19 @@ import {
   Dimensions
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+const { width, height } = Dimensions.get('window');
 
-const {width, height} = Dimensions.get('window');
-
-const Setting = ({navigation}) => {
+const Setting = ({ navigation }) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-
+  GoogleSignin.configure({
+    webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+  });
   useEffect(() => {
     const fetchUser = () => {
       const id = auth().currentUser?.uid;
@@ -38,7 +40,7 @@ const Setting = ({navigation}) => {
             name: data.name ? decryptMessage(data.name) : 'Không có tên',
             email: data.email ? decryptMessage(data.email) : 'Không có email',
             nickname: data.nickname ? decryptMessage(data.nickname) : 'Không có nickname',
-            img: data.Image ? decryptMessage(data.Image) : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
+            img: data.Image ? decryptMessage(data.Image) : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7xcDbUE0eJvCkvvGNoKQrTfMI4Far-8n7pHQbbTCkV9uVWN2AJ8X6juVovcORp0S04XA&usqp=CAU',
           });
         }
       });
@@ -49,10 +51,14 @@ const Setting = ({navigation}) => {
     fetchUser();
   }, []);
 
-  const logOut = () => {
-    auth()
-      .signOut()
-      .then(() => console.log('Đã đăng xuất'));
+  const logOut = async () => {
+    try {
+      await GoogleSignin.signOut();
+      await auth().signOut();
+      console.log('Đã đăng xuất khỏi Google và Firebase.');
+    } catch (error) {
+      console.error('Lỗi khi đăng xuất:', error);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -63,7 +69,7 @@ const Setting = ({navigation}) => {
     try {
       const user = auth().currentUser;
       if (!user) throw new Error('Bạn chưa đăng nhập.');
-      
+
       const credential = auth.EmailAuthProvider.credential(user.email, password);
       await user.reauthenticateWithCredential(credential);
       await database().ref(`/users/${user.uid}`).remove();
@@ -85,7 +91,10 @@ const Setting = ({navigation}) => {
       <View style={styles.body}>
         <View style={styles.profile}>
           <Pressable>
-            <Image source={{uri: myUser?.img}} style={styles.avatar} />
+            <Image
+              source={myUser?.img ? { uri: myUser.img } : require('../../../assest/images/avatar_default.png')}
+              style={styles.avatar}
+            />
           </Pressable>
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{myUser?.name}</Text>
@@ -142,11 +151,11 @@ const Setting = ({navigation}) => {
   );
 };
 
-const Option = ({icon, title, subtitle, color = "black"}) => (
+const Option = ({ icon, title, subtitle, color = "black" }) => (
   <View style={styles.option}>
     <Icon name={icon} size={20} color={color} />
     <View style={styles.optionText}>
-      <Text style={[styles.optionTitle, {color}]}>{title}</Text>
+      <Text style={[styles.optionTitle, { color }]}>{title}</Text>
       {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
     </View>
   </View>

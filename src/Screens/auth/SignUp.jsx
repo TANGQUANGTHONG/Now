@@ -15,9 +15,12 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { styles } from '../../Styles/auth/Sign_up';
 import { encryptMessage } from '../../cryption/Encryption';
-import auth, { firebase } from '@react-native-firebase/auth';
+import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import { oStackHome } from '../../navigations/HomeNavigation';
+import LinearGradient from 'react-native-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -29,7 +32,68 @@ const SignUp = ({ navigation }) => {
   const [errors, setErrors] = useState({});
   const defaultImage = 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg';
 
-  // 🔹 Xác thực dữ liệu nhập
+
+ GoogleSignin.configure({
+    webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+  });
+
+
+  async function signInWithGoogle() {
+  try {
+    await GoogleSignin.signOut(); // Clear any existing sessions
+
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const signInResult = await GoogleSignin.signIn();
+
+    const idToken = signInResult.idToken || signInResult.data?.idToken;
+
+    if (!idToken) {
+      throw new Error('No ID token found');
+    }
+
+    // Lấy thông tin người dùng từ kết quả Google Sign-In
+
+    const name = signInResult.data.user.name;
+
+    const avatar = signInResult.data.user.photo;
+    // Log ra thông tin người dùng
+    console.log('User Name:', signInResult.data.user.name);
+    console.log('User Photo:', signInResult.data.user.photo);
+
+    // Tạo Google credential từ Firebase auth
+    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+
+    // Đăng nhập với Google credential
+    const userCredential = await auth().signInWithCredential(googleCredential);
+    const userId = userCredential.user.uid;
+
+    // Kiểm tra xem người dùng đã tồn tại trong Realtime Database chưa
+    const userRef = database().ref(`/users/${userId}`);
+    const snapshot = await userRef.once('value');
+    
+    if (!snapshot.exists()) {
+      // Người dùng chưa tồn tại, lưu thông tin vào database
+      await userRef.set({
+        name: encryptMessage(name),
+          email: encryptMessage(email),
+          Image: encryptMessage(avatar),
+          nickname: encryptMessage(nickname),
+          createdAt: database.ServerValue.TIMESTAMP,
+      });
+      console.log('User information saved to Realtime Database.');
+    } else {
+      console.log('User already exists in Realtime Database.');
+    }
+  } catch (error) {
+    console.log('Google Sign-In Error:', error);
+  }
+}
+  
+  // Kiểm tra nếu người dùng đã nhập đủ dữ liệu
+  const isFormComplete = () => {
+    return name && email && password && confirmPassword;
+  };
+
   const validateFields = () => {
     let newErrors = {};
     if (!name.trim()) newErrors.name = 'Tên không được để trống';
@@ -44,43 +108,34 @@ const SignUp = ({ navigation }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // 🔹 Xử lý đăng ký
   const Sign_Up = async () => {
     if (!validateFields()) {
       Alert.alert('Lỗi', 'Vui lòng kiểm tra lại thông tin nhập vào.');
       return;
     }
-    
+
     try {
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const userId = userCredential.user.uid;
-      
-      // Gửi email xác thực
+
       await userCredential.user.sendEmailVerification();
-      
-      // Lưu user vào Firebase Database
+
       await database()
-      .ref(`/users/${userId}`)
-      .set({
-        name: encryptMessage(name),
-        email: encryptMessage(email),
-        Image: encryptMessage(defaultImage),
-        nickname: encryptMessage(nickname),
-        createdAt: database.ServerValue.TIMESTAMP,
-      })
-      .then(() => console.log('User saved successfully'))
-      .catch((error) => console.error('Firebase Database Error:', error));
-    
-      
-  
+        .ref(`/users/${userId}`)
+        .set({
+          name: encryptMessage(name),
+          email: encryptMessage(email),
+          Image: encryptMessage(defaultImage),
+          nickname: encryptMessage(nickname),
+          createdAt: database.ServerValue.TIMESTAMP,
+        })
+        .then(() => console.log('User saved successfully'))
+        .catch((error) => console.error('Firebase Database Error:', error));
     } catch (error) {
       Alert.alert('Lỗi', getFirebaseErrorMessage(error.code));
     }
   };
-  
-  
 
-  // 🔹 Xử lý lỗi Firebase
   const getFirebaseErrorMessage = (errorCode) => {
     switch (errorCode) {
       case 'auth/email-already-in-use':
@@ -97,10 +152,10 @@ const SignUp = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView
-      style={{flex: 1}}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={{flexGrow: 1}}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View style={styles.container}>
             <TouchableOpacity
               style={styles.backButton}
@@ -109,26 +164,41 @@ const SignUp = ({ navigation }) => {
             </TouchableOpacity>
 
             <View style={styles.content}>
-              <Text style={styles.title}>Sign up with Email</Text>
+              {/* MaskedView with LinearGradient for title */}
+              <MaskedView
+                maskElement={
+                  <Text style={[styles.title, { backgroundColor: 'transparent' }]}>
+                    Sign Up with Email
+                  </Text>
+                }
+              >
+                <LinearGradient
+                  colors={['#438875', '#99F2C8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  {/* Invisible text to preserve spacing */}
+                  <Text style={[styles.title, { opacity: 0 }]}>Sign Up with Email</Text>
+                </LinearGradient>
+              </MaskedView>
+
               <Text style={styles.subtitle}>
                 Get chatting with friends and family today!
               </Text>
 
-                    <View style={styles.socialContainer}>
-                <TouchableOpacity style={styles.socialButton}>
+              <View style={styles.socialContainer}>
+                <TouchableOpacity style={styles.socialButton} onPress={signInWithGoogle}>
                   <Image source={require('../auth/assets/icon/google.png')} style={styles.socialIcon} />
                 </TouchableOpacity>
-              
-                <TouchableOpacity style={styles.socialButton}>
-                  <Image source={require('../auth/assets/icon/facebook.png')} style={styles.socialIcon} />
-                </TouchableOpacity>
+
+
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.validText}>Your Name</Text>
                 <TextInput
                   style={[styles.input, errors.name && styles.errorInput]}
                   value={name}
+                  placeholder='Enter your name'
                   onChangeText={setName}
                   autoCapitalize="none"
                   placeholderTextColor={'#8C96A2'}
@@ -138,10 +208,10 @@ const SignUp = ({ navigation }) => {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.validText}>Your email</Text>
                 <TextInput
                   style={[styles.input, errors.email && styles.errorInput]}
                   value={email}
+                  placeholder='Enter your Email'
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -152,12 +222,12 @@ const SignUp = ({ navigation }) => {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.validText}>Password</Text>
                 <View style={styles.passwordContainer}>
                   <TextInput
                     style={[styles.input, errors.password && styles.errorInput]}
                     value={password}
                     onChangeText={setPassword}
+                    placeholder='Enter your password'
                     placeholderTextColor="gray"
                     secureTextEntry={secureText}
                     color="black"
@@ -172,12 +242,12 @@ const SignUp = ({ navigation }) => {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.validText}>Confirm Password</Text>
                 <View style={styles.passwordContainer}>
                   <TextInput
                     style={[styles.input, errors.confirmPassword && styles.errorInput]}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
+                    placeholder='Re-enter password'
                     placeholderTextColor={'#8C96A2'}
                     secureTextEntry={secureText}
                     color="black"
@@ -196,13 +266,19 @@ const SignUp = ({ navigation }) => {
 
             <View style={styles.bottomContainer}>
               <TouchableOpacity
-                style={styles.loginButton} 
+                disabled={!isFormComplete()}
                 onPress={() => {
                   if (validateFields()) {
                     Sign_Up();
                   }
                 }}>
-                <Text style={styles.loginText}>Sign Up</Text>
+                <LinearGradient
+                  colors={isFormComplete() ? ['#438875', '#99F2C8'] : ['#d3d3d3', '#d3d3d3']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.loginButton}>
+                  <Text style={styles.loginText}>Sign Up</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>

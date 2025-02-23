@@ -5,7 +5,7 @@ const { width, height } = Dimensions.get('window');
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#121212',
   },
   content: {
     justifyContent: 'center',
@@ -38,9 +38,11 @@ export const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
+    backgroundColor: '#e4e2de',
     height: height * 0.07,
-    borderBottomWidth: 1,
-    borderBottomColor: '#CDD1D0',
+    borderWidth: 1,
+    borderRadius: width * 0.03,
+    borderColor: '#CDD1D0',
     fontSize: width * 0.045,
     paddingHorizontal: width * 0.03,
   },
@@ -57,17 +59,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: width * 0.05,
   },
   loginButton: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 15,
-    backgroundColor: '#002DE3',
-    height: height * 0.06,
-    justifyContent: 'center',
-    marginHorizontal: width * 0.04,
+    padding: height * 0.02,
     alignItems: 'center',
     borderRadius: width * 0.03,
-    
+    marginBottom: height * 0.03,
   },
   loginText: {
     color: '#fff',

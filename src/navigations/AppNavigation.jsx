@@ -5,48 +5,54 @@ import auth from '@react-native-firebase/auth';
 import HomeNavigation from './HomeNavigation';
 import UserNavigation from './UserNavigation';
 import DashBoard from '../Screens/auth/DashBoard';
+import Splash from '../Screens/auth/Splash';
 
 const AppNavigation = () => {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
-  const [isEmailVerified, setIsEmailVerified] = useState(null); // Trạng thái ban đầu là null
+  const [isEmailVerified, setIsEmailVerified] = useState(null);
+  const [isSplashVisible, setSplashVisible] = useState(true);
 
-  // Lắng nghe trạng thái người dùng
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSplashVisible(false);
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, []);
+
   useEffect(() => {
     const subscriber = auth().onAuthStateChanged(async (user) => {
       setUser(user);
       if (user) {
-        console.log("User đăng nhập:", user.email);
+        console.log('User đăng nhập:', user.email);
         await checkEmailVerification(user);
       } else {
-        console.log("Không có user đăng nhập");
+        console.log('Không có user đăng nhập');
         setIsEmailVerified(null);
       }
       setInitializing(false);
     });
-  
+
     return subscriber;
   }, []);
-  
+
   const checkEmailVerification = async (user) => {
-    await user.reload(); // Cập nhật trạng thái email từ Firebase
-    console.log("Trạng thái xác thực email trước reload:", user.emailVerified);
+    await user.reload();
     setIsEmailVerified(user.emailVerified);
-    console.log("Trạng thái xác thực email sau reload:", user.emailVerified);
   };
-  
 
-  // Kiểm tra trạng thái xác thực email
-
-
-  // Nếu đang khởi tạo, không hiển thị UI
   if (initializing) return null;
+
+  // Hiển thị Splash Screen trước
+  if (isSplashVisible) {
+    return <Splash />;
+  }
 
   return (
     <NavigationContainer>
       {!user ? (
         <UserNavigation />
-      ) : isEmailVerified === false ? ( // Tránh nhấp nháy do trạng thái `null`
+      ) : isEmailVerified === false ? (
         <DashBoard checkEmailVerification={() => checkEmailVerification(user)} />
       ) : (
         <HomeNavigation />
