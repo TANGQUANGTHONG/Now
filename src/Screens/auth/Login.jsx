@@ -1,17 +1,24 @@
-import React, { useState } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, Image, 
-  StyleSheet, Dimensions, KeyboardAvoidingView, 
-  Platform, ScrollView
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import {getAuth} from '@react-native-firebase/auth';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
-const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const Login = ({navigation}) => {
+  const [email, setEmail] = useState('nguyenhongphong1010.02@gmail.com');
+  const [password, setPassword] = useState('111111');
   const [secureText, setSecureText] = useState(true);
   const auth = getAuth();
   const loginWithEmailAndPass = () => {
@@ -24,39 +31,46 @@ const Login = ({ navigation }) => {
       })
       .catch(err => console.log(err));
   };
-  
+
   const onForgotPassword = () => navigation.navigate('ForgotPassword');
-  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isFormValid = isValidEmail(email) && password.length >= 6;
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView 
-        contentContainerStyle={{ flexGrow: 1 }} 
-        keyboardShouldPersistTaps="handled"
-      >
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Boarding")}>
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView
+        contentContainerStyle={{flexGrow: 1}}
+        keyboardShouldPersistTaps="handled">
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate('Boarding')}>
           <Icon name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
 
         <View style={styles.content}>
           <Text style={styles.title}>Log in to Now</Text>
-          <Text style={styles.subtitle}>Welcome back! Sign in using your social account or email to continue us</Text>
+          <Text style={styles.subtitle}>
+            Welcome back! Sign in using your social account or email to continue
+            us
+          </Text>
 
           <View style={styles.socialContainer}>
-  <TouchableOpacity style={styles.socialButton}>
-    <Image source={require('../auth/assets/icon/google.png')} style={styles.socialIcon} />
-  </TouchableOpacity>
+            <TouchableOpacity style={styles.socialButton}>
+              <Image
+                source={require('../auth/assets/icon/google.png')}
+                style={styles.socialIcon}
+              />
+            </TouchableOpacity>
 
-  <TouchableOpacity style={styles.socialButton}>
-    <Image source={require('../auth/assets/icon/facebook.png')} style={styles.socialIcon} />
-  </TouchableOpacity>
-</View>
-
-
+            <TouchableOpacity style={styles.socialButton}>
+              <Image
+                source={require('../auth/assets/icon/facebook.png')}
+                style={styles.socialIcon}
+              />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.validText}>Your email</Text>
@@ -98,12 +112,20 @@ const Login = ({ navigation }) => {
         </View>
 
         <View style={styles.bottomContainer}>
-          <TouchableOpacity 
-            style={[styles.loginButton, { backgroundColor: isFormValid ? '#002DE3' : '#f5f5f5' }]} 
-            disabled={!isFormValid} 
-            onPress={loginWithEmailAndPass}
-          >
-            <Text style={[styles.loginText, { color: isFormValid ? 'white' : 'gray' }]}>Log in</Text>
+          <TouchableOpacity
+            style={[
+              styles.loginButton,
+              {backgroundColor: isFormValid ? '#002DE3' : '#f5f5f5'},
+            ]}
+            disabled={!isFormValid}
+            onPress={loginWithEmailAndPass}>
+            <Text
+              style={[
+                styles.loginText,
+                {color: isFormValid ? 'white' : 'gray'},
+              ]}>
+              Log in
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onForgotPassword}>

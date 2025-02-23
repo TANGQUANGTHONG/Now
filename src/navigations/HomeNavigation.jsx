@@ -1,7 +1,11 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {
+  syncDataFromFirebase,
+  getAllMessagesFromSQLite,
+} from '../storage/SQLiteService';
 
 // Import màn hình
 import Home from '../Screens/home/Home';
@@ -9,7 +13,6 @@ import Setting from '../Screens/Profile_Settings/Setting';
 import Chat from '../Screens/chat/Single';
 import Login from '../Screens/auth/Login';
 import Single from '../Screens/chat/Single';
-import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
 import ChangeDisplayName from '../components/setting/ChangeDisplayName';
@@ -92,22 +95,41 @@ const oStackHome = {
   Profile: {name: 'Profile', component: Profile},
   ProfileView: {name: 'ProfileView', component: ProfileView},
   Single: {name: 'Single', component: Single},
-  Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
   Login: {name: 'Login', component: Login},
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
-  ChangePasswordScreen: {name: 'ChangePasswordScreen', component: ChangePasswordScreen},
-  DeleteAccountScreen: {name: 'DeleteAccountScreen', component: DeleteAccountScreen},
-
-
+  ChangePasswordScreen: {
+    name: 'ChangePasswordScreen',
+    component: ChangePasswordScreen,
+  },
+  DeleteAccountScreen: {
+    name: 'DeleteAccountScreen',
+    component: DeleteAccountScreen,
+  },
 };
 
 const StackHome = createNativeStackNavigator();
 
 const HomeNavigation = () => {
+  // useEffect(() => {
+  //   syncDataFromFirebase();
+  //   getAllMessagesFromSQLite();
+  // }, []);
+
+  // const logAllMessages = () => {
+  //   getAllMessagesFromSQLite(messages => {
+  //     console.log(
+  //       '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n \tDanh sách tất cả tin nhắn từ SQLite:',
+  //     );
+  //     console.log(JSON.stringify(messages, null, 2));
+  //   });
+  // };
+
+  // Gọi hàm để log tin nhắn
+  // logAllMessages();r
+
   return (
-    <StackHome.Navigator
-      screenOptions={{headerShown: false}}>
+    <StackHome.Navigator screenOptions={{headerShown: false}}>
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen
           key={index}
