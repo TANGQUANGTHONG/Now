@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -10,21 +10,22 @@ import {
   Modal,
   TextInput,
   Alert,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-const { width, height } = Dimensions.get('window');
+import {GoogleSignin} from '@react-native-google-signin/google-signin';
+const {width, height} = Dimensions.get('window');
 
-const Setting = ({ navigation }) => {
+const Setting = ({navigation}) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   GoogleSignin.configure({
-    webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+    webClientId:
+      '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
   });
   useEffect(() => {
     const fetchUser = () => {
@@ -35,12 +36,23 @@ const Setting = ({ navigation }) => {
       userRef.on('value', snapshot => {
         if (snapshot.exists()) {
           const data = snapshot.val();
+          let decryptedNickname = data.nickname
+            ? decryptMessage(data.nickname)
+            : 'Không có nickname';
+
+          // Thêm @ vào trước nickname nếu chưa có
+          if (decryptedNickname && !decryptedNickname.startsWith('@')) {
+            decryptedNickname = `@${decryptedNickname}`;
+          }
+
           setMyUser({
             id: id,
             name: data.name ? decryptMessage(data.name) : 'Không có tên',
             email: data.email ? decryptMessage(data.email) : 'Không có email',
-            nickname: data.nickname ? decryptMessage(data.nickname) : 'Không có nickname',
-            img: data.Image ? decryptMessage(data.Image) : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7xcDbUE0eJvCkvvGNoKQrTfMI4Far-8n7pHQbbTCkV9uVWN2AJ8X6juVovcORp0S04XA&usqp=CAU',
+            nickname: decryptedNickname,
+            img: data.Image
+              ? decryptMessage(data.Image)
+              : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7xcDbUE0eJvCkvvGNoKQrTfMI4Far-8n7pHQbbTCkV9uVWN2AJ8X6juVovcORp0S04XA&usqp=CAU',
           });
         }
       });
@@ -70,7 +82,10 @@ const Setting = ({ navigation }) => {
       const user = auth().currentUser;
       if (!user) throw new Error('Bạn chưa đăng nhập.');
 
-      const credential = auth.EmailAuthProvider.credential(user.email, password);
+      const credential = auth.EmailAuthProvider.credential(
+        user.email,
+        password,
+      );
       await user.reauthenticateWithCredential(credential);
       await database().ref(`/users/${user.uid}`).remove();
       await user.delete();
@@ -85,77 +100,130 @@ const Setting = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.textSetting}>Setting</Text>
-      </View>
-      <View style={styles.body}>
-        <View style={styles.profile}>
-          <Pressable>
-            <Image
-              source={myUser?.img ? { uri: myUser.img } : require('../../../assest/images/avatar_default.png')}
-              style={styles.avatar}
-            />
-          </Pressable>
-          <View style={styles.profileInfo}>
-            <Text style={styles.name}>{myUser?.name}</Text>
-            <Text style={styles.status}>@{myUser?.nickname}</Text>
+      {!myUser ? (
+        <Text style={{color: 'white', textAlign: 'center', marginTop: 20}}>
+          Đang tải...
+        </Text>
+      ) : (
+        <>
+          <View style={styles.header}>
+            <Text style={styles.textSetting}>Setting</Text>
           </View>
-          <Icon name="qr-code-outline" size={22} color="black" />
-        </View>
-        <ScrollView style={styles.list}>
-          <TouchableOpacity onPress={() => navigation.navigate('ChangeDisplayName')}>
-            <Option icon="person" title="Change user name" subtitle="Privacy, security, change number" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('ChangePasswordScreen')}>
-            <Option icon="lock-closed" title="Change password" subtitle="Update your password" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setModalVisible(true)}>
-            <Option icon="trash" title="Delete account" subtitle="Remove account permanently" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={logOut}>
-            <Option icon="exit-outline" title="Log out" subtitle="Sign out from your account" color="red" />
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-      <Modal
-        animationType="slide"
-        transparent
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ width: 300, backgroundColor: 'white', padding: 20, borderRadius: 10 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Nhập mật khẩu</Text>
-
-            <TextInput
-              placeholder="Nhập mật khẩu để xác nhận"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              style={{ borderBottomWidth: 1, marginBottom: 20 }}
-            />
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={{ padding: 10 }}>
-                <Text style={{ color: 'blue' }}>Hủy</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={handleDeleteAccount} style={{ padding: 10 }}>
-                <Text style={{ color: 'red' }}>Xóa</Text>
-              </TouchableOpacity>
+          <View style={styles.body}>
+            <View style={styles.profile}>
+              <Pressable>
+                <Image
+                  source={
+                    myUser?.img
+                      ? {uri: myUser.img}
+                      : require('../../../assest/images/avatar_default.png')
+                  }
+                  style={styles.avatar}
+                />
+              </Pressable>
+              <View style={styles.profileInfo}>
+                <Text style={styles.name}>{myUser?.name}</Text>
+                <Text style={styles.status}>{myUser?.nickname}</Text>
+              </View>
+              <Icon name="qr-code-outline" size={22} color="black" />
             </View>
+            <ScrollView style={styles.list}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ChangeDisplayName')}>
+                <Option
+                  icon="person"
+                  title="Change user name"
+                  subtitle="Privacy, security, change number"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ChangePasswordScreen')}>
+                <Option
+                  icon="lock-closed"
+                  title="Change password"
+                  subtitle="Update your password"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setModalVisible(true)}>
+                <Option
+                  icon="trash"
+                  title="Delete account"
+                  subtitle="Remove account permanently"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={logOut}>
+                <Option
+                  icon="exit-outline"
+                  title="Log out"
+                  subtitle="Sign out from your account"
+                  color="red"
+                />
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
-      </Modal>
+          <Modal
+            animationType="slide"
+            transparent
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+              }}>
+              <View
+                style={{
+                  width: 300,
+                  backgroundColor: 'white',
+                  padding: 20,
+                  borderRadius: 10,
+                }}>
+                <Text
+                  style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10}}>
+                  Nhập mật khẩu
+                </Text>
+
+                <TextInput
+                  placeholder="Nhập mật khẩu để xác nhận"
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                  style={{borderBottomWidth: 1, marginBottom: 20}}
+                />
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                  }}>
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    style={{padding: 10}}>
+                    <Text style={{color: 'blue'}}>Hủy</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleDeleteAccount}
+                    style={{padding: 10}}>
+                    <Text style={{color: 'red'}}>Xóa</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </>
+      )}
     </View>
   );
 };
 
-const Option = ({ icon, title, subtitle, color = "black" }) => (
+const Option = ({icon, title, subtitle, color = 'black'}) => (
   <View style={styles.option}>
     <Icon name={icon} size={20} color={color} />
     <View style={styles.optionText}>
-      <Text style={[styles.optionTitle, { color }]}>{title}</Text>
+      <Text style={[styles.optionTitle, {color}]}>{title}</Text>
       {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
     </View>
   </View>
@@ -164,12 +232,12 @@ const Option = ({ icon, title, subtitle, color = "black" }) => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#002DE3',
+    backgroundColor: 'black',
   },
   header: {
     alignItems: 'center',
     padding: height * 0.06,
-    backgroundColor: '#002DE3',
+    backgroundColor: 'black',
   },
   body: {
     backgroundColor: '#fff',

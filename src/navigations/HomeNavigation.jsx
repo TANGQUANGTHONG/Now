@@ -15,6 +15,7 @@ import ProfileView from '../Screens/Profile_Settings/ProfileView';
 import ChangeDisplayName from '../components/setting/ChangeDisplayName';
 import ChangePasswordScreen from '../components/setting/ChangePassWord';
 import DeleteAccountScreen from '../components/setting/Deleted';
+import Profile from '../Screens/Profile_Settings/Profile';
 
 // Danh sách tab
 const oTab = {
@@ -24,12 +25,19 @@ const oTab = {
     icon: 'chatbubble-ellipses-outline',
     name: 'Message',
   },
+  Profile: {
+    name: 'Profile',
+    component: Profile,
+    icon: 'person',
+    name: 'Profile',
+  },
   Setting: {
     name: 'Setting',
     component: Setting,
     icon: 'settings',
     name: 'Setting',
   },
+
 };
 
 const Tab = createBottomTabNavigator();
@@ -84,13 +92,10 @@ const TabHome = () => {
 
 // Danh sách Stack Home
 
-import Profile from '../Screens/Profile';
 
 const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},
-  Profile: {name: 'Profile', component: Profile},
-  ProfileView: {name: 'ProfileView', component: ProfileView},
   Single: {name: 'Single', component: Single},
   Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
