@@ -1,25 +1,39 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import React from 'react';
-import { decryptMessage } from '../../cryption/Encryption';
+import React, { useState } from 'react';
+
 const Item_home_chat = ({ data_chat, onPress }) => {
+  const [error, setError] = useState(false);
+
   return (
     <Pressable onPress={onPress}>
       <View style={styles.container}>
+        {/* Hiển thị ảnh, nếu lỗi thì thay bằng ảnh mặc định */}
         <Image
-          source={{ uri: data_chat.img }}
+          source={{ uri: error ? "https://example.com/default-avatar.png" : data_chat.img }}
           style={styles.img}
           onError={() => setError(true)}
         />
         <View style={styles.container_item}>
+          {/* Thông tin chat */}
           <View style={styles.container_content}>
             <Text style={styles.text_name}>{data_chat.name}</Text>
-            <Text style={styles.text_content}
-              numberOfLines={1} // Số dòng tối đa
-              ellipsizeMode="tail" // Cách hiển thị dấu 3 chấm (tail: ở cuối)
-            >{data_chat.text}</Text>
+            <Text 
+              style={[styles.text_content, data_chat.unreadCount > 0 && styles.text_bold]} 
+              numberOfLines={1} 
+              ellipsizeMode="tail"
+            >
+              {data_chat.text}
+            </Text>
           </View>
+
+          {/* Thời gian + số tin chưa đọc */}
           <View style={styles.container_content}>
-            <Text style={styles.text_content}>{data_chat.time}</Text>
+            <Text style={styles.text_time}>{data_chat.time}</Text>
+            {data_chat.unreadCount > 0 && (
+              <View style={styles.border}>
+                <Text style={styles.text_notifi}>{data_chat.unreadCount}</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -35,12 +49,18 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 50,
   },
-  container_content: {
-    flexDirection: 'column',
-  },
   container: {
     flexDirection: 'row',
     marginBottom: 30,
+  },
+  container_item: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 280,
+    marginLeft: 12,
+  },
+  container_content: {
+    flexDirection: 'column',
   },
   text_name: {
     fontSize: 20,
@@ -58,17 +78,14 @@ const styles = StyleSheet.create({
     fontWeight: '450',
     color: '#797C7B',
   },
-  container_item: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 280,
-    marginLeft: 12,
+  text_bold: {
+    fontWeight: 'bold',
+    color: 'black', // Chữ đậm nếu có tin chưa đọc
   },
   border: {
     backgroundColor: 'red',
     width: 22,
     height: 22,
-    padding: 1,
     borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
@@ -77,5 +94,6 @@ const styles = StyleSheet.create({
   },
   text_notifi: {
     color: 'white',
+    fontWeight: 'bold',
   },
 });

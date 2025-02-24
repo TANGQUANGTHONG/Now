@@ -51,21 +51,31 @@ const Home = ({ navigation }) => {
         const decryptedName = safeDecrypt(userInfo?.name);
         const decryptedImage = safeDecrypt(userInfo?.Image);
 
-        // Lấy tin nhắn mới nhất
-        const messagesRef = query(ref(db, `chats/${chatId}/messages`), orderByChild('timestamp'), limitToLast(1));
+        // Lấy tất cả tin nhắn để đếm số tin chưa đọc
+        const messagesRef = query(ref(db, `chats/${chatId}/messages`), orderByChild('timestamp'));
         const messagesSnapshot = await get(messagesRef);
 
         let lastMessage = "Chưa có tin nhắn";
         let lastMessageTime = "";
         let lastMessageTimestamp = 0;
+        let unreadCount = 0; // 🔴 Thêm biến đếm tin chưa đọc
+
         const secretKey = generateSecretKey(otherUserId, currentUserId);
         console.log(`🔑 Secret Key (${currentUserId}_${otherUserId}):`, secretKey);
 
         if (messagesSnapshot.exists()) {
-          const lastMessageData = Object.values(messagesSnapshot.val())[0];
+          const messages = Object.values(messagesSnapshot.val());
+
+          // Lấy tin nhắn mới nhất
+          const lastMessageData = messages[messages.length - 1];
           lastMessage = decryptMessage(lastMessageData.text, secretKey) || "Tin nhắn bị mã hóa";
           lastMessageTime = new Date(lastMessageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           lastMessageTimestamp = lastMessageData.timestamp;
+
+          // 🔴 Đếm số tin chưa đọc
+          unreadCount = messages.filter(msg => msg.seen?.[currentUserId] === false).length;
+          console.log(`📌 Tin chưa đọc (${chatId}):`, unreadCount);
+
         }
 
         return {
@@ -76,8 +86,11 @@ const Home = ({ navigation }) => {
           text: lastMessage,
           time: lastMessageTime,
           timestamp: lastMessageTimestamp,
+          unreadCount, // 🔴 Truyền số tin chưa đọc xuống Item_home_chat
         };
       });
+
+
 
       const resolvedChats = await Promise.all(chatPromises);
       const filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);

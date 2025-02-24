@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,20 +11,20 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import {useRoute, useNavigation} from '@react-navigation/native';
-import {getFirestore} from '@react-native-firebase/firestore';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { getFirestore } from '@react-native-firebase/firestore';
 import {
   encryptMessage,
   decryptMessage,
   generateSecretKey,
 } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {oStackHome} from '../../navigations/HomeNavigation';
+import { oStackHome } from '../../navigations/HomeNavigation';
 import database from '@react-native-firebase/database';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
   const route = useRoute();
-  const {userId, myId, username, img} = route.params;
+  const { userId, myId, username, img } = route.params;
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const navigation = useNavigation();
@@ -33,7 +33,7 @@ const Single = () => {
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
-
+  const [Seen, setSeen] = useState(false)
   const listRef = useRef(null);
 
   // 🔹 Lấy tin nhắn realtime
@@ -51,7 +51,7 @@ const Single = () => {
 
     if (shouldAutoScroll && listRef.current) {
       setTimeout(() => {
-        listRef.current.scrollToEnd({animated: true});
+        listRef.current.scrollToEnd({ animated: true });
         setShouldAutoScroll(false); // Tắt auto-scroll sau khi load
       }, 500);
     }
@@ -108,8 +108,8 @@ const Single = () => {
       if (!chatSnapshot.exists()) {
         // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
         await chatRef.set({
-          users: {[userId]: true, [myId]: true},
-      
+          users: { [userId]: true, [myId]: true },
+
         });
       }
 
@@ -123,7 +123,7 @@ const Single = () => {
         );
 
         setTimeout(async () => {
-          await userRef.update({countChat: 0});
+          await userRef.update({ countChat: 0 });
           Alert.alert(
             'Lượt nhắn tin đã được đặt lại!',
             'Bạn có thể tiếp tục nhắn tin.',
@@ -140,10 +140,14 @@ const Single = () => {
         text: encryptMessage(text, secretKey),
         timestamp: database.ServerValue.TIMESTAMP,
         selfDestruct: isSelfDestruct,
+        seen: {
+          [userId]: false,
+          [myId]: true
+        },
       });
 
       // Cập nhật số lượng tin nhắn đã gửi
-      await userRef.update({countChat: countChat + 1});
+      await userRef.update({ countChat: countChat + 1 });
 
       setText('');
     } catch (error) {
@@ -166,8 +170,8 @@ const Single = () => {
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
     Alert.alert('Xóa tin nhắn', 'Bạn muốn xóa tin nhắn này?', [
-      {text: 'Hủy', style: 'cancel'},
-      {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Xóa', onPress: () => deleteMessageForBoth(messageId) },
     ]);
   };
 
@@ -177,10 +181,10 @@ const Single = () => {
         userId: myId,
         isTyping: isTyping,
       },
-      users: {[userId]: true, [myId]: true},
+      users: { [userId]: true, [myId]: true },
     });
   };
-  
+
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -193,9 +197,9 @@ const Single = () => {
           </TouchableOpacity>
 
           <View style={styles.userInfo}>
-            <Image source={{uri: img}} style={styles.headerAvatar} />
+            <Image source={{ uri: img }} style={styles.headerAvatar} />
             <Text style={styles.headerUsername}>{username}</Text>
-          
+
           </View>
 
           <View style={styles.iconContainer}>
@@ -216,7 +220,7 @@ const Single = () => {
           ref={listRef}
           data={messages}
           keyExtractor={item => item.id}
-          renderItem={({item}) => (
+          renderItem={({ item }) => (
             <View
               style={
                 item.senderId === myId
@@ -224,7 +228,7 @@ const Single = () => {
                   : styles.receivedWrapper
               }>
               {item.senderId !== myId && (
-                <Image source={{uri: img}} style={styles.avatar} />
+                <Image source={{ uri: img }} style={styles.avatar} />
               )}
               <TouchableOpacity
                 onLongPress={() => confirmDeleteMessage(item.id)}
@@ -265,14 +269,14 @@ const Single = () => {
               </TouchableOpacity>
             </View>
           )}
-          
+
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
-          
+
         />
- {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
+        {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
         <View style={styles.inputContainer}>
-          
+
           <TouchableOpacity
             onPress={() => setIsSelfDestruct(!isSelfDestruct)}
             style={styles.iconButton}>
@@ -313,7 +317,7 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1, padding: 10, backgroundColor: '#f5f5f5'},
+  container: { flex: 1, padding: 10, backgroundColor: '#f5f5f5' },
   username: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -330,7 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 5,
   },
-  avatar: {width: 40, height: 40, borderRadius: 20, marginRight: 8},
+  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 8 },
   usernameText: {
     fontSize: 14,
     color: '#007bff',
@@ -353,9 +357,9 @@ const styles = StyleSheet.create({
     marginBottom: 10, // Thêm khoảng cách giữa các tin nhắn nhận
   },
 
-  SendmessageText: {fontSize: 16, color: '#FFFFFF'},
-  ReceivedmessageText: {fontSize: 16, color: '#0F1828'},
-  deletedText: {fontSize: 16, color: '#999', fontStyle: 'italic'},
+  SendmessageText: { fontSize: 16, color: '#FFFFFF' },
+  ReceivedmessageText: { fontSize: 16, color: '#0F1828' },
+  deletedText: { fontSize: 16, color: '#999', fontStyle: 'italic' },
   Sendtimestamp: {
     fontSize: 12,
     color: '#FFFFFF',
@@ -378,7 +382,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     backgroundColor: '#FFFFFF',
   },
-  input: {flex: 1, padding: 8, fontSize: 16, backgroundColor: '#F7F7FC'},
+  input: { flex: 1, padding: 8, fontSize: 16, backgroundColor: '#F7F7FC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
