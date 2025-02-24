@@ -30,7 +30,7 @@ const Home = ({ navigation }) => {
 
     onValue(chatRef, async (snapshot) => {
       if (!snapshot.exists()) {
-        console.log("❌ Không có dữ liệu trong 'chats'");
+        // console.log("❌ Không có dữ liệu trong 'chats'");
         return;
       }
 
@@ -59,7 +59,7 @@ const Home = ({ navigation }) => {
         let lastMessageTime = "";
         let lastMessageTimestamp = 0;
         const secretKey = generateSecretKey(otherUserId, currentUserId);
-        console.log(`🔑 Secret Key (${currentUserId}_${otherUserId}):`, secretKey);
+        // console.log(`🔑 Secret Key (${currentUserId}_${otherUserId}):`, secretKey);
 
         if (messagesSnapshot.exists()) {
           const lastMessageData = Object.values(messagesSnapshot.val())[0];
@@ -82,7 +82,7 @@ const Home = ({ navigation }) => {
       const resolvedChats = await Promise.all(chatPromises);
       const filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
 
-      console.log("📌 Danh sách chat đã sắp xếp:", filteredChats);
+      // console.log("📌 Danh sách chat đã sắp xếp:", filteredChats);
       setChatList(filteredChats);
     });
   }, []);
@@ -101,7 +101,7 @@ const Home = ({ navigation }) => {
 
       return decryptedText;
     } catch (error) {
-      console.error("❌ Lỗi giải mã:", error);
+      // console.error("❌ Lỗi giải mã:", error);
       return "Tin nhắn bị mã hóa";
     }
   };

@@ -46,10 +46,10 @@ const Search = () => {
             img: user.Image ? decryptMessage(user.Image) : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
           };
         });
-        console.log('Dữ liệu người dùng:', userList);
+        // console.log('Dữ liệu người dùng:', userList);
         setUsers(userList);
       } else {
-        console.log('Không có dữ liệu người dùng');
+        // console.log('Không có dữ liệu người dùng');
       }
     });
 
