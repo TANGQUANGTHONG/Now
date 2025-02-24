@@ -8,22 +8,25 @@ const Item_home_chat = ({ data_chat, onPress }) => {
     <Pressable onPress={onPress}>
       <View style={styles.container}>
         {/* Hiển thị ảnh, nếu lỗi thì thay bằng ảnh mặc định */}
-        <Image
-          source={{ uri: error ? "https://example.com/default-avatar.png" : data_chat.img }}
-          style={styles.img}
-          onError={() => setError(true)}
-        />
+
         <View style={styles.container_item}>
-          {/* Thông tin chat */}
-          <View style={styles.container_content}>
-            <Text style={styles.text_name}>{data_chat.name}</Text>
-            <Text 
-              style={[styles.text_content, data_chat.unreadCount > 0 && styles.text_bold]} 
-              numberOfLines={1} 
-              ellipsizeMode="tail"
-            >
-              {data_chat.text}
-            </Text>
+          <View style = {{flexDirection:'row', alignItems:'center'}}>
+            <Image
+              source={{ uri: error ? "https://example.com/default-avatar.png" : data_chat.img }}
+              style={styles.img}
+              onError={() => setError(true)}
+            />
+            {/* Thông tin chat */}
+            <View style={styles.container_content1}>
+              <Text style={styles.text_name}>{data_chat.name}</Text>
+              <Text
+                style={[styles.text_content, data_chat.unreadCount > 0 && styles.text_bold]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {data_chat.text}
+              </Text>
+            </View>
           </View>
 
           {/* Thời gian + số tin chưa đọc */}
@@ -51,16 +54,28 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 30,
+    flex: 1
   },
   container_item: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: 280,
-    marginLeft: 12,
+    alignItems: 'center',
+    // width: "100%",
+    // marginLeft: 12,
+    flex: 1
   },
   container_content: {
     flexDirection: 'column',
+    marginLeft: 10,
+    alignItems:"center"
+  },
+  container_content1: {
+    flexDirection: 'column',
+    marginLeft: 10,
+    // alignItems:"center"
   },
   text_name: {
     fontSize: 20,
@@ -71,11 +86,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '450',
     color: '#797C7B',
-    marginLeft: 100,
+    // marginLeft: 100,
   },
   text_content: {
     fontSize: 12,
-    fontWeight: '450',
+    // fontWeight: '450',
     color: '#797C7B',
   },
   text_bold: {
@@ -84,12 +99,12 @@ const styles = StyleSheet.create({
   },
   border: {
     backgroundColor: 'red',
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 30,
+    // marginLeft: 30,
     marginTop: 10,
   },
   text_notifi: {
