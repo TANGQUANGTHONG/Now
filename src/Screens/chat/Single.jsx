@@ -20,7 +20,7 @@ import {
 } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
-import database from '@react-native-firebase/database';
+import database, {set} from '@react-native-firebase/database';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
   const route = useRoute();
@@ -31,8 +31,11 @@ const Single = () => {
   const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
+  const [Seen, setSeen] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
+  const [countChat, setcountChat] = useState(100);
+  const [resetCountdown, setResetCountdown] = useState(null);
 
   const listRef = useRef(null);
 
@@ -86,70 +89,107 @@ const Single = () => {
     };
   }, [chatId, secretKey, shouldAutoScroll]);
 
-  // 🔹 Gửi tin nhắn
+  useEffect(() => {
+    const updateCountdown = async () => {
+      try {
+        const timestampRef = database().ref('/timestamp');
+        await timestampRef.set(database.ServerValue.TIMESTAMP);
+        const currentTimestamp = (await timestampRef.once('value')).val();
+  
+        const messagesSnapshot = await database()
+          .ref(`/chats/${chatId}/messages`)
+          .orderByChild('timestamp')
+          .limitToLast(1)
+          .once('value');
+  
+        const lastMessageTimestamp = messagesSnapshot.exists()
+          ? Object.values(messagesSnapshot.val())[0].timestamp
+          : currentTimestamp;
+  
+        const now = new Date(currentTimestamp);
+        const nextResetTime = new Date(lastMessageTimestamp);
+        nextResetTime.setHours(24, 0, 0, 0);
+  
+        const timeLeft = Math.max(0, Math.floor((nextResetTime - now) / 1000));
+        setResetCountdown(timeLeft);
+  
+        await database().ref(`/users/${myId}/resetCountdown`).set(timeLeft);
+      } catch (error) {
+        console.error('Lỗi cập nhật thời gian reset:', error);
+      }
+    };
+  
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+  
+    return () => clearInterval(interval);
+  }, [chatId]);
+  
+  useEffect(() => {
+    const userRef = database().ref(`/users/${myId}/resetCountdown`);
+    const onCountdownChange = snapshot => {
+      if (snapshot.exists()) setResetCountdown(snapshot.val());
+    };
+  
+    userRef.on('value', onCountdownChange);
+    return () => userRef.off('value', onCountdownChange);
+  }, [myId]);
+  
+  const formatCountdown = seconds => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours}h ${minutes}m ${secs}s`;
+  };
+  
   const sendMessage = async () => {
     if (!text.trim()) return;
-
-    setShouldAutoScroll(true); // Kích hoạt auto-scroll
-
+    setShouldAutoScroll(true);
+  
     try {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
-      const chatSnapshot = await chatRef.once('value');
-      const userSnapshot = await userRef.once('value');
-
-      let userData = userSnapshot.val();
-
-      if (!userSnapshot.exists()) {
-        Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
-        return;
+      const [userSnapshot, chatSnapshot] = await Promise.all([
+        userRef.once('value'),
+        chatRef.once('value'),
+      ]);
+  
+      if (!userSnapshot.exists()) return Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
+  
+      let { lastResetTimestamp = 0, countChat = 100 } = userSnapshot.val();
+  
+      const timestampRef = database().ref('/timestamp');
+      await timestampRef.set(database.ServerValue.TIMESTAMP);
+      const currentTimestamp = (await timestampRef.once('value')).val();
+  
+      if (new Date(currentTimestamp).toDateString() !== new Date(lastResetTimestamp).toDateString()) {
+        await userRef.update({ countChat: 100, lastResetTimestamp: currentTimestamp });
+        countChat = 100;
       }
-
+  
+      if (countChat <= 0) {
+        return Alert.alert('Bạn đã hết lượt nhắn tin', 'Vui lòng đợi sang ngày mới để tiếp tục!');
+      }
+  
       if (!chatSnapshot.exists()) {
-        // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
-        await chatRef.set({
-          users: {[userId]: true, [myId]: true},
-      
-        });
+        await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
-
-      const maxCount = userData.count || 5;
-      const countChat = userData.countChat || 0;
-
-      if (countChat >= maxCount) {
-        Alert.alert(
-          'Hết lượt nhắn tin',
-          'Bạn đã hết lượt nhắn tin, vui lòng đợi 10 giây để tiếp tục.',
-        );
-
-        setTimeout(async () => {
-          await userRef.update({countChat: 0});
-          Alert.alert(
-            'Lượt nhắn tin đã được đặt lại!',
-            'Bạn có thể tiếp tục nhắn tin.',
-          );
-        }, 10000);
-
-        return;
-      }
-
-      // Gửi tin nhắn
-      const newMessageRef = chatRef.child('messages').push();
-      await newMessageRef.set({
+  
+      await chatRef.child('messages').push().set({
         senderId: myId,
         text: encryptMessage(text, secretKey),
         timestamp: database.ServerValue.TIMESTAMP,
         selfDestruct: isSelfDestruct,
       });
-
-      // Cập nhật số lượng tin nhắn đã gửi
-      await userRef.update({countChat: countChat + 1});
-
+  
+      await userRef.update({ countChat: countChat - 1 });
+      setcountChat(countChat - 1);
       setText('');
     } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
     }
   };
+  
 
   // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
@@ -172,45 +212,45 @@ const Single = () => {
   };
 
   const handleTyping = isTyping => {
-    database().ref(`/chats/${chatId}`).update({
-      typing: {
-        userId: myId,
-        isTyping: isTyping,
-      },
-      users: {[userId]: true, [myId]: true},
-    });
+    database()
+      .ref(`/chats/${chatId}`)
+      .update({
+        typing: {
+          userId: myId,
+          isTyping: isTyping,
+        },
+        users: {[userId]: true, [myId]: true},
+      });
   };
-  
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate(oStackHome.TabHome.name)}
-            style={styles.backButton}>
-            <Icon name="arrow-left" size={28} color="#000" />
-          </TouchableOpacity>
+      <View style={styles.header}>
+  <TouchableOpacity
+    onPress={() => navigation.navigate(oStackHome.TabHome.name)}
+    style={styles.backButton}>
+    <Icon name="arrow-left" size={28} color="#000" />
+  </TouchableOpacity>
 
-          <View style={styles.userInfo}>
-            <Image source={{uri: img}} style={styles.headerAvatar} />
-            <Text style={styles.headerUsername}>{username}</Text>
-          
-          </View>
+  <View style={styles.userInfo}>
+    <Image source={{uri: img}} style={styles.headerAvatar} />
+    <Text style={styles.headerUsername}>{username}</Text>
+  </View>
 
-          <View style={styles.iconContainer}>
-            <TouchableOpacity
-              onPress={() => console.log('Call')}
-              style={styles.iconButton}>
-              <Icon name="phone" size={24} color="#007bff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => console.log('Video Call')}
-              style={styles.iconButton}>
-              <Icon name="video" size={24} color="#007bff" />
-            </TouchableOpacity>
-          </View>
-        </View>
+  <View style={styles.chatStatus}>
+    {countChat > 0 ? (
+      <Text style={styles.chatCountText}>
+        {countChat} lượt nhắn tin
+      </Text>
+    ) : (
+      <Text style={styles.resetText}>
+        Hết lượt - Reset sau {formatCountdown(resetCountdown)}
+      </Text>
+    )}
+  </View>
+</View>
+
 
         <FlatList
           ref={listRef}
@@ -265,14 +305,11 @@ const Single = () => {
               </TouchableOpacity>
             </View>
           )}
-          
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
-          
         />
- {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
+        {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
         <View style={styles.inputContainer}>
-          
           <TouchableOpacity
             onPress={() => setIsSelfDestruct(!isSelfDestruct)}
             style={styles.iconButton}>
@@ -343,19 +380,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     maxWidth: '70%',
     alignSelf: 'flex-end',
-    marginBottom: 10, // Thêm khoảng cách giữa các tin nhắn gửi
+    marginBottom: 10,
   },
   receivedContainer: {
     backgroundColor: '#FFFFFF',
     padding: 12,
     borderRadius: 20,
     maxWidth: '70%',
-    marginBottom: 10, // Thêm khoảng cách giữa các tin nhắn nhận
+    marginBottom: 10,
   },
-
   SendmessageText: {fontSize: 16, color: '#FFFFFF'},
   ReceivedmessageText: {fontSize: 16, color: '#0F1828'},
-  deletedText: {fontSize: 16, color: '#999', fontStyle: 'italic'},
   Sendtimestamp: {
     fontSize: 12,
     color: '#FFFFFF',
@@ -378,7 +413,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
     backgroundColor: '#FFFFFF',
   },
-  input: {flex: 1, padding: 8, fontSize: 16, backgroundColor: '#F7F7FC'},
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: '#F7F7FC',
+    borderRadius: 10,
+    marginRight: 10,
+  },
+  input: {
+    fontSize: 16,
+    color: '#0F1828',
+    padding: 8,
+    backgroundColor: '#F7F7FC',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,7 +435,7 @@ const styles = StyleSheet.create({
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1, // Để phần này chiếm hết không gian trống
+    flex: 1,
   },
   headerAvatar: {
     width: 40,
@@ -400,14 +446,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#000E08',
-    marginLeft: 10, // Thêm khoảng cách với avatar
+    marginLeft: 10,
   },
-
-  iconContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-
   backButton: {
     padding: 5,
   },
@@ -415,19 +455,6 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
   },
-
-  inputWrapper: {
-    flex: 1, // Chiếm hết phần còn lại
-    backgroundColor: '#F7F7FC',
-    borderRadius: 10,
-    marginRight: 10, // Tạo khoảng cách với nút gửi
-  },
-
-  input: {
-    fontSize: 16,
-    color: '#0F1828',
-  },
-
   sendButton: {
     padding: 10,
     borderRadius: 20,
@@ -443,6 +470,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 2,
   },
+  chatStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  chatCountText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007bff',
+  },
+  resetText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'red',
+  },
 });
+
 
 export default Single;
