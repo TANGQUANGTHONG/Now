@@ -6,18 +6,32 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Item_home_chat from '../../components/items/Item_home_chat';
-import { getAuth } from '@react-native-firebase/auth';
-import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast, update } from '@react-native-firebase/database';
-import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
-import { oStackHome } from '../../navigations/HomeNavigation';
+import {getAuth} from '@react-native-firebase/auth';
+import {
+  getDatabase,
+  ref,
+  onValue,
+  get,
+  orderByChild,
+  query,
+  limitToLast,
+  update,
+} from '@react-native-firebase/database';
+import {
+  encryptMessage,
+  decryptMessage,
+  generateSecretKey,
+} from '../../cryption/Encryption';
+import {oStackHome} from '../../navigations/HomeNavigation';
 
-const { width, height } = Dimensions.get('window');
-const Home = ({ navigation }) => {
+const {width, height} = Dimensions.get('window');
+const Home = ({navigation}) => {
   const [chatList, setChatList] = useState([]);
   const auth = getAuth();
   const db = getDatabase();
@@ -28,7 +42,7 @@ const Home = ({ navigation }) => {
 
     const chatRef = ref(db, 'chats');
 
-    onValue(chatRef, async (snapshot) => {
+    onValue(chatRef, async snapshot => {
       if (!snapshot.exists()) {
         // console.log("❌ Không có dữ liệu trong 'chats'");
         return;
@@ -40,7 +54,9 @@ const Home = ({ navigation }) => {
       const chatPromises = chatEntries.map(async ([chatId, chat]) => {
         if (!chat.users || !chat.users[currentUserId]) return null;
 
-        const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
+        const otherUserId = Object.keys(chat.users).find(
+          uid => uid !== currentUserId,
+        );
         if (!otherUserId) return null;
 
         const userRef = ref(db, `users/${otherUserId}`);
@@ -52,39 +68,55 @@ const Home = ({ navigation }) => {
         const decryptedImage = safeDecrypt(userInfo?.Image);
 
         const secretKey = generateSecretKey(otherUserId, currentUserId);
-        console.log(`🔑 Secret Key (${currentUserId}_${otherUserId}):`, secretKey);
+        console.log(
+          `🔑 Secret Key (${currentUserId}_${otherUserId}):`,
+          secretKey,
+        );
 
         // ✅ Lấy tin nhắn mới nhất để hiển thị
-        const lastMessageRef = query(ref(db, `chats/${chatId}/messages`), orderByChild('timestamp'), limitToLast(1));
+        const lastMessageRef = query(
+          ref(db, `chats/${chatId}/messages`),
+          orderByChild('timestamp'),
+          limitToLast(1),
+        );
         const lastMessageSnapshot = await get(lastMessageRef);
 
-        let lastMessage = "Chưa có tin nhắn";
-        let lastMessageTime = "";
+        let lastMessage = 'Chưa có tin nhắn';
+        let lastMessageTime = '';
         let lastMessageTimestamp = 0;
 
         if (lastMessageSnapshot.exists()) {
           const lastMessageData = Object.values(lastMessageSnapshot.val())[0];
-          lastMessage = decryptMessage(lastMessageData.text, secretKey) || "Tin nhắn bị mã hóa";
-          lastMessageTime = new Date(lastMessageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          lastMessage =
+            decryptMessage(lastMessageData.text, secretKey) ||
+            'Tin nhắn bị mã hóa';
+          lastMessageTime = new Date(
+            lastMessageData.timestamp,
+          ).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
           lastMessageTimestamp = lastMessageData.timestamp;
         }
 
         // ✅ Lấy toàn bộ tin nhắn để đếm số tin chưa đọc
-        const allMessagesRef = query(ref(db, `chats/${chatId}/messages`), orderByChild('timestamp'));
+        const allMessagesRef = query(
+          ref(db, `chats/${chatId}/messages`),
+          orderByChild('timestamp'),
+        );
         const allMessagesSnapshot = await get(allMessagesRef);
 
         let unreadCount = 0;
         if (allMessagesSnapshot.exists()) {
           const allMessages = Object.values(allMessagesSnapshot.val());
-          unreadCount = allMessages.filter(msg => msg.seen?.[currentUserId] === false).length;
+          unreadCount = allMessages.filter(
+            msg => msg.seen?.[currentUserId] === false,
+          ).length;
           console.log(`📌 Tin chưa đọc (${chatId}):`, unreadCount);
         }
 
         return {
           chatId,
           id: otherUserId,
-          name: decryptedName || "Người dùng",
-          img: decryptedImage || "https://example.com/default-avatar.png",
+          name: decryptedName || 'Người dùng',
+          img: decryptedImage || 'https://example.com/default-avatar.png',
           text: lastMessage,
           time: lastMessageTime,
           timestamp: lastMessageTimestamp,
@@ -93,33 +125,33 @@ const Home = ({ navigation }) => {
       });
 
       const resolvedChats = await Promise.all(chatPromises);
-      const filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
+      const filteredChats = resolvedChats
+        .filter(Boolean)
+        .sort((a, b) => b.timestamp - a.timestamp);
 
       // console.log("📌 Danh sách chat đã sắp xếp:", filteredChats);
       setChatList(filteredChats);
     });
   }, []);
 
-
   const safeDecrypt = (encryptedText, userId, myId) => {
     try {
-      if (!encryptedText) return "Nội dung trống";
+      if (!encryptedText) return 'Nội dung trống';
 
       // Giải mã bằng khóa bí mật của phòng chat
       const decryptedText = decryptMessage(encryptedText, userId, myId);
 
       // Kiểm tra nếu giải mã thất bại
-      if (!decryptedText || decryptedText === "❌ Lỗi giải mã") {
-        return "Tin nhắn bị mã hóa";
+      if (!decryptedText || decryptedText === '❌ Lỗi giải mã') {
+        return 'Tin nhắn bị mã hóa';
       }
 
       return decryptedText;
     } catch (error) {
       // console.error("❌ Lỗi giải mã:", error);
-      return "Tin nhắn bị mã hóa";
+      return 'Tin nhắn bị mã hóa';
     }
   };
-
 
   const handleUserPress = async (userId, username, img, chatId) => {
     const myId = auth.currentUser?.uid;
@@ -145,44 +177,64 @@ const Home = ({ navigation }) => {
       console.log(`✅ Đã set seen cho chat ${chatId}`);
 
       // ✅ Chuyển đến màn hình chat
-      navigation.navigate(oStackHome.Single.name, { userId, myId, username, img });
+      navigation.navigate(oStackHome.Single.name, {
+        userId,
+        myId,
+        username,
+        img,
+      });
     } catch (error) {
-      console.error("❌ Lỗi khi cập nhật seen:", error);
+      console.error('❌ Lỗi khi cập nhật seen:', error);
     }
   };
 
-
   return (
     <View style={styles.container}>
-      <View style={{ marginHorizontal: 20 }}>
+      <View style={{marginHorizontal: 20}}>
         <View style={styles.boxHeader}>
           <Text style={styles.txtHeader}>Chats</Text>
           <View style={styles.boxIconHeader}>
-            <Icon name="chatbox-ellipses-outline" size={25} color='black' />
-            <Icon name="list-outline" size={25} color='black' />
+            <Icon name="chatbox-ellipses-outline" size={25} color="black" />
+            <Icon name="list-outline" size={25} color="black" />
           </View>
         </View>
         <View style={styles.inputSearch}>
-          <View style={{ marginLeft: '3%' }}>
-            <Icon name="search-outline" size={25} color='black' />
+          <View style={{marginLeft: '3%'}}>
+            <Icon name="search-outline" size={25} color="black" />
           </View>
           <TextInput
             style={styles.search}
-            placeholder='Search'
-            placeholderTextColor={"#ADB5BD"}
-            onPress={() => navigation.navigate("Search")}
+            placeholder="Search"
+            placeholderTextColor={'#ADB5BD'}
+            onPress={() => navigation.navigate('Search')}
           />
         </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Gemini')}>
+          <View style={styles.container_item}>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <Image
+                source={{
+                  uri: 'https://static.vecteezy.com/system/resources/previews/010/054/157/non_2x/chat-bot-robot-avatar-in-circle-round-shape-isolated-on-white-background-stock-illustration-ai-technology-futuristic-helper-communication-conversation-concept-in-flat-style-vector.jpg',
+                }}
+                style={styles.img}
+              />
+              <Text style={styles.text_name_AI}>AI Chat</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
         <FlatList
           data={chatList}
-          renderItem={({ item }) =>
+          renderItem={({item}) => (
             <Item_home_chat
               data_chat={item}
-              onPress={() => handleUserPress(item.id, item.name, item.img, item.chatId)}
-            />}
+              onPress={() =>
+                handleUserPress(item.id, item.name, item.img, item.chatId)
+              }
+            />
+          )}
           keyExtractor={item => item.chatId}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 150, paddingTop: 30 }}
+          contentContainerStyle={{paddingBottom: 150, paddingTop: 30}}
         />
       </View>
     </View>
@@ -200,26 +252,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 20
+    marginVertical: 20,
   },
   boxIconHeader: {
     flexDirection: 'row',
-    gap: 10
+    gap: 10,
   },
   txtHeader: {
     fontSize: 20,
     color: 'black',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   inputSearch: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F7F7FC',
     padding: 3,
-    borderRadius: 10
+    borderRadius: 10,
   },
   search: {
     flex: 1,
-    padding: 10
-  }
+    padding: 10,
+  },
+  img: {
+    width: 60,
+    height: 60 ,
+    borderRadius: 50,
+  },
+  container_item: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    top: 10
+    // width: '100%',
+    // height: '0%',
+    // marginLeft: 12,
+    // backgroundColor: 'black',
+    // borderWidth: 5,
+  },
+  text_name_AI: {
+    fontSize: 20,
+    fontWeight: '500',
+    color: 'black',
+  },
 });

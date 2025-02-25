@@ -16,6 +16,7 @@ import ChangeDisplayName from '../components/setting/ChangeDisplayName';
 import ChangePasswordScreen from '../components/setting/ChangePassWord';
 import DeleteAccountScreen from '../components/setting/Deleted';
 import Profile from '../Screens/Profile_Settings/Profile';
+import Gemini from '../Screens/chat/germiniAI';
 
 // Danh sách tab
 const oTab = {
@@ -103,6 +104,7 @@ const oStackHome = {
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
   ChangePasswordScreen: {name: 'ChangePasswordScreen', component: ChangePasswordScreen},
   DeleteAccountScreen: {name: 'DeleteAccountScreen', component: DeleteAccountScreen},
+  Gemini: {name: 'Gemini', component: Gemini},
 
 
 };
