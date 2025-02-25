@@ -1,11 +1,79 @@
 import { StyleSheet, Text, View, Image, TouchableOpacity, Pressable, Dimensions } from 'react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';  // Import MaskedView
 const { width, height } = Dimensions.get('window');
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import auth from '@react-native-firebase/auth';
+import database from '@react-native-firebase/database';
+import { encryptMessage } from '../../cryption/Encryption';
+
 
 const Boarding = (props) => {
   const { navigation } = props;
+ const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [nickname, setnickname] = useState('')
+  
+ GoogleSignin.configure({
+  webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+});
+
+async function signInWithGoogle() {
+try {
+  await GoogleSignin.signOut(); // Clear any existing sessions
+
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  const signInResult = await GoogleSignin.signIn();
+
+  const idToken = signInResult.idToken || signInResult.data?.idToken;
+
+  if (!idToken) {
+    throw new Error('No ID token found');
+  }
+
+  // Lấy thông tin người dùng từ kết quả Google Sign-In
+
+  const name = signInResult.data.user.name;
+
+  const avatar = signInResult.data.user.photo;
+
+  const email  = signInResult.data.user.email;
+
+  console.log('User email:', signInResult.data.user.email);
+  // Log ra thông tin người dùng
+  console.log('User Name:', signInResult.data.user.name);
+  console.log('User Photo:', signInResult.data.user.photo);
+
+  // Tạo Google credential từ Firebase auth
+  const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+
+  // Đăng nhập với Google credential
+  const userCredential = await auth().signInWithCredential(googleCredential);
+  const userId = userCredential.user.uid;
+
+  // Kiểm tra xem người dùng đã tồn tại trong Realtime Database chưa
+  const userRef = database().ref(`/users/${userId}`);
+  const snapshot = await userRef.once('value');
+  
+  if (!snapshot.exists()) {
+    // Người dùng chưa tồn tại, lưu thông tin vào database
+    await userRef.set({
+      name: encryptMessage(name),
+        email: encryptMessage(email),
+        Image: encryptMessage(avatar),
+        nickname: encryptMessage(nickname),
+        createdAt: database.ServerValue.TIMESTAMP,
+    });
+    console.log('User information saved to Realtime Database.');
+  } else {
+    console.log('User already exists in Realtime Database.');
+  }
+} catch (error) {
+  console.log('Google Sign-In Error:', error);
+}
+}
   return (
     <View style={styles.container}>
       <Image
@@ -38,10 +106,14 @@ const Boarding = (props) => {
         <View style={styles.iconContainer}>
          
           <View style={styles.iconWrapper}>
+            <TouchableOpacity onPress={signInWithGoogle}>
             <Image
               style={styles.icon}
               source={require('../auth/assets/icon/icon_google.png')}
             />
+
+            </TouchableOpacity>
+
           </View>
         </View>
 

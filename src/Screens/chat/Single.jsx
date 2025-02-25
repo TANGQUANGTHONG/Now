@@ -18,6 +18,7 @@ import {
   encryptMessage,
   decryptMessage,
   generateSecretKey,
+  encodeChatId 
 } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
@@ -31,7 +32,7 @@ const Single = () => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const navigation = useNavigation();
-  const chatId = userId < myId ? `${userId}_${myId}` : `${myId}_${userId}`;
+  const chatId = encodeChatId(userId, myId);
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [selfDestructTime, setSelfDestructTime] = useState(null);
