@@ -12,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Item_home_chat from '../../components/items/Item_home_chat';
 import { getAuth } from '@react-native-firebase/auth';
-import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast } from '@react-native-firebase/database';
+import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast, update } from '@react-native-firebase/database';
 import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
 import { oStackHome } from '../../navigations/HomeNavigation';
 
@@ -51,21 +51,33 @@ const Home = ({ navigation }) => {
         const decryptedName = safeDecrypt(userInfo?.name);
         const decryptedImage = safeDecrypt(userInfo?.Image);
 
-        // Lấy tin nhắn mới nhất
-        const messagesRef = query(ref(db, `chats/${chatId}/messages`), orderByChild('timestamp'), limitToLast(1));
-        const messagesSnapshot = await get(messagesRef);
+        const secretKey = generateSecretKey(otherUserId, currentUserId);
+        console.log(`🔑 Secret Key (${currentUserId}_${otherUserId}):`, secretKey);
+
+        // ✅ Lấy tin nhắn mới nhất để hiển thị
+        const lastMessageRef = query(ref(db, `chats/${chatId}/messages`), orderByChild('timestamp'), limitToLast(1));
+        const lastMessageSnapshot = await get(lastMessageRef);
 
         let lastMessage = "Chưa có tin nhắn";
         let lastMessageTime = "";
         let lastMessageTimestamp = 0;
-        const secretKey = generateSecretKey(otherUserId, currentUserId);
-        // console.log(`🔑 Secret Key (${currentUserId}_${otherUserId}):`, secretKey);
 
-        if (messagesSnapshot.exists()) {
-          const lastMessageData = Object.values(messagesSnapshot.val())[0];
+        if (lastMessageSnapshot.exists()) {
+          const lastMessageData = Object.values(lastMessageSnapshot.val())[0];
           lastMessage = decryptMessage(lastMessageData.text, secretKey) || "Tin nhắn bị mã hóa";
           lastMessageTime = new Date(lastMessageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           lastMessageTimestamp = lastMessageData.timestamp;
+        }
+
+        // ✅ Lấy toàn bộ tin nhắn để đếm số tin chưa đọc
+        const allMessagesRef = query(ref(db, `chats/${chatId}/messages`), orderByChild('timestamp'));
+        const allMessagesSnapshot = await get(allMessagesRef);
+
+        let unreadCount = 0;
+        if (allMessagesSnapshot.exists()) {
+          const allMessages = Object.values(allMessagesSnapshot.val());
+          unreadCount = allMessages.filter(msg => msg.seen?.[currentUserId] === false).length;
+          console.log(`📌 Tin chưa đọc (${chatId}):`, unreadCount);
         }
 
         return {
@@ -76,6 +88,7 @@ const Home = ({ navigation }) => {
           text: lastMessage,
           time: lastMessageTime,
           timestamp: lastMessageTimestamp,
+          unreadCount, // ✅ Giữ nguyên số tin chưa đọc chính xác
         };
       });
 
@@ -86,6 +99,7 @@ const Home = ({ navigation }) => {
       setChatList(filteredChats);
     });
   }, []);
+
 
   const safeDecrypt = (encryptedText, userId, myId) => {
     try {
@@ -107,10 +121,36 @@ const Home = ({ navigation }) => {
   };
 
 
-  const handleUserPress = (userId, username, img) => {
+  const handleUserPress = async (userId, username, img, chatId) => {
     const myId = auth.currentUser?.uid;
-    navigation.navigate(oStackHome.Single.name, { userId, myId, username, img });
+    if (!myId || !chatId) return;
+
+    const messagesRef = ref(db, `chats/${chatId}/messages`);
+
+    try {
+      const snapshot = await get(messagesRef);
+      if (!snapshot.exists()) return;
+
+      const updates = {};
+      const messages = snapshot.val();
+
+      // ✅ Cập nhật tất cả tin nhắn chưa đọc thành đã xem
+      Object.entries(messages).forEach(([msgId, msg]) => {
+        if (msg.seen?.[myId] === false) {
+          updates[`chats/${chatId}/messages/${msgId}/seen/${myId}`] = true;
+        }
+      });
+
+      await update(ref(db), updates);
+      console.log(`✅ Đã set seen cho chat ${chatId}`);
+
+      // ✅ Chuyển đến màn hình chat
+      navigation.navigate(oStackHome.Single.name, { userId, myId, username, img });
+    } catch (error) {
+      console.error("❌ Lỗi khi cập nhật seen:", error);
+    }
   };
+
 
   return (
     <View style={styles.container}>
@@ -138,7 +178,7 @@ const Home = ({ navigation }) => {
           renderItem={({ item }) =>
             <Item_home_chat
               data_chat={item}
-              onPress={() => handleUserPress(item.id, item.name, item.img)}
+              onPress={() => handleUserPress(item.id, item.name, item.img, item.chatId)}
             />}
           keyExtractor={item => item.chatId}
           showsVerticalScrollIndicator={false}

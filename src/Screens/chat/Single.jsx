@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,8 @@ import {
   Keyboard,
   LogBox,
 } from 'react-native';
-import {useRoute, useNavigation} from '@react-navigation/native';
-import {getFirestore} from '@react-native-firebase/firestore';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { getFirestore } from '@react-native-firebase/firestore';
 import {
   encryptMessage,
   decryptMessage,
@@ -27,7 +27,7 @@ import ActionSheet from 'react-native-actionsheet';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
   const route = useRoute();
-  const {userId, myId, username, img} = route.params;
+  const { userId, myId, username, img } = route.params;
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const navigation = useNavigation();
@@ -35,13 +35,13 @@ const Single = () => {
   const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
   const [isSelfDestruct, setIsSelfDestruct] = useState(false);
   const [selfDestructTime, setSelfDestructTime] = useState(null);
-  const [Seen, setSeen] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [countChat, setcountChat] = useState();
   const [resetCountdown, setResetCountdown] = useState(null);
   const [timers, setTimers] = useState({});
 
+  const [Seen, setSeen] = useState(false)
   const listRef = useRef(null);
   const actionSheetRef = useRef();
 
@@ -242,12 +242,18 @@ const Single = () => {
         timestamp: database.ServerValue.TIMESTAMP,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null, // Đổi destructTime thành selfDestructTime
+        seen: {
+          [userId]: false,
+          [myId]: true
+        },
       });
       
   
       // ✅ Trừ 1 lượt nhắn tin
       await userRef.update({ countChat: countChat - 1 });
       setcountChat(countChat - 1);
+      
+
       setText('');
   
       // ✅ Xóa tin nhắn sau thời gian tự hủy nếu có
@@ -277,8 +283,8 @@ const Single = () => {
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
     Alert.alert('Xóa tin nhắn', 'Bạn muốn xóa tin nhắn này?', [
-      {text: 'Hủy', style: 'cancel'},
-      {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Xóa', onPress: () => deleteMessageForBoth(messageId) },
     ]);
   };
 
@@ -320,7 +326,7 @@ const Single = () => {
           </TouchableOpacity>
 
           <View style={styles.userInfo}>
-            <Image source={{uri: img}} style={styles.headerAvatar} />
+            <Image source={{ uri: img }} style={styles.headerAvatar} />
             <Text style={styles.headerUsername}>{username}</Text>
           </View>
 
@@ -443,7 +449,7 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1, padding: 10, backgroundColor: '#f5f5f5'},
+  container: { flex: 1, padding: 10, backgroundColor: '#f5f5f5' },
   username: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -460,7 +466,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 5,
   },
-  avatar: {width: 40, height: 40, borderRadius: 20, marginRight: 8},
+  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 8 },
   usernameText: {
     fontSize: 14,
     color: '#007bff',
@@ -482,8 +488,10 @@ const styles = StyleSheet.create({
     maxWidth: '70%',
     marginBottom: 10,
   },
-  SendmessageText: {fontSize: 16, color: '#FFFFFF'},
-  ReceivedmessageText: {fontSize: 16, color: '#0F1828'},
+
+  SendmessageText: { fontSize: 16, color: '#FFFFFF' },
+  ReceivedmessageText: { fontSize: 16, color: '#0F1828' },
+  deletedText: { fontSize: 16, color: '#999', fontStyle: 'italic' },
   Sendtimestamp: {
     fontSize: 12,
     color: '#FFFFFF',

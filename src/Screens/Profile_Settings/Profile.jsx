@@ -1,9 +1,13 @@
-import React from "react";
+import React,{useState,useEffect} from "react";
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, Dimensions, Pressable } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import ImageGallery from "./ImageGallery";
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import {getAuth} from '@react-native-firebase/auth';
+import database from '@react-native-firebase/database';
 
 const { width, height } = Dimensions.get("window");
+
 
 const user = {
   name: "Alex Linderson",
@@ -25,19 +29,57 @@ const user = {
 };
 
 const Profile = (props) => {
+  const [myUser, setMyUser] = useState(null);
   const {navigation} = props
+  const auth = getAuth();
+
+  useEffect(() => {
+    const fetchUser = () => {
+    const id = auth.currentUser?.uid;
+      if (!id) return;
+  
+      const userRef = database().ref(`users/${id}`);
+      userRef.on('value', snapshot => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          let decryptedNickname =  data.nickname ? decryptMessage(data.nickname) : 'Không có nickname';
+          
+          // Thêm @ vào trước nickname nếu chưa có
+          if (decryptedNickname && !decryptedNickname.startsWith('@')) {
+            decryptedNickname = `@${decryptedNickname}`;
+          }
+          setMyUser({
+            id: id,
+            name: data.name ? decryptMessage(data.name) : 'Không có tên',
+            email: data.email ? decryptMessage(data.email) : 'Không có email',
+            nickname: decryptedNickname,
+            img: data.Image ? decryptMessage(data.Image) : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7xcDbUE0eJvCkvvGNoKQrTfMI4Far-8n7pHQbbTCkV9uVWN2AJ8X6juVovcORp0S04XA&usqp=CAU',
+          });
+        }
+      });
+  
+      return () => userRef.off();
+    };
+  
+    fetchUser();
+  }, []);
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {
+        !myUser ? (
+          <Text style={{ color: "white", textAlign: "center", marginTop: 20 }}>Đang tải...</Text>
+        ) : (
+          <>
+          {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconBack}>
           <Pressable onPress={()=> navigation.goBack()}>
           <Icon name="chevron-back" size={width* 0.066} color={'gray'}/>
           </Pressable>
         </View>
-        <Image source={{ uri: user.avatar }} style={styles.avatar} />
-        <Text style={styles.name}>{user.name}</Text>
-        <Text style={styles.username}>{user.username}</Text>
+        <Image source={{ uri: myUser.img }} style={styles.avatar} />
+        <Text style={styles.name}>{myUser.name}</Text>
+        <Text style={styles.username}>{myUser.nickname}</Text>
         <View style={styles.iconRow}>
           <Icon name="chatbubble-ellipses-outline" size={width * 0.06} color="white" />
           <Icon name="videocam" size={width * 0.06} color="white" />
@@ -50,7 +92,7 @@ const Profile = (props) => {
       <View style={styles.body}>
         <View style={styles.rectangle}>
           <View style={styles.rectangleLine}>
-
+            
           </View>
         </View>
         <View style={styles.section}>
@@ -76,6 +118,10 @@ const Profile = (props) => {
      
         <ImageGallery images={user.media}/>
       </View>
+          </>
+        )
+      }
+      
     </View>
   );
 };
