@@ -80,25 +80,25 @@ const styles = StyleSheet.create({
   text_name: {
     fontSize: 20,
     fontWeight: '500',
-    color: 'black',
+    color: 'white',
   },
   text_time: {
     fontSize: 12,
     fontWeight: '450',
-    color: '#797C7B',
+    color: 'white',
     // marginLeft: 100,
   },
   text_content: {
     fontSize: 12,
     // fontWeight: '450',
-    color: '#797C7B',
+    color: 'gray',
   },
   text_bold: {
     fontWeight: 'bold',
-    color: 'black', // Chữ đậm nếu có tin chưa đọc
+    color: 'white', // Chữ đậm nếu có tin chưa đọc
   },
   border: {
-    backgroundColor: 'red',
+    backgroundColor: '#00C608',
     width: 20,
     height: 20,
     borderRadius: 50,

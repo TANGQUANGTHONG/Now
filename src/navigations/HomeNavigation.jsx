@@ -1,7 +1,7 @@
 import React from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Import màn hình
 import Home from '../Screens/home/Home';
@@ -23,7 +23,7 @@ const oTab = {
   Home: {
     name: 'Home',
     component: Home,
-    icon: 'chatbubble-ellipses-outline',
+    icon: 'chatbox-ellipses',
     name: 'Message',
   },
   Profile: {
@@ -47,21 +47,21 @@ const TabHome = () => {
   return (
     <Tab.Navigator
       initialRouteName="Home"
-      screenOptions={({route}) => ({
-        tabBarIcon: ({focused, color, size}) => {
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
           const item = Object.values(oTab).find(tab => tab.name === route.name);
           return item ? (
             <Icon
               name={item.icon}
               size={size}
-              color={focused ? '#24786D' : 'gray'}
-              style={{fontWeight: focused ? 'bold' : 'normal'}}
+              color={focused ? '#99F2C8' : 'gray'}
+              style={{ fontWeight: focused ? 'bold' : 'normal' }}
             />
           ) : null;
         },
         headerShown: false,
-        tabBarActiveTintColor: '#24786D',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: '#99F2C8',
+        // tabBarInactiveTintColor: 'gray',
         tabBarHideOnKeyboard: true,
         tabBarLabelStyle: {
           fontSize: 12,
@@ -69,14 +69,9 @@ const TabHome = () => {
           marginBottom: 5,
         },
         tabBarStyle: {
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
+          backgroundColor: '#121212',
           height: 60,
-          paddingBottom: 8,
-          shadowColor: '#000',
-          shadowOffset: {width: 0, height: 2},
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
+          borderTopWidth: 0, // Loại bỏ đường kẻ xám
         },
       })}>
       {Object.values(oTab).map((item, index) => (
@@ -84,7 +79,7 @@ const TabHome = () => {
           key={index}
           name={item.name}
           component={item.component}
-          options={{title: item.name}}
+          options={{ title: item.name }}
         />
       ))}
     </Tab.Navigator>
@@ -114,7 +109,7 @@ const StackHome = createNativeStackNavigator();
 const HomeNavigation = () => {
   return (
     <StackHome.Navigator
-      screenOptions={{headerShown: false}}>
+      screenOptions={{ headerShown: false }}>
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen
           key={index}
@@ -126,5 +121,5 @@ const HomeNavigation = () => {
   );
 };
 
-export {oTab, oStackHome};
+export { oTab, oStackHome };
 export default HomeNavigation;
