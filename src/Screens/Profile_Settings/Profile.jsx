@@ -63,6 +63,9 @@ const Profile = (props) => {
   
     fetchUser();
   }, []);
+
+
+  console.log(myUser)
   return (
     <View style={styles.container}>
       {
@@ -97,12 +100,12 @@ const Profile = (props) => {
         </View>
         <View style={styles.section}>
           <Text style={styles.label}>Display Name</Text>
-          <Text style={styles.value}>{user.name}</Text>
+          <Text style={styles.value}>{myUser.name}</Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.label}>Email Address</Text>
-          <Text style={styles.value}>{user.email}</Text>
+          <Text style={styles.value}>{myUser.email}</Text>
         </View>
 
         <View style={styles.section}>

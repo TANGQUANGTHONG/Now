@@ -37,7 +37,6 @@ const SignUp = ({ navigation }) => {
     webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
   });
 
-
   async function signInWithGoogle() {
   try {
     await GoogleSignin.signOut(); // Clear any existing sessions
@@ -56,6 +55,10 @@ const SignUp = ({ navigation }) => {
     const name = signInResult.data.user.name;
 
     const avatar = signInResult.data.user.photo;
+
+    const email  = signInResult.data.user.email;
+
+    console.log('User email:', signInResult.data.user.email);
     // Log ra thông tin người dùng
     console.log('User Name:', signInResult.data.user.name);
     console.log('User Photo:', signInResult.data.user.photo);
