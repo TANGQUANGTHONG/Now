@@ -15,7 +15,8 @@ import { getAuth } from '@react-native-firebase/auth';
 import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast, update } from '@react-native-firebase/database';
 import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
 import { oStackHome } from '../../navigations/HomeNavigation';
-
+import LinearGradient from 'react-native-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 const { width, height } = Dimensions.get('window');
 const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
@@ -156,10 +157,28 @@ const Home = ({ navigation }) => {
     <View style={styles.container}>
       <View style={{ marginHorizontal: 20 }}>
         <View style={styles.boxHeader}>
-          <Text style={styles.txtHeader}>Chats</Text>
+
+          {/* <Text >Chats</Text> */}
+          <MaskedView
+            maskElement={
+              <Text style={[styles.txtHeader, { backgroundColor: 'transparent', color: "#99F2C8" }]}>
+                Chats
+              </Text>
+            }
+          >
+            <LinearGradient
+              colors={['#438875', '#99F2C8']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {/* Invisible text to preserve spacing */}
+              <Text style={[styles.txtHeader, { opacity: 0 }]}>Chats</Text>
+            </LinearGradient>
+          </MaskedView>
+
           <View style={styles.boxIconHeader}>
-            <Icon name="chatbox-ellipses-outline" size={25} color='black' />
-            <Icon name="list-outline" size={25} color='black' />
+            <Icon name="chatbox-ellipses-outline" size={25} color='white' />
+            <Icon name="ellipsis-vertical" size={25} color='white' />
           </View>
         </View>
         <View style={styles.inputSearch}>
@@ -168,8 +187,8 @@ const Home = ({ navigation }) => {
           </View>
           <TextInput
             style={styles.search}
-            placeholder='Search'
-            placeholderTextColor={"#ADB5BD"}
+            placeholder='Search for a chat...'
+            placeholderTextColor={"black"}
             onPress={() => navigation.navigate("Search")}
           />
         </View>
@@ -194,7 +213,7 @@ export default Home;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#121212',
   },
   boxHeader: {
     flexDirection: 'row',
@@ -208,7 +227,7 @@ const styles = StyleSheet.create({
   },
   txtHeader: {
     fontSize: 20,
-    color: 'black',
+    // color: 'black',
     fontWeight: 'bold'
   },
   inputSearch: {
@@ -216,7 +235,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F7F7FC',
     padding: 3,
-    borderRadius: 10
+    borderRadius: 30
   },
   search: {
     flex: 1,
