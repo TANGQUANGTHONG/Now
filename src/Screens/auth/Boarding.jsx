@@ -12,7 +12,7 @@ const Boarding = (props) => {
         style={styles.image1}
         source={require('../auth/assets/background/Illustration.png')}
       />
-
+      
       <View style={styles.viewBoarding}>
         <View style={styles.desContainer}>
          

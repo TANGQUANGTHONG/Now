@@ -40,7 +40,7 @@ const SignUp = ({ navigation }) => {
 
   async function signInWithGoogle() {
   try {
-    await GoogleSignin.signOut(); // Clear any existing sessions
+    await GoogleSignin.signOut(); 
 
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const signInResult = await GoogleSignin.signIn();
@@ -53,6 +53,8 @@ const SignUp = ({ navigation }) => {
 
     // Lấy thông tin người dùng từ kết quả Google Sign-In
 
+
+    console.log(signInResult)
     const name = signInResult.data.user.name;
 
     const avatar = signInResult.data.user.photo;

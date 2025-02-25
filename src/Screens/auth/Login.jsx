@@ -56,6 +56,7 @@ const Login = ({ navigation }) => {
       const name = signInResult.data.user.name;
   
       const avatar = signInResult.data.user.photo;
+      const gmail = signInResult.data.user.email;
       // Log ra thông tin người dùng
       console.log('User Name:', signInResult.data.user.name);
       console.log('User Photo:', signInResult.data.user.photo);
@@ -75,7 +76,7 @@ const Login = ({ navigation }) => {
         // Người dùng chưa tồn tại, lưu thông tin vào database
         await userRef.set({
           name: encryptMessage(name),
-            email: encryptMessage(email),
+            email: encryptMessage(gmail),
             Image: encryptMessage(avatar),
             nickname: encryptMessage(nickname),
             createdAt: database.ServerValue.TIMESTAMP,
