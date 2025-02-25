@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -12,23 +12,25 @@ import {
   Keyboard,
   LogBox,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { getFirestore } from '@react-native-firebase/firestore';
+import {useRoute, useNavigation} from '@react-navigation/native';
+import {getFirestore} from '@react-native-firebase/firestore';
 import {
   encryptMessage,
   decryptMessage,
   generateSecretKey,
-  encodeChatId 
+  encodeChatId,
 } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import database, {set} from '@react-native-firebase/database';
 import ActionSheet from 'react-native-actionsheet';
+import EmojiSelector from 'react-native-emoji-selector';
+
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
   const route = useRoute();
-  const { userId, myId, username, img } = route.params;
+  const {userId, myId, username, img} = route.params;
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const navigation = useNavigation();
@@ -41,22 +43,22 @@ const Single = () => {
   const [countChat, setcountChat] = useState();
   const [resetCountdown, setResetCountdown] = useState(null);
   const [timers, setTimers] = useState({});
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Hiển thị emoji picker
+  
 
-  const [Seen, setSeen] = useState(false)
+  const [Seen, setSeen] = useState(false);
   const listRef = useRef(null);
   const actionSheetRef = useRef();
 
-  const options =  ["5 giây", "10 giây", "1 phút", "5 phút",  "Hủy"];
+  const options = ['5 giây', '10 giây', '1 phút', '5 phút', 'Hủy'];
 
-  LogBox.ignoreLogs([
-    "Animated: `useNativeDriver` was not specified", 
-  ]);
+  LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
 
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-  
+
     // Lắng nghe trạng thái đang nhập
     const onTypingChange = snapshot => {
       if (snapshot.exists()) {
@@ -66,9 +68,9 @@ const Single = () => {
         setIsTyping(false);
       }
     };
-  
+
     typingRef.on('value', onTypingChange);
-  
+
     // Lắng nghe tin nhắn
     const onMessageChange = messagesRef.on('value', snapshot => {
       if (snapshot.exists()) {
@@ -80,10 +82,9 @@ const Single = () => {
           selfDestruct: data.selfDestruct || false,
           selfDestructTime: data.selfDestructTime || null,
         }));
-    
-  
+
         setMessages(msgs.sort((a, b) => a.timestamp - b.timestamp));
-  
+
         // Xóa tin nhắn tự hủy sau 5 giây
         // msgs.forEach(msg => {
         //   if (msg.selfDestruct) {
@@ -92,18 +93,21 @@ const Single = () => {
         //     }, 5000);
         //   }
         // });
-  
+
         // Auto-scroll khi có tin nhắn mới
         if (shouldAutoScroll && listRef.current) {
           setTimeout(() => {
-            listRef.current?.scrollToEnd({ animated: true, useNativeDriver: true });
+            listRef.current?.scrollToEnd({
+              animated: true,
+              useNativeDriver: true,
+            });
 
             setShouldAutoScroll(false);
-          }, 500);  
+          }, 500);
         }
       }
     });
-  
+
     return () => {
       messagesRef.off('value', onMessageChange);
       typingRef.off('value', onTypingChange);
@@ -117,9 +121,15 @@ const Single = () => {
         messages.forEach(msg => {
           if (msg.selfDestruct) {
             // Tính thời gian còn lại
-            const timeLeft = Math.max(0, Math.floor((msg.timestamp + (msg.selfDestructTime * 1000) - Date.now()) / 1000));
+            const timeLeft = Math.max(
+              0,
+              Math.floor(
+                (msg.timestamp + msg.selfDestructTime * 1000 - Date.now()) /
+                  1000,
+              ),
+            );
             newTimers[msg.id] = timeLeft;
-  
+
             // Xóa tin nhắn khi hết giờ
             if (timeLeft === 0) {
               database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
@@ -129,10 +139,9 @@ const Single = () => {
         return newTimers;
       });
     }, 1000);
-  
+
     return () => clearInterval(interval);
   }, [messages]);
-  
 
   useEffect(() => {
     const updateCountdown = async () => {
@@ -172,16 +181,15 @@ const Single = () => {
 
   useEffect(() => {
     const userRef = database().ref(`/users/${myId}/countChat`);
-  
+
     userRef.once('value').then(snapshot => {
       if (snapshot.exists()) {
         setcountChat(snapshot.val()); // Cập nhật số lượt nhắn tin từ Firebase
       }
     });
-  
+
     return () => userRef.off(); // Cleanup
   }, [myId]);
-  
 
   const formatCountdown = seconds => {
     const hours = Math.floor(seconds / 3600);
@@ -193,29 +201,29 @@ const Single = () => {
   const sendMessage = async () => {
     if (!text.trim()) return;
     setShouldAutoScroll(true);
-  
+
     try {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
-      
+
       const [userSnapshot, chatSnapshot] = await Promise.all([
         userRef.once('value'),
         chatRef.once('value'),
       ]);
-  
+
       if (!userSnapshot.exists())
-        return Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');  
-  
-      let { lastResetTimestamp = 0, countChat = 100 } = userSnapshot.val();
-  
+        return Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
+
+      let {lastResetTimestamp = 0, countChat = 100} = userSnapshot.val();
+
       const timestampRef = database().ref('/timestamp');
       await timestampRef.set(database.ServerValue.TIMESTAMP);
       const currentTimestamp = (await timestampRef.once('value')).val();
-  
+
       // 🔥 Kiểm tra nếu là ngày mới, reset về 100, nếu không thì giữ nguyên giá trị
       const lastResetDate = new Date(lastResetTimestamp).toDateString();
       const currentDate = new Date(currentTimestamp).toDateString();
-  
+
       if (lastResetDate !== currentDate) {
         await userRef.update({
           countChat: 100,
@@ -223,18 +231,18 @@ const Single = () => {
         });
         countChat = 100;
       }
-  
+
       if (countChat <= 0) {
         return Alert.alert(
           'Bạn đã hết lượt nhắn tin',
           'Vui lòng đợi sang ngày mới để tiếp tục!',
         );
       }
-  
+
       if (!chatSnapshot.exists()) {
-        await chatRef.set({ users: { [userId]: true, [myId]: true } });
+        await chatRef.set({users: {[userId]: true, [myId]: true}});
       }
-  
+
       // ✅ Gửi tin nhắn với thời gian tự hủy
       const messageRef = chatRef.child('messages').push();
       await messageRef.set({
@@ -245,18 +253,16 @@ const Single = () => {
         selfDestructTime: isSelfDestruct ? selfDestructTime : null, // Đổi destructTime thành selfDestructTime
         seen: {
           [userId]: false,
-          [myId]: true
+          [myId]: true,
         },
       });
-      
-  
+
       // ✅ Trừ 1 lượt nhắn tin
-      await userRef.update({ countChat: countChat - 1 });
+      await userRef.update({countChat: countChat - 1});
       setcountChat(countChat - 1);
-      
 
       setText('');
-  
+
       // ✅ Xóa tin nhắn sau thời gian tự hủy nếu có
       // if (isSelfDestruct && selfDestructTime) {
       //   setTimeout(async () => {
@@ -267,7 +273,6 @@ const Single = () => {
       console.error('Lỗi khi gửi tin nhắn:', error);
     }
   };
-  
 
   // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
@@ -284,8 +289,8 @@ const Single = () => {
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
     Alert.alert('Xóa tin nhắn', 'Bạn muốn xóa tin nhắn này?', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Xóa', onPress: () => deleteMessageForBoth(messageId) },
+      {text: 'Hủy', style: 'cancel'},
+      {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
     ]);
   };
 
@@ -301,10 +306,10 @@ const Single = () => {
       });
   };
 
-  const handleSelectTime = (index) => {
+  const handleSelectTime = index => {
     const timeOptions = [5, 10, 60, 300, null]; // Các tùy chọn thời gian
     const selectedTime = timeOptions[index];
-  
+
     if (selectedTime === null) {
       setIsSelfDestruct(false);
       setSelfDestructTime(null);
@@ -313,8 +318,6 @@ const Single = () => {
       setIsSelfDestruct(true);
     }
   };
-  
-  
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -327,7 +330,7 @@ const Single = () => {
           </TouchableOpacity>
 
           <View style={styles.userInfo}>
-            <Image source={{ uri: img }} style={styles.headerAvatar} />
+            <Image source={{uri: img}} style={styles.headerAvatar} />
             <Text style={styles.headerUsername}>{username}</Text>
           </View>
 
@@ -345,81 +348,109 @@ const Single = () => {
         </View>
 
         <FlatList
-  ref={listRef}
-  data={messages}
-  keyExtractor={(item) => item.id}
-  renderItem={({ item }) => {
-    const messageId = item.id; // 🔥 Truy cập messageId
-    const isSentByMe = item.senderId === myId; // 🔥 Sửa lỗi lấy senderId
-    const isSelfDestruct = item.selfDestruct; // 🔥 Sửa lỗi lấy selfDestruct
-    const timestamp = item.timestamp; // 🔥 Sửa lỗi lấy timestamp
-    const selfDestructTime = item.selfDestructTime;
+          ref={listRef}
+          data={messages}
+          keyExtractor={item => item.id}
+          renderItem={({item}) => {
+            const messageId = item.id; // 🔥 Truy cập messageId
+            const isSentByMe = item.senderId === myId; // 🔥 Sửa lỗi lấy senderId
+            const isSelfDestruct = item.selfDestruct; // 🔥 Sửa lỗi lấy selfDestruct
+            const timestamp = item.timestamp; // 🔥 Sửa lỗi lấy timestamp
+            const selfDestructTime = item.selfDestructTime;
 
-    const expirationTime = timestamp + selfDestructTime * 1000;    
-    const timeLeft = isSelfDestruct
-    ? Math.max(0, Math.floor((expirationTime - Date.now()) / 1000))
-    : null;
-    
-    return (
-      <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
-        {!isSentByMe && <Image source={{ uri: img }} style={styles.avatar} />}
+            const expirationTime = timestamp + selfDestructTime * 1000;
+            const timeLeft = isSelfDestruct
+              ? Math.max(0, Math.floor((expirationTime - Date.now()) / 1000))
+              : null;
 
-        <TouchableOpacity
-          onLongPress={() => confirmDeleteMessage(item.id)}
-          style={[
-            isSentByMe ? styles.sentContainer : styles.receivedContainer,
-            isSelfDestruct && styles.selfDestructMessage,
-          ]}
-        >
-          {!isSentByMe && <Text style={styles.usernameText}>{username}</Text>}
+            return (
+              <View
+                style={
+                  isSentByMe ? styles.sentWrapper : styles.receivedWrapper
+                }>
+                {!isSentByMe && (
+                  <Image source={{uri: img}} style={styles.avatar} />
+                )}
 
-          <Text style={isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText}>
-            {item.text}
-          </Text>
+                <TouchableOpacity
+                  onLongPress={() => confirmDeleteMessage(item.id)}
+                  style={[
+                    isSentByMe
+                      ? styles.sentContainer
+                      : styles.receivedContainer,
+                    isSelfDestruct && styles.selfDestructMessage,
+                  ]}>
+                  {!isSentByMe && (
+                    <Text style={styles.usernameText}>{username}</Text>
+                  )}
 
-          {/* Hiển thị thời gian đếm ngược */}
-          {isSelfDestruct && selfDestructTime !== null && timeLeft > 0 && (
-            <Text style={styles.selfDestructTimer}>🕒 {timeLeft}s</Text>
-          )}
+                  <Text
+                    style={
+                      isSentByMe
+                        ? styles.SendmessageText
+                        : styles.ReceivedmessageText
+                    }>
+                    {item.text}
+                  </Text>
 
-          {/* 🔥 Sửa lỗi hiển thị thời gian */}
-          <Text style={isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp}>
-            {new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }}
-  showsHorizontalScrollIndicator={false}
-  showsVerticalScrollIndicator={false}
-/>
+                  {/* Hiển thị thời gian đếm ngược */}
+                  {isSelfDestruct &&
+                    selfDestructTime !== null &&
+                    timeLeft > 0 && (
+                      <Text style={styles.selfDestructTimer}>
+                        🕒 {timeLeft}s
+                      </Text>
+                    )}
 
-
+                  {/* 🔥 Sửa lỗi hiển thị thời gian */}
+                  <Text
+                    style={
+                      isSentByMe
+                        ? styles.Sendtimestamp
+                        : styles.Revecivedtimestamp
+                    }>
+                    {new Date(timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        />
 
         {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
+
         <View style={styles.inputContainer}>
-              <TouchableOpacity
-        onPress={() => actionSheetRef.current.show()}
-        style={{
-          padding: 10,
-          backgroundColor: '#f5f5f5',
-          borderRadius: 10,
-          alignItems: 'center',
-        }}>
-        <Icon
-          name={isSelfDestruct ? 'timer-sand' : 'timer-off'}
-          size={24}
-          color={isSelfDestruct ? 'red' : '#007bff'}
-        />
-        <Text>{selfDestructTime ? `${selfDestructTime}s` : 'Tắt'}</Text>
-      </TouchableOpacity>
-      <ActionSheet
-        ref={actionSheetRef}
-        title={'Chọn thời gian tự hủy'}
-        options={options}
-        cancelButtonIndex={4}
-        onPress={handleSelectTime}
-      />
+          <TouchableOpacity
+            onPress={() => actionSheetRef.current.show()}
+            style={{
+              padding: 10,
+              backgroundColor: '#f5f5f5',
+              borderRadius: 10,
+              alignItems: 'center',
+            }}>
+            <Icon
+              name={isSelfDestruct ? 'timer-sand' : 'timer-off'}
+              size={24}
+              color={isSelfDestruct ? 'red' : '#007bff'}
+            />
+            <Text>{selfDestructTime ? `${selfDestructTime}s` : 'Tắt'}</Text>
+          </TouchableOpacity>
+          <ActionSheet
+            ref={actionSheetRef}
+            title={'Chọn thời gian tự hủy'}
+            options={options}
+            cancelButtonIndex={4}
+            onPress={handleSelectTime}
+          />
+                          {/* Nút mở emoji picker */}
+                          <TouchableOpacity onPress={() => setShowEmojiPicker(!showEmojiPicker)} style={{ padding: 10 }}>
+          <Icon name="emoticon-happy-outline" size={24} color="#007bff" />
+        </TouchableOpacity>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
@@ -444,13 +475,22 @@ const Single = () => {
             />
           </TouchableOpacity>
         </View>
+              {/* Hiển thị Emoji Picker khi mở */}
+      {showEmojiPicker && (
+        <EmojiSelector
+          onEmojiSelected={(emoji) => setText(text + emoji)}
+          showSearchBar={false}
+          columns={8}
+          style={{ height: 250 }}
+        />
+      )}
       </View>
     </TouchableWithoutFeedback>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: '#f5f5f5' },
+  container: {flex: 1, padding: 10, backgroundColor: '#f5f5f5'},
   username: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -467,7 +507,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 5,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 8 },
+  avatar: {width: 40, height: 40, borderRadius: 20, marginRight: 8},
   usernameText: {
     fontSize: 14,
     color: '#007bff',
@@ -490,9 +530,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  SendmessageText: { fontSize: 16, color: '#FFFFFF' },
-  ReceivedmessageText: { fontSize: 16, color: '#0F1828' },
-  deletedText: { fontSize: 16, color: '#999', fontStyle: 'italic' },
+  SendmessageText: {fontSize: 16, color: '#FFFFFF'},
+  ReceivedmessageText: {fontSize: 16, color: '#0F1828'},
+  deletedText: {fontSize: 16, color: '#999', fontStyle: 'italic'},
   Sendtimestamp: {
     fontSize: 12,
     color: '#FFFFFF',
@@ -590,16 +630,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'red',
   },
- 
-    selfDestructMessage: {
-      backgroundColor: '#ffcccb', // Màu đỏ nhạt để hiển thị tin nhắn tự hủy
-    },
-    selfDestructTimer: {
-      fontSize: 12,
-      fontWeight: 'bold',
-      color: 'red',
-      textAlign: 'right',}
-  
+
+  selfDestructMessage: {
+    backgroundColor: '#ffcccb', // Màu đỏ nhạt để hiển thị tin nhắn tự hủy
+  },
+  selfDestructTimer: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'red',
+    textAlign: 'right',
+  },
 });
 
 export default Single;
