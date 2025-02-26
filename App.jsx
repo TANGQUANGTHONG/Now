@@ -1,29 +1,37 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import AppNavigation from './src/navigations/AppNavigation';
-import { connectDb, getChatsFromSQLite } from './src/storage/SQLiteService';
-import { pushNotification } from './src/notification/Notification';
-
-
+import { configurePushNotification, listenForNewMessages } from './src/notification/Notification';
+import {saveCurrentUserAsyncStorage,saveUserSendAsyncStorage,saveChatsAsyncStorage, getAllChatsAsyncStorage, getAllSavedUsersAsyncStorage,getAllUsersFromUserSend,getUserFromUserSendById,getChatsByIdUserAsynStorage } from './src/storage/Storage';
 
 const App = () => {
-  pushNotification(); 
-
-  const [chats, setChats] = useState([]); 
-
+  // Bật thông báo khi app khởi động
   useEffect(() => {
-    connectDb().then(() => {
-      getChatsFromSQLite((data) => {
-        console.log('Dữ liệu lấy từ SQLite:\n', JSON.stringify(data, null, 2));
-        setChats(data);
-      });
-    });
+    configurePushNotification();
   }, []);
 
+  // Lắng nghe tin nhắn mới (đưa vào useEffect để tránh gọi nhiều lần)
+  useEffect(() => {
+    listenForNewMessages();
+  }, []);
+
+  // Lưu thông tin user, userSend, chat vào AsyncStorage
+  //   useEffect(() => {
+  //     saveCurrentUserAsyncStorage();
+  //     saveUserSendAsyncStorage();
+  //     saveChatsAsyncStorage()
+
+  //     // getAllSavedUsersAsyncStorage()
+  //     // getAllChatsAsyncStorage()
+  //     // getAllUsersFromUserSend()
+
+  //  }, []);
+
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <>
       <AppNavigation />
-    </SafeAreaView>
+    </>
   );
 };
 

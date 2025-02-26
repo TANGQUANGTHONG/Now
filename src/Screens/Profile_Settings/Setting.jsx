@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,17 @@ import {
   Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
-import {GoogleSignin} from '@react-native-google-signin/google-signin';
-const {width, height} = Dimensions.get('window');
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import LinearGradient from 'react-native-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { getCurrentUserFromStorage,removeCurrentUserFromStorage } from '../../storage/Storage';
 
-const Setting = ({navigation}) => {
+const { width, height } = Dimensions.get('window');
+
+const Setting = ({ navigation }) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -27,46 +31,59 @@ const Setting = ({navigation}) => {
     webClientId:
       '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
   });
+
   useEffect(() => {
-    const fetchUser = () => {
-      const id = auth().currentUser?.uid;
-      if (!id) return;
-
-      const userRef = database().ref(`users/${id}`);
-      userRef.on('value', snapshot => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          let decryptedNickname = data.nickname
-            ? decryptMessage(data.nickname)
-            : 'Không có nickname';
-
-          // Thêm @ vào trước nickname nếu chưa có
-          if (decryptedNickname && !decryptedNickname.startsWith('@')) {
-            decryptedNickname = `@${decryptedNickname}`;
-          }
-
-          setMyUser({
-            id: id,
-            name: data.name ? decryptMessage(data.name) : 'Không có tên',
-            email: data.email ? decryptMessage(data.email) : 'Không có email',
-            nickname: decryptedNickname,
-            img: data.Image
-              ? decryptMessage(data.Image)
-              : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7xcDbUE0eJvCkvvGNoKQrTfMI4Far-8n7pHQbbTCkV9uVWN2AJ8X6juVovcORp0S04XA&usqp=CAU',
-          });
-        }
-      });
-
-      return () => userRef.off();
-    };
-
+    const fetchUser = async ()=>{
+      const userData = await getCurrentUserFromStorage();
+      if(userData){
+        setMyUser(userData)
+      }
+    }
     fetchUser();
-  }, []);
+  }, [])
+  
+  // console.log("user của tao",myUser)
+  // useEffect(() => {
+  //   const fetchUser = () => {
+  //     const id = auth().currentUser?.uid;
+  //     if (!id) return;
+
+  //     const userRef = database().ref(`users/${id}`);
+  //     userRef.on('value', snapshot => {
+  //       if (snapshot.exists()) {
+  //         const data = snapshot.val();
+  //         let decryptedNickname = data.nickname
+  //           ? decryptMessage(data.nickname)
+  //           : 'Không có nickname';
+
+  //         // Thêm @ vào trước nickname nếu chưa có
+  //         if (decryptedNickname && !decryptedNickname.startsWith('@')) {
+  //           decryptedNickname = `@${decryptedNickname}`;
+  //         }
+
+  //         setMyUser({
+  //           id: id,
+  //           name: data.name ? decryptMessage(data.name) : 'Không có tên',
+  //           email: data.email ? decryptMessage(data.email) : 'Không có email',
+  //           nickname: decryptedNickname,
+  //           img: data.Image
+  //             ? decryptMessage(data.Image)
+  //             : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7xcDbUE0eJvCkvvGNoKQrTfMI4Far-8n7pHQbbTCkV9uVWN2AJ8X6juVovcORp0S04XA&usqp=CAU',
+  //         });
+  //       }
+  //     });
+
+  //     return () => userRef.off();
+  //   };
+
+  //   fetchUser();
+  // }, []);
 
   const logOut = async () => {
     try {
       await GoogleSignin.signOut();
       await auth().signOut();
+      removeCurrentUserFromStorage();
       console.log('Đã đăng xuất khỏi Google và Firebase.');
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
@@ -101,21 +118,40 @@ const Setting = ({navigation}) => {
   return (
     <View style={styles.container}>
       {!myUser ? (
-        <Text style={{color: 'white', textAlign: 'center', marginTop: 20}}>
+        <Text style={{ color: 'white', textAlign: 'center', marginTop: 20 }}>
           Đang tải...
         </Text>
       ) : (
         <>
           <View style={styles.header}>
-            <Text style={styles.textSetting}>Setting</Text>
+
+            {/* <Text style={styles.textSetting}>Setting</Text> */}
+
+            <MaskedView
+              maskElement={
+                <Text style={[styles.textSetting, { backgroundColor: 'transparent', color: "#99F2C8" }]}>
+                  Setting
+                </Text>
+              }
+            >
+              <LinearGradient
+                colors={['#438875', '#99F2C8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {/* Invisible text to preserve spacing */}
+                <Text style={[styles.textSetting, { opacity: 0 }]}>Setting</Text>
+              </LinearGradient>
+            </MaskedView>
+
           </View>
           <View style={styles.body}>
             <View style={styles.profile}>
               <Pressable>
                 <Image
                   source={
-                    myUser?.img
-                      ? {uri: myUser.img}
+                    myUser?.image
+                      ? { uri: myUser.image }
                       : require('../../../assest/images/avatar_default.png')
                   }
                   style={styles.avatar}
@@ -181,7 +217,7 @@ const Setting = ({navigation}) => {
                   borderRadius: 10,
                 }}>
                 <Text
-                  style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10}}>
+                  style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
                   Nhập mật khẩu
                 </Text>
 
@@ -190,7 +226,7 @@ const Setting = ({navigation}) => {
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
-                  style={{borderBottomWidth: 1, marginBottom: 20}}
+                  style={{ borderBottomWidth: 1, marginBottom: 20 }}
                 />
 
                 <View
@@ -200,14 +236,14 @@ const Setting = ({navigation}) => {
                   }}>
                   <TouchableOpacity
                     onPress={() => setModalVisible(false)}
-                    style={{padding: 10}}>
-                    <Text style={{color: 'blue'}}>Hủy</Text>
+                    style={{ padding: 10 }}>
+                    <Text style={{ color: 'blue' }}>Hủy</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     onPress={handleDeleteAccount}
-                    style={{padding: 10}}>
-                    <Text style={{color: 'red'}}>Xóa</Text>
+                    style={{ padding: 10 }}>
+                    <Text style={{ color: 'red' }}>Xóa</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -219,11 +255,11 @@ const Setting = ({navigation}) => {
   );
 };
 
-const Option = ({icon, title, subtitle, color = 'black'}) => (
+const Option = ({ icon, title, subtitle, color = 'black' }) => (
   <View style={styles.option}>
     <Icon name={icon} size={20} color={color} />
     <View style={styles.optionText}>
-      <Text style={[styles.optionTitle, {color}]}>{title}</Text>
+      <Text style={[styles.optionTitle, { color }]}>{title}</Text>
       {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
     </View>
   </View>
@@ -247,9 +283,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textSetting: {
-    fontSize: width * 0.05,
-    fontWeight: '500',
-    color: '#fff',
+    fontSize: width * 0.1,
+    fontWeight: 'bold',
+    // color: '#fff',
+    fontStyle: 'italic',
   },
   option: {
     flexDirection: 'row',
