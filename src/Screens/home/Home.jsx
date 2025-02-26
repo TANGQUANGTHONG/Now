@@ -9,7 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
 } from 'react-native';
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Item_home_chat from '../../components/items/Item_home_chat';
 import { getAuth } from '@react-native-firebase/auth';
@@ -17,16 +17,19 @@ import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast, updat
 import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
 import { oStackHome } from '../../navigations/HomeNavigation';
 import LinearGradient from 'react-native-linear-gradient';
-import { getAllChatsAsyncStorage } from '../../storage/Storage';
+import { getAllChatsAsyncStorage, getUserUidFromAsyncStorage, getChatsByUserId } from '../../storage/Storage';
 import MaskedView from '@react-native-masked-view/masked-view';
 const { width, height } = Dimensions.get('window');
 const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
   const auth = getAuth();
   const db = getDatabase();
-useEffect(() => {
-  getAllChatsAsyncStorage();
-}, []);
+
+  useEffect(() => {
+    getAllChatsAsyncStorage();
+    getChatsByUserId(getUserUidFromAsyncStorage());
+  }, []);
+
 
   useEffect(() => {
     const currentUserId = auth.currentUser?.uid;
@@ -84,7 +87,7 @@ useEffect(() => {
             'Tin nhắn bị mã hóa';
           lastMessageTime = new Date(
             lastMessageData.timestamp,
-          ).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+          ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           lastMessageTimestamp = lastMessageData.timestamp;
         }
 
@@ -182,7 +185,7 @@ useEffect(() => {
 
   return (
     <View style={styles.container}>
-      <View style={{marginHorizontal: 20}}>
+      <View style={{ marginHorizontal: 20 }}>
         <View style={styles.boxHeader}>
 
           {/* <Text >Chats</Text> */}
@@ -209,7 +212,7 @@ useEffect(() => {
           </View>
         </View>
         <View style={styles.inputSearch}>
-          <View style={{marginLeft: '3%'}}>
+          <View style={{ marginLeft: '3%' }}>
             <Icon name="search-outline" size={25} color="black" />
           </View>
           <TextInput
@@ -221,7 +224,7 @@ useEffect(() => {
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('Gemini')}>
           <View style={styles.container_item}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Image
                 source={{
                   uri: 'https://static.vecteezy.com/system/resources/previews/010/054/157/non_2x/chat-bot-robot-avatar-in-circle-round-shape-isolated-on-white-background-stock-illustration-ai-technology-futuristic-helper-communication-conversation-concept-in-flat-style-vector.jpg',
@@ -233,10 +236,10 @@ useEffect(() => {
           </View>
         </TouchableOpacity>
 
-        
+
         <FlatList
           data={chatList}
-          renderItem={({item}) => (
+          renderItem={({ item }) => (
             <Item_home_chat
               data_chat={item}
               onPress={() =>
@@ -246,7 +249,7 @@ useEffect(() => {
           )}
           keyExtractor={item => item.chatId}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{paddingBottom: 150, paddingTop: 30}}
+          contentContainerStyle={{ paddingBottom: 150, paddingTop: 30 }}
         />
       </View>
     </View>
@@ -288,7 +291,7 @@ const styles = StyleSheet.create({
   },
   img: {
     width: 60,
-    height: 60 ,
+    height: 60,
     borderRadius: 50,
   },
   container_item: {
@@ -305,7 +308,7 @@ const styles = StyleSheet.create({
   text_name_AI: {
     fontSize: 20,
     fontWeight: '500',
-    marginLeft:10,
-    color:"#FFFFFF",
+    marginLeft: 10,
+    color: "#FFFFFF",
   },
 });

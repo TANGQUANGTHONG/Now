@@ -54,11 +54,11 @@ export const getCurrentUserFromStorage = async () => {
     }
     const user = JSON.parse(userStr);
 
-    const userdecryptMessage={
-       email : decryptMessage(user.email),
-       name : decryptMessage(user.name),
-       image : decryptMessage(user.image),
-       nickname : decryptMessage(user.nickname),
+    const userdecryptMessage = {
+      email: decryptMessage(user.email),
+      name: decryptMessage(user.name),
+      image: decryptMessage(user.image),
+      nickname: decryptMessage(user.nickname),
     }
     console.log('Lấy user của tao từ AsyncStorage:', userdecryptMessage);
     return userdecryptMessage;
@@ -86,14 +86,12 @@ export const saveChatsAsyncStorage = () => {
     return;
   }
 
-  // Lấy tham chiếu đến node "chats"
   const chatsRef = database().ref('chats');
 
-  // Hàm dùng chung để cập nhật AsyncStorage với tin nhắn của chat
   const updateChatInAsyncStorage = async (chatId, chatData) => {
-    // Lấy tin nhắn mới nhất từ chatData.messages (nếu có)
     const messages = chatData.messages;
     if (!messages || Object.keys(messages).length === 0) return;
+
     const messageKeys = Object.keys(messages);
     const latestMessageKey = messageKeys[messageKeys.length - 1];
     const latestMessage = messages[latestMessageKey];
@@ -103,33 +101,18 @@ export const saveChatsAsyncStorage = () => {
       let chats = existingChatsStr ? JSON.parse(existingChatsStr) : {};
 
       if (chats[chatId]) {
-        // Nếu chat đã tồn tại, thêm hoặc cập nhật message mới mà không ghi đè tin nhắn cũ
         if (!chats[chatId].messages) {
           chats[chatId].messages = {};
         }
-        if (!chats[chatId].messages[latestMessageKey]) {
-          chats[chatId].messages = {
-            ...chats[chatId].messages,
-            [latestMessageKey]: {
-              selfDestruct: latestMessage.selfDestruct || false,
-              senderId: latestMessage.senderId,
-              text: latestMessage.text,
-              timestamp: latestMessage.timestamp,
-            },
-          };
-          // console.log(`Đã thêm tin nhắn mới vào chat ${chatId}`);
-        } else {
-          // Nếu tin nhắn đã tồn tại, có thể cập nhật nếu cần
-          chats[chatId].messages[latestMessageKey] = {
-            selfDestruct: latestMessage.selfDestruct || false,
-            senderId: latestMessage.senderId,
-            text: latestMessage.text,
-            timestamp: latestMessage.timestamp,
-          };
-          // console.log(`Đã cập nhật tin nhắn trong chat ${chatId}`);
-        }
+
+        // Thêm hoặc cập nhật tin nhắn
+        chats[chatId].messages[latestMessageKey] = {
+          selfDestruct: latestMessage.selfDestruct || false,
+          senderId: latestMessage.senderId,
+          text: latestMessage.text,
+          timestamp: latestMessage.timestamp,
+        };
       } else {
-        // Nếu chat chưa tồn tại, tạo mới với dữ liệu đầy đủ
         chats[chatId] = {
           messages: {
             [latestMessageKey]: {
@@ -139,84 +122,72 @@ export const saveChatsAsyncStorage = () => {
               timestamp: latestMessage.timestamp,
             },
           },
-          typing: chatData.typing || {isTyping: false, userId: ''},
+          typing: chatData.typing || { isTyping: false, userId: '' },
           users: chatData.users || {},
         };
         console.log(`Tạo mới chat ${chatId}`);
       }
 
-      // Lưu lại danh sách chats vào AsyncStorage
       await AsyncStorage.setItem('chats', JSON.stringify(chats));
-      // console.log(`Chats sau khi cập nhật cho chat ${chatId}:`, chats[chatId]);
     } catch (error) {
       console.error(`Lỗi cập nhật AsyncStorage cho chat ${chatId}:`, error);
     }
   };
 
-  // Lắng nghe sự kiện "child_added" trên node "chats" (chat mới được tạo)
+  // Lắng nghe sự kiện "child_added" trên node "chats"
   chatsRef.on('child_added', chatSnapshot => {
     const chatId = chatSnapshot.key;
     const chatData = chatSnapshot.val();
 
-    // Kiểm tra xem trường "users" của chat có chứa UID của user hiện tại không
     if (!chatData.users || !chatData.users[currentUser.uid]) {
-      // console.log(`Chat ${chatId} không liên quan đến user ${currentUser.uid}`);
       return;
     }
 
-    // console.log(`Chat mới ${chatId} được thêm, bắt đầu lắng nghe tin nhắn...`);
     const messagesRef = database().ref(`chats/${chatId}/messages`);
 
-    // Lắng nghe tin nhắn mới được thêm vào chat (child_added)
     messagesRef.on('child_added', async messageSnapshot => {
-      // console.log(
-      //   `child_added event tại chat ${chatId}:`,
-      //   messageSnapshot.key,
-      //   messageSnapshot.val(),
-      // );
-      // Gọi hàm cập nhật AsyncStorage cho chat này
-      await updateChatInAsyncStorage(chatId, {
-        ...chatData,
-        messages: {
-          ...chatData.messages,
-          [messageSnapshot.key]: messageSnapshot.val(),
-        },
-      });
+      const messageData = messageSnapshot.val();
+
+      if (messageData) {
+        console.log(`Tin nhắn mới tại chat ${chatId}:`, messageData);
+        await updateChatInAsyncStorage(chatId, {
+          ...chatData,
+          messages: {
+            ...chatData.messages,
+            [messageSnapshot.key]: messageData,
+          },
+        });
+      }
     });
 
-    // Lắng nghe thay đổi tin nhắn (child_changed)
     messagesRef.on('child_changed', async messageSnapshot => {
-      // console.log(
-      //   `child_changed event tại chat ${chatId}:`,
-      //   messageSnapshot.key,
-      //   messageSnapshot.val(),
-      // );
-      await updateChatInAsyncStorage(chatId, {
-        ...chatData,
-        messages: {
-          ...chatData.messages,
-          [messageSnapshot.key]: messageSnapshot.val(),
-        },
-      });
+      const messageData = messageSnapshot.val();
+
+      if (messageData) {
+        console.log(`Tin nhắn thay đổi tại chat ${chatId}:`, messageData);
+        await updateChatInAsyncStorage(chatId, {
+          ...chatData,
+          messages: {
+            ...chatData.messages,
+            [messageSnapshot.key]: messageData,
+          },
+        });
+      }
     });
   });
 
-  // Cũng có thể lắng nghe "child_changed" trên node "chats" để bắt những thay đổi khác (typing, users) của chat đã tồn tại
   chatsRef.on('child_changed', async chatSnapshot => {
     const chatId = chatSnapshot.key;
     const chatData = chatSnapshot.val();
 
-    // Kiểm tra nếu user hiện tại có trong chat này
     if (!chatData.users || !chatData.users[currentUser.uid]) {
-      // console.log(`Chat ${chatId} không liên quan đến user ${currentUser.uid}`);
       return;
     }
 
     console.log(
-      `>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>. \n \tThêm mới chat trong asynStorage ${chatId}:`,
+      `Cập nhật thông tin chat trong AsyncStorage ${chatId}:`,
       chatData,
     );
-    // Cập nhật toàn bộ chat (bao gồm typing, users, và messages)
     await updateChatInAsyncStorage(chatId, chatData);
   });
 };
@@ -405,28 +376,131 @@ export const getChatsByIdUserAsynStorage = async idUser => {
 
     console.log(`Danh sách chats của user ${idUser}:`, filteredChats);
     const chatArray = Object.entries(filteredChats)
-    console.log("danh sach chat",chatArray[0])
+    console.log("danh sach chat", chatArray[0])
     return chatArray;
-    
+
   } catch (error) {
     console.error('Lỗi khi lấy danh sách chats từ AsyncStorage:', error);
     return [];
   }
 };
 
- const getMessagesFromChats = (chats) => {
+const getMessagesFromChats = (chats) => {
   if (!chats || typeof chats !== 'object') {
     console.log('Dữ liệu chats không hợp lệ.');
     return null;
   }
 
   // Lặp qua các cuộc trò chuyện và lấy messages
-  const allMessages = Object.values(chats).flatMap(chat => 
+  const allMessages = Object.values(chats).flatMap(chat =>
     chat.messages ? Object.entries(chat.messages).map(([messageId, messageData]) => ({
       id: messageId,
       ...messageData
     })) : []
   );
-console.log("tao là cảnh",allMessages);
+  console.log("tao là cảnh", allMessages);
   return allMessages;
+};
+
+// lấy chats dựa vào idChat
+export const getChatFromAsyncStorage = async chatId => {
+  try {
+    // Lấy dữ liệu 'chats' từ AsyncStorage
+    const existingChatsStr = await AsyncStorage.getItem('chats');
+
+    // Nếu không có dữ liệu, trả về null hoặc thông báo lỗi
+    if (!existingChatsStr) {
+      console.log('Không có dữ liệu chats trong AsyncStorage.');
+      return null;
+    }
+
+    // Chuyển đổi dữ liệu từ chuỗi JSON thành đối tượng
+    const chats = JSON.parse(existingChatsStr);
+
+    // Kiểm tra nếu chatId có trong danh sách chats
+    if (chats[chatId]) {
+      return chats[chatId]; // Trả về chat với chatId cụ thể
+    } else {
+      console.log(`Không tìm thấy cuộc trò chuyện với chatId: ${chatId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu chat từ AsyncStorage:', error);
+    return null;
+  }
+};
+
+// lấy chats dựa vào idUsere
+export const getChatsByUserId = async idUser => {
+  try {
+    // Lấy dữ liệu 'chats' từ AsyncStorage
+    const existingChatsStr = await AsyncStorage.getItem('chats');
+
+    // Nếu không có dữ liệu, trả về mảng rỗng hoặc thông báo lỗi
+    if (!existingChatsStr) {
+      console.log('Không có dữ liệu chats trong AsyncStorage.');
+      return [];
+    }
+
+    // Chuyển đổi dữ liệu từ chuỗi JSON thành đối tượng
+    const chats = JSON.parse(existingChatsStr);
+
+    // Lọc các cuộc trò chuyện mà người dùng hiện tại tham gia
+    const userChats = Object.values(chats).filter(
+      chat => chat.users && chat.users[idUser],
+    );
+
+    // Nếu không tìm thấy cuộc trò chuyện nào, trả về mảng rỗng
+    if (userChats.length === 0) {
+      console.log('Không có cuộc trò chuyện nào liên quan đến người dùng.');
+      return [];
+    }
+
+    // Trả về danh sách các cuộc trò chuyện mà người dùng tham gia
+    return userChats;
+  } catch (error) {
+    console.error(
+      'Lỗi khi lấy dữ liệu cuộc trò chuyện từ AsyncStorage:',
+      error,
+    );
+    return [];
+  }
+};
+
+// Hàm lưu UID vào AsyncStorage chỉ khi chưa có dữ liệu
+export const saveUserUidToAsyncStorage = async (uid) => {
+  try {
+    // Kiểm tra xem UID đã tồn tại trong AsyncStorage chưa
+    const existingUid = await AsyncStorage.getItem('userUid');
+
+    if (existingUid === null) {
+      // Nếu chưa có UID, lưu UID vào AsyncStorage
+      await AsyncStorage.setItem('userUid', uid);
+      console.log('UID đã được lưu vào AsyncStorage:', uid);
+    } else {
+      console.log('UID đã tồn tại trong AsyncStorage:', existingUid);
+    }
+  } catch (error) {
+    console.error('Lỗi khi lưu UID vào AsyncStorage:', error);
+  }
+};
+
+
+// Hàm lấy UID từ AsyncStorage
+export const getUserUidFromAsyncStorage = async () => {
+  try {
+    // Lấy UID từ AsyncStorage
+    const uid = await AsyncStorage.getItem('userUid');
+
+    if (uid !== null) {
+      console.log('UID lấy từ AsyncStorage:', uid);
+      return uid;  // Trả về UID nếu có
+    } else {
+      console.log('Không có UID trong AsyncStorage');
+      return null;  // Nếu không có UID trong AsyncStorage
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy UID từ AsyncStorage:', error);
+    return null;  // Nếu có lỗi xảy ra, trả về null
+  }
 };

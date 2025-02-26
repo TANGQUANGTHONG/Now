@@ -24,7 +24,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import database, {set} from '@react-native-firebase/database';
 import ActionSheet from 'react-native-actionsheet';
-import { getChatsByIdUserAsynStorage } from '../../storage/Storage';
+import { getChatsByIdUserAsynStorage, getUserUidFromAsyncStorage } from '../../storage/Storage';
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
