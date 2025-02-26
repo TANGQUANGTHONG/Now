@@ -52,6 +52,7 @@ const Single = () => {
     "Animated: `useNativeDriver` was not specified", 
   ]);
 
+
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
@@ -344,55 +345,55 @@ const Single = () => {
           </View>
         </View>
 
-        <FlatList
-  ref={listRef}
-  data={messages}
-  keyExtractor={(item) => item.id}
-  renderItem={({ item }) => {
-    const messageId = item.id; // 🔥 Truy cập messageId
-    const isSentByMe = item.senderId === myId; // 🔥 Sửa lỗi lấy senderId
-    const isSelfDestruct = item.selfDestruct; // 🔥 Sửa lỗi lấy selfDestruct
-    const timestamp = item.timestamp; // 🔥 Sửa lỗi lấy timestamp
-    const selfDestructTime = item.selfDestructTime;
+          <FlatList
+    ref={listRef}
+    data={messages}
+    keyExtractor={(item) => item.id}
+    renderItem={({ item }) => {
+      const messageId = item.id; // 🔥 Truy cập messageId
+      const isSentByMe = item.senderId === myId; // 🔥 Sửa lỗi lấy senderId
+      const isSelfDestruct = item.selfDestruct; // 🔥 Sửa lỗi lấy selfDestruct
+      const timestamp = item.timestamp; // 🔥 Sửa lỗi lấy timestamp
+      const selfDestructTime = item.selfDestructTime;
 
-    const expirationTime = timestamp + selfDestructTime * 1000;    
-    const timeLeft = isSelfDestruct
-    ? Math.max(0, Math.floor((expirationTime - Date.now()) / 1000))
-    : null;
+      const expirationTime = timestamp + selfDestructTime * 1000;    
+      const timeLeft = isSelfDestruct
+      ? Math.max(0, Math.floor((expirationTime - (Date.now() + 3000)) / 1000)) // Trừ 3s
+      : null;
     
-    return (
-      <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
-        {!isSentByMe && <Image source={{ uri: img }} style={styles.avatar} />}
+      return (
+        <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
+          {!isSentByMe && <Image source={{ uri: img }} style={styles.avatar} />}
 
-        <TouchableOpacity
-          onLongPress={() => confirmDeleteMessage(item.id)}
-          style={[
-            isSentByMe ? styles.sentContainer : styles.receivedContainer,
-            isSelfDestruct && styles.selfDestructMessage,
-          ]}
-        >
-          {!isSentByMe && <Text style={styles.usernameText}>{username}</Text>}
+          <TouchableOpacity
+            onLongPress={() => confirmDeleteMessage(item.id)}
+            style={[
+              isSentByMe ? styles.sentContainer : styles.receivedContainer,
+              isSelfDestruct && styles.selfDestructMessage,
+            ]}
+          >
+            {!isSentByMe && <Text style={styles.usernameText}>{username}</Text>}
 
-          <Text style={isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText}>
-            {item.text}
-          </Text>
+            <Text style={isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText}>
+              {item.text}
+            </Text>
 
-          {/* Hiển thị thời gian đếm ngược */}
-          {isSelfDestruct && selfDestructTime !== null && timeLeft > 0 && (
-            <Text style={styles.selfDestructTimer}>🕒 {timeLeft}s</Text>
-          )}
+            {/* Hiển thị thời gian đếm ngược */}
+            {isSelfDestruct && selfDestructTime !== null && timeLeft > 0 && (
+              <Text style={styles.selfDestructTimer}>🕒 {timeLeft}s</Text>
+            )}
 
-          {/* 🔥 Sửa lỗi hiển thị thời gian */}
-          <Text style={isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp}>
-            {new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }}
-  showsHorizontalScrollIndicator={false}
-  showsVerticalScrollIndicator={false}
-/>
+            {/* 🔥 Sửa lỗi hiển thị thời gian */}
+            <Text style={isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp}>
+              {new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }}
+    showsHorizontalScrollIndicator={false}
+    showsVerticalScrollIndicator={false}
+  />
 
 
 
@@ -450,7 +451,7 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, padding: 10, backgroundColor: '#121212' },
   username: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sentContainer: {
-    backgroundColor: '#002DE3',
+    backgroundColor: '#99F2C8',
     padding: 12,
     borderRadius: 20,
     maxWidth: '70%',
@@ -490,12 +491,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  SendmessageText: { fontSize: 16, color: '#FFFFFF' },
+  SendmessageText: { fontSize: 16, color: '#000000' },
   ReceivedmessageText: { fontSize: 16, color: '#0F1828' },
   deletedText: { fontSize: 16, color: '#999', fontStyle: 'italic' },
   Sendtimestamp: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: '#000000',
     marginTop: 5,
     alignSelf: 'flex-end',
   },
@@ -533,11 +534,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     justifyContent: 'space-between',
+    backgroundColor:"#000000"
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    justifyContent:'flex-start'
   },
   headerAvatar: {
     width: 40,
@@ -545,9 +548,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   headerUsername: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#000E08',
+    color: '#FFFFFF',
     marginLeft: 10,
   },
   backButton: {

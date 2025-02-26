@@ -56,14 +56,14 @@ const Gemini = () => {
                 parts: [{ text: currentMessage }],
             });
     
-            // Bắt đầu cuộc hội thoại với lịch sử đã sửa
+            // Bắt đầu cuộc hội thoại với lịch 
             const chat = model.startChat({
                 history: history,
                 generationConfig: { maxOutputTokens: 200 },
             });
     
             const result = await chat.sendMessage(currentMessage);
-            const text = result.response.candidates[0].content.parts[0].text; // Lấy nội dung đúng cách
+            const text = result.response.candidates[0].content.parts[0].text; // Lấy nội dung
     
             setMessagesAI((prev) => [...prev, { text, user: false }]);
             setTimeout(() => {
