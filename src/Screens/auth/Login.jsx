@@ -114,7 +114,7 @@ const Login = ({ navigation }) => {
           {/* MaskedView with LinearGradient for title */}
           <MaskedView
             maskElement={
-              <Text style={[styles.title, { backgroundColor: 'transparent' }]}>
+              <Text style={[styles.title, { backgroundColor: 'transparent', color: '#99F2C8' }]}>
                 Log in to Now
               </Text>
             }

@@ -86,7 +86,7 @@ try {
          
           <MaskedView
             maskElement={
-              <Text style={[{ backgroundColor: 'transparent' , fontWeight: 'bold', fontSize: width * 0.045, marginVertical : width * -0.01}]}>
+              <Text style={[{ backgroundColor: 'transparent' , fontWeight: 'bold', color: '#FFF', fontSize: width * 0.045, marginVertical : width * -0.01}]}>
                 DeepChat
               </Text>
             }
@@ -140,7 +140,7 @@ try {
             <Pressable onPress={() => navigation.navigate('Login')}>
               <MaskedView
                 maskElement={
-                  <Text style={[styles.loginText, { backgroundColor: 'transparent' }]}>
+                  <Text style={[styles.loginText, { backgroundColor: 'transparent' , color: '#438875'}]}>
                     Log in
                   </Text>
                 }
