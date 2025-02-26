@@ -109,28 +109,7 @@ const Single = () => {
       messagesRef.off('value', onMessageChange);
       typingRef.off('value', onTypingChange);
     };
-  }, [chatId, secretKey, shouldAutoScroll,myId]);
-
-
-  useEffect(() => {
-    let timer;
-    if (remainingMessages === 0) {
-      setCountdown(10); // Bắt đầu đếm ngược từ 10 giây
-      timer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev === 1) {
-            clearInterval(timer);
-            setRemainingMessages(5); // Reset lượt nhắn tin sau khi đếm ngược xong
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [remainingMessages]);
-
-
+  }, [chatId, secretKey, shouldAutoScroll]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -451,20 +430,18 @@ const Single = () => {
                 handleTyping(value.length > 0); // Cập nhật trạng thái nhập
               }}
               placeholder="Nhập tin nhắn..."
-              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập 
-              editable={remainingMessages > 0} // Chỉ cho nhập khi còn lượt nhắn
+              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập
             />
           </View>
 
           <TouchableOpacity
-          
             onPress={sendMessage}
-            disabled={!text.trim() || remainingMessages === 0}
-            style={[styles.disendButton, remainingMessages === 0 && styles.disabledButton]}>
+            disabled={!text.trim()}
+            style={styles.sendButton}>
             <Icon
               name="send"
               size={24}
-              color={text.trim() || remainingMessages  === 0 ? '#007bff' : '#aaa'}
+              color={text.trim() ? '#007bff' : '#aaa'}
             />
           </TouchableOpacity>
         </View>
@@ -586,9 +563,6 @@ const styles = StyleSheet.create({
   sendButton: {
     padding: 10,
     borderRadius: 20,
-  },
-  disabledButton: {
-    opacity: 0.5, // Làm mờ nút khi bị vô hiệu hóa
   },
   typingText: {
     fontSize: 14,

@@ -56,10 +56,10 @@ const Home = ({ navigation }) => {
         const decryptedImage = safeDecrypt(userInfo?.Image);
 
         const secretKey = generateSecretKey(otherUserId, currentUserId);
-        console.log(
-          `🔑 Secret Key (${currentUserId}_${otherUserId}):`,
-          secretKey,
-        );
+        // console.log(
+        //   `🔑 Secret Key (${currentUserId}_${otherUserId}):`,
+        //   secretKey,
+        // );
 
         // ✅ Lấy tin nhắn mới nhất để hiển thị
         const lastMessageRef = query(
@@ -97,7 +97,7 @@ const Home = ({ navigation }) => {
           unreadCount = allMessages.filter(
             msg => msg.seen?.[currentUserId] === false,
           ).length;
-          console.log(`📌 Tin chưa đọc (${chatId}):`, unreadCount);
+          // console.log(`📌 Tin chưa đọc (${chatId}):`, unreadCount);
         }
 
         return {
@@ -162,7 +162,7 @@ const Home = ({ navigation }) => {
       });
 
       await update(ref(db), updates);
-      console.log(`✅ Đã set seen cho chat ${chatId}`);
+      // console.log(`✅ Đã set seen cho chat ${chatId}`);
 
       // ✅ Chuyển đến màn hình chat
       navigation.navigate(oStackHome.Single.name, {
