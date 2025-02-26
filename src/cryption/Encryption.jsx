@@ -29,7 +29,7 @@ export const decryptMessage = (encryptedMessage, userId, myId) => {
     const bytes = CryptoJS.AES.decrypt(encryptedMessage, secretKey);
     return bytes.toString(CryptoJS.enc.Utf8);
   } catch (error) {
-    console.error("Giải mã lỗi:", error);
+    // console.error("Giải mã lỗi:", error);
     return "❌ Lỗi giải mã";
   }
 };

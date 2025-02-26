@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -9,7 +9,6 @@ import Setting from '../Screens/Profile_Settings/Setting';
 import Chat from '../Screens/chat/Single';
 import Login from '../Screens/auth/Login';
 import Single from '../Screens/chat/Single';
-import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
 import ChangeDisplayName from '../components/setting/ChangeDisplayName';
@@ -93,7 +92,6 @@ const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},
   Single: {name: 'Single', component: Single},
-  Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
   Login: {name: 'Login', component: Login},
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
@@ -107,6 +105,23 @@ const oStackHome = {
 const StackHome = createNativeStackNavigator();
 
 const HomeNavigation = () => {
+  // useEffect(() => {
+  //   syncDataFromFirebase();
+  //   getAllMessagesFromSQLite();
+  // }, []);
+
+  // const logAllMessages = () => {
+  //   getAllMessagesFromSQLite(messages => {
+  //     console.log(
+  //       '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n \tDanh sách tất cả tin nhắn từ SQLite:',
+  //     );
+  //     console.log(JSON.stringify(messages, null, 2));
+  //   });
+  // };
+
+  // Gọi hàm để log tin nhắn
+  // logAllMessages();r
+
   return (
     <StackHome.Navigator
       screenOptions={{ headerShown: false }}>

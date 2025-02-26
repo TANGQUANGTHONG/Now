@@ -12,11 +12,11 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
-const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const Login = ({navigation}) => {
+  const [email, setEmail] = useState('nguyenhongphong1010.02@gmail.com');
+  const [password, setPassword] = useState('111111');
   const [secureText, setSecureText] = useState(true);
   const [isLoading, setIsLoading] = useState(false); // State loading
   const [nickname, setnickname] = useState('')
@@ -93,7 +93,7 @@ const Login = ({ navigation }) => {
   }
 
   const onForgotPassword = () => navigation.navigate('ForgotPassword');
-  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isFormValid = isValidEmail(email) && password.length >= 6;
 
   return (
