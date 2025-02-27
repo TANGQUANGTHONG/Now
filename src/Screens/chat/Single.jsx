@@ -81,66 +81,62 @@ const Single = () => {
         console.log('📭 Không có tin nhắn mới từ Firebase.');
         return;
       }
-  
+    
       try {
-        // 📥 Lấy tin nhắn mới từ Firebase
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-  
-        const newMessages = Object.entries(firebaseMessages).map(([id, data]) => ({
-          id,
-          senderId: data.senderId,
-          text: decryptMessage(data.text, secretKey),
-          timestamp: data.timestamp,
-          selfDestruct: data.selfDestruct || false,
-          selfDestructTime: data.selfDestructTime || null,
-          seen: data.seen || {},
-        }));
-  
+    
+        const newMessages = Object.entries(firebaseMessages)
+          .map(([id, data]) => {
+            if (!data || typeof data !== 'object') return null;
+            if (!data.senderId || !data.text || !data.timestamp) return null;
+    
+            const decryptedText = decryptMessage(data.text, secretKey) || '❌ Lỗi giải mã';
+    
+            return {
+              id,
+              senderId: data.senderId,
+              text: decryptedText,
+              timestamp: data.timestamp,
+              selfDestruct: data.selfDestruct || false,
+              selfDestructTime: data.selfDestructTime || null,
+              seen: data.seen || {},
+              saved: data.saved || {}, // ✅ Thêm trạng thái saved từ Firebase
+            };
+          })
+          .filter(msg => msg !== null);
+    
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-  
+    
         // 📥 Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
-         // Chỉ thêm tin nhắn mới, không trùng lặp
-    const updatedMessages = [...oldMessages, ...newMessages].reduce((acc, msg) => {
-      if (!acc.find(m => m.id === msg.id)) acc.push(msg);
-      return acc;
-    }, []);
-  
+    
+        // 🔥 Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
+        const updatedMessages = [...oldMessages, ...newMessages].reduce((acc, msg) => {
+          if (!acc.find(m => m.id === msg.id)) acc.push(msg);
+          return acc;
+        }, []);
+    
         // 💾 Lưu lại vào AsyncStorage
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
         setMessages(updatedMessages);
-  
-        // 🔥 Xóa tin nhắn trên Firebase sau khi lưu
-        newMessages.forEach(async msg => {
-          await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-        });
-  
-        // ✅ Cập nhật trạng thái đã xem
+    
+        // ✅ Cập nhật trạng thái `saved` trong Firebase
         newMessages.forEach(msg => {
-          if (msg.senderId !== myId && !msg.seen[myId]) {
-            database()
-              .ref(`/chats/${chatId}/messages/${msg.id}/seen/${myId}`)
-              .set(true);
-          }
+          database()
+            .ref(`/chats/${chatId}/messages/${msg.id}/saved/${myId}`)
+            .set(true);
         });
-  
-        // ✅ Auto-scroll khi có tin nhắn mới
-        if (shouldAutoScroll && listRef.current) {
-          setTimeout(() => {
-            listRef.current?.scrollToEnd({
-              animated: true,
-              useNativeDriver: true,
-            });
-            setShouldAutoScroll(false);
-          }, 500);
-        }
+    
       } catch (error) {
-        console.error('❌ Lỗi khi xử lý tin nhắn:', error);
+        console.error('❌ Lỗi khi xử lý tin nhắn:', error.message || error);
       }
     };
+    
+    
+    
+    
   
     messagesRef.on('value', onMessageChange);
   
@@ -149,6 +145,42 @@ const Single = () => {
       typingRef.off('value', onTypingChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
+  
+
+  const checkAndDeleteMessages = async () => {
+    try {
+      const messagesRef = database().ref(`/chats/${chatId}/messages`);
+      const snapshot = await messagesRef.once('value');
+  
+      if (!snapshot.exists()) return;
+  
+      const messages = snapshot.val();
+      const updates = {}; // Lưu danh sách tin nhắn cần xóa
+  
+      Object.entries(messages).forEach(([messageId, messageData]) => {
+        const savedByUser1 = messageData.saved?.[myId] || false;
+        const savedByUser2 = messageData.saved?.[userId] || false;
+  
+        if (savedByUser1 && savedByUser2) {
+          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa tin nhắn
+        }
+      });
+  
+      if (Object.keys(updates).length > 0) {
+        await database().ref().update(updates);
+        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
+      } else {
+        console.log("⏳ Chưa có tin nhắn nào đủ điều kiện để xóa.");
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
+    }
+  };
+  
+
+  useEffect(() => {
+    checkAndDeleteMessages(); // Kiểm tra và xóa tin nhắn nếu đủ điều kiện
+  }, [messages]);
   
 
   useEffect(() => {
@@ -185,61 +217,45 @@ const Single = () => {
       try {
         const timestampRef = database().ref('/timestamp');
         await timestampRef.set(database.ServerValue.TIMESTAMP);
-        const currentTimestamp = (await timestampRef.once('value')).val();
-
+        const snapshot = await timestampRef.once('value');
+  
+        if (!snapshot.exists()) {
+          throw new Error('Không thể lấy timestamp từ Firebase');
+        }
+  
+        const currentTimestamp = snapshot.val();
+  
         const messagesSnapshot = await database()
           .ref(`/chats/${chatId}/messages`)
           .orderByChild('timestamp')
           .limitToLast(1)
           .once('value');
-
-        const lastMessageTimestamp = messagesSnapshot.exists()
-          ? Object.values(messagesSnapshot.val())[0].timestamp
-          : currentTimestamp;
-
+  
+        let lastMessageTimestamp = currentTimestamp;
+        if (messagesSnapshot.exists()) {
+          const lastMessage = Object.values(messagesSnapshot.val())[0];
+          lastMessageTimestamp = lastMessage.timestamp || currentTimestamp;
+        }
+  
         const now = new Date(currentTimestamp);
         const nextResetTime = new Date(lastMessageTimestamp);
         nextResetTime.setHours(24, 0, 0, 0);
-
+  
         const timeLeft = Math.max(0, Math.floor((nextResetTime - now) / 1000));
         setResetCountdown(timeLeft);
-
+  
         await database().ref(`/users/${myId}/resetCountdown`).set(timeLeft);
       } catch (error) {
-        console.error('Lỗi cập nhật thời gian reset:', error);
+        console.error('❌ Lỗi cập nhật thời gian reset:', error.message || error);
       }
     };
-    
-
+  
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
-
-    const markMessagesAsSeen = async () => {
-      const messagesRef = database().ref(`/chats/${chatId}/messages`);
-      const snapshot = await messagesRef.once('value');
   
-      if (snapshot.exists()) {
-        const updates = {};
-        snapshot.forEach(childSnapshot => {
-          const messageId = childSnapshot.key;
-          const messageData = childSnapshot.val();
-  
-          if (messageData.senderId !== myId && !messageData.seen?.[myId]) {
-            updates[`/chats/${chatId}/messages/${messageId}/seen/${myId}`] = true;
-          }
-        });
-  
-        if (Object.keys(updates).length > 0) {
-          await database().ref().update(updates);
-          console.log(`✅ Đã cập nhật trạng thái seen cho chat ${chatId}`);
-        }
-      }
-    };
-  
-    markMessagesAsSeen();
-
     return () => clearInterval(interval);
   }, [chatId]);
+  
 
   useEffect(() => {
     if (!cachedMessages || cachedMessages.length === 0) {
@@ -282,92 +298,80 @@ const Single = () => {
   const sendMessage = async () => {
     if (!text.trim()) return;
     setShouldAutoScroll(true);
-
+  
     try {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
-
+  
       const [userSnapshot, chatSnapshot] = await Promise.all([
         userRef.once('value'),
         chatRef.once('value'),
       ]);
-
-      if (!userSnapshot.exists())
+  
+      if (!userSnapshot.exists()) {
         return Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
-
-      let {lastResetTimestamp = 0, countChat = 100} = userSnapshot.val();
-
+      }
+  
+      let { lastResetTimestamp = 0, countChat = 100 } = userSnapshot.val();
+  
       const timestampRef = database().ref('/timestamp');
       await timestampRef.set(database.ServerValue.TIMESTAMP);
       const currentTimestamp = (await timestampRef.once('value')).val();
-
-      // 🔥 Kiểm tra nếu là ngày mới, reset về 100, nếu không thì giữ nguyên giá trị
-      const lastResetDate = new Date(lastResetTimestamp).toDateString();
-      const currentDate = new Date(currentTimestamp).toDateString();
-
-      if (lastResetDate !== currentDate) {
-        await userRef.update({
-          countChat: 100,
-          lastResetTimestamp: currentTimestamp,
-        });
-        countChat = 100;
-      }
-
-      if (countChat <= 0) {
-        return Alert.alert(
-          'Bạn đã hết lượt nhắn tin',
-          'Vui lòng đợi sang ngày mới để tiếp tục!',
-        );
-      }
-
+  
       if (!chatSnapshot.exists()) {
-        await chatRef.set({users: {[userId]: true, [myId]: true}});
+        await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
-
-      // ✅ Gửi tin nhắn với thời gian tự hủy
+  
+      // ✅ Gửi tin nhắn với timestamp chính xác
       const messageRef = chatRef.child('messages').push();
+      const encryptedText = encryptMessage(text, secretKey);
+  
       await messageRef.set({
         senderId: myId,
-        text: encryptMessage(text, secretKey),
-        timestamp: new Date().toISOString().replace('T', ' ').split('.')[0], 
-
+        text: encryptedText || "🔒 Tin nhắn mã hóa",
+        timestamp: database.ServerValue.TIMESTAMP, // Dùng timestamp dạng số
         selfDestruct: isSelfDestruct,
-        selfDestructTime: isSelfDestruct ? selfDestructTime : null, // Đổi destructTime thành selfDestructTime
+        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
         seen: {
           [userId]: false,
           [myId]: true,
         },
       });
-
-      // ✅ Trừ 1 lượt nhắn tin
-      await userRef.update({countChat: countChat - 1});
+  
+      await userRef.update({ countChat: countChat - 1 });
       setcountChat(countChat - 1);
-
       setText('');
-
-      // ✅ Xóa tin nhắn sau thời gian tự hủy nếu có
-      // if (isSelfDestruct && selfDestructTime) {
-      //   setTimeout(async () => {
-      //     await messageRef.remove();
-      //   }, selfDestructTime * 1000);
-      // }
     } catch (error) {
-      console.error('Lỗi khi gửi tin nhắn:', error);
+      console.error('❌ Lỗi khi gửi tin nhắn:', error);
     }
   };
+  
 
   // 🔹 Xóa tin nhắn cả hai
   const deleteMessageForBoth = async messageId => {
     try {
-      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
-      setMessages(prevMessages =>
-        prevMessages.filter(msg => msg.id !== messageId),
-      );
+      const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
+      const snapshot = await messageRef.once('value');
+  
+      if (!snapshot.exists()) return;
+  
+      const messageData = snapshot.val();
+      const savedByUser1 = messageData.saved?.[myId] || false;
+      const savedByUser2 = messageData.saved?.[userId] || false;
+  
+      if (savedByUser1 && savedByUser2) {
+        // ✅ Chỉ xóa nếu cả 2 đã lưu
+        await messageRef.remove();
+        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+        console.log(`✅ Đã xóa tin nhắn ${messageId} vì cả hai user đã lưu.`);
+      } else {
+        console.log(`⏳ Chưa xóa tin nhắn ${messageId} vì chưa đủ cả hai user lưu.`);
+      }
     } catch (error) {
-      console.error('Lỗi khi xóa tin nhắn:', error);
+      console.error('❌ Lỗi khi xóa tin nhắn:', error);
     }
   };
-
+  
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
     Alert.alert('Xóa tin nhắn', 'Bạn muốn xóa tin nhắn này?', [
