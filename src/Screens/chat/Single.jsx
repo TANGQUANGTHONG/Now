@@ -129,10 +129,14 @@ const Single = () => {
             .set(true);
         });
     
+        // ✅ Kiểm tra và xóa tin nhắn nếu đủ điều kiện
+        checkAndDeleteMessages();
+    
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error.message || error);
       }
     };
+    
     
     
     
@@ -179,7 +183,7 @@ const Single = () => {
   
 
 
-  
+
 
   useEffect(() => {
     checkAndDeleteMessages(); // Kiểm tra và xóa tin nhắn nếu đủ điều kiện
