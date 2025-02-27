@@ -34,8 +34,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
   const route = useRoute();
-  const {userId, myId, username, img} = route.params;
-  const [messages, setMessages] = useState([]);
+  const {userId, myId, username, img, messages: cachedMessages} = route.params || {};
+  const [messages, setMessages] = useState(cachedMessages || []);
   const [text, setText] = useState('');
   const navigation = useNavigation();
   const chatId = encodeChatId(userId, myId);
@@ -103,17 +103,14 @@ const Single = () => {
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
   
-        // 🔥 Gộp tin nhắn mới với tin nhắn cũ (loại bỏ trùng lặp)
-        const updatedMessages = [...oldMessages, ...newMessages].reduce((acc, msg) => {
-          if (!acc.find(m => m.id === msg.id)) acc.push(msg);
-          return acc;
-        }, []);
+         // Chỉ thêm tin nhắn mới, không trùng lặp
+    const updatedMessages = [...oldMessages, ...newMessages].reduce((acc, msg) => {
+      if (!acc.find(m => m.id === msg.id)) acc.push(msg);
+      return acc;
+    }, []);
   
         // 💾 Lưu lại vào AsyncStorage
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-        console.log('💾 Đã lưu tin nhắn vào AsyncStorage:', updatedMessages);
-  
-        // ✅ Cập nhật UI với tin nhắn từ AsyncStorage
         setMessages(updatedMessages);
   
         // 🔥 Xóa tin nhắn trên Firebase sau khi lưu
@@ -212,30 +209,52 @@ const Single = () => {
         console.error('Lỗi cập nhật thời gian reset:', error);
       }
     };
+    
 
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
+
+    const markMessagesAsSeen = async () => {
+      const messagesRef = database().ref(`/chats/${chatId}/messages`);
+      const snapshot = await messagesRef.once('value');
+  
+      if (snapshot.exists()) {
+        const updates = {};
+        snapshot.forEach(childSnapshot => {
+          const messageId = childSnapshot.key;
+          const messageData = childSnapshot.val();
+  
+          if (messageData.senderId !== myId && !messageData.seen?.[myId]) {
+            updates[`/chats/${chatId}/messages/${messageId}/seen/${myId}`] = true;
+          }
+        });
+  
+        if (Object.keys(updates).length > 0) {
+          await database().ref().update(updates);
+          console.log(`✅ Đã cập nhật trạng thái seen cho chat ${chatId}`);
+        }
+      }
+    };
+  
+    markMessagesAsSeen();
 
     return () => clearInterval(interval);
   }, [chatId]);
 
   useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-        if (storedMessages) {
-          const parsedMessages = JSON.parse(storedMessages);
-          console.log('📥 Tin nhắn đã lưu trong AsyncStorage:', parsedMessages);
-          setMessages(parsedMessages); // ✅ Hiển thị tin nhắn từ bộ nhớ máy
-        } else {
-          console.log('📭 Không có tin nhắn nào trong AsyncStorage.');
+    if (!cachedMessages || cachedMessages.length === 0) {
+      const loadMessages = async () => {
+        try {
+          const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+          if (storedMessages) {
+            setMessages(JSON.parse(storedMessages));
+          }
+        } catch (error) {
+          console.error('❌ Lỗi tải tin nhắn từ AsyncStorage:', error);
         }
-      } catch (error) {
-        console.error('❌ Lỗi tải tin nhắn từ AsyncStorage:', error);
-      }
-    };
-  
-    loadMessages();
+      };
+      loadMessages();
+    }
   }, [chatId]);
   
   
