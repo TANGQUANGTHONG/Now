@@ -17,6 +17,7 @@ import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast, updat
 import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
 import { oStackHome } from '../../navigations/HomeNavigation';
 import LinearGradient from 'react-native-linear-gradient';
+import { getAllChatsAsyncStorage } from '../../storage/Storage';
 import MaskedView from '@react-native-masked-view/masked-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -25,6 +26,9 @@ const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
   const auth = getAuth();
   const db = getDatabase();
+useEffect(() => {
+  getAllChatsAsyncStorage();
+}, []);
 
   useEffect(() => {
     const currentUserId = auth.currentUser?.uid;

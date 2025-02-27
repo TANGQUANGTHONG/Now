@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image,
   StyleSheet, Dimensions, KeyboardAvoidingView,
@@ -11,6 +11,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
+import{saveCurrentUserAsyncStorage,saveChatsAsyncStorage} from '../../storage/Storage';
 
 const {width, height} = Dimensions.get('window');
 
@@ -24,6 +25,11 @@ const Login = ({navigation}) => {
   GoogleSignin.configure({
     webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
   });
+
+  useEffect(() => {
+    saveCurrentUserAsyncStorage();
+  }, [])
+  
 
   const loginWithEmailAndPass = () => {
     setIsLoading(true); // Bắt đầu loading
@@ -80,10 +86,14 @@ const Login = ({navigation}) => {
             nickname: encryptMessage(nickname),
             createdAt: database.ServerValue.TIMESTAMP,
         });
+        await saveCurrentUserAsyncStorage();
+        await saveChatsAsyncStorage();
         console.log('Thông tin người dùng đã đc lưu');
         navigation.navigate('TabHome');
       } else {
         console.log('Đăng nhập thành công');
+        await saveCurrentUserAsyncStorage();
+        await saveChatsAsyncStorage();
         navigation.navigate('TabHome');
 
       }

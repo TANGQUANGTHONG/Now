@@ -19,6 +19,8 @@ import database from '@react-native-firebase/database';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
+import { getCurrentUserFromStorage,removeCurrentUserFromStorage } from '../../storage/Storage';
+
 const { width, height } = Dimensions.get('window');
 
 const Setting = ({ navigation }) => {
@@ -29,6 +31,18 @@ const Setting = ({ navigation }) => {
     webClientId:
       '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
   });
+
+  // useEffect(() => {
+  //   const fetchUser = async ()=>{
+  //     const userData = await getCurrentUserFromStorage();
+  //     if(userData){
+  //       setMyUser(userData)
+  //     }
+  //   }
+  //   fetchUser();
+  // }, [])
+  
+  console.log("user của tao",myUser)
   useEffect(() => {
     const fetchUser = () => {
       const id = auth().currentUser?.uid;
@@ -69,6 +83,7 @@ const Setting = ({ navigation }) => {
     try {
       await GoogleSignin.signOut();
       await auth().signOut();
+      removeCurrentUserFromStorage();
       console.log('Đã đăng xuất khỏi Google và Firebase.');
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);

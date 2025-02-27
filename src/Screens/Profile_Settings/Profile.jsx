@@ -65,7 +65,7 @@ const Profile = (props) => {
   }, []);
 
 
-  console.log(myUser)
+
   return (
     <View style={styles.container}>
       {

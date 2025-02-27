@@ -16,17 +16,17 @@ const App = () => {
   //   listenForNewMessages();
   // }, []);
 
-  // // Lưu thông tin user, userSend, chat vào AsyncStorage
-    useEffect(() => {
-      saveCurrentUserAsyncStorage();
-      saveUserSendAsyncStorage();
-      saveChatsAsyncStorage()
+  // Lưu thông tin user, userSend, chat vào AsyncStorage
+  //   useEffect(() => {
+  //     saveCurrentUserAsyncStorage();
+  //     saveUserSendAsyncStorage();
+  //     saveChatsAsyncStorage()
 
-      // getAllSavedUsersAsyncStorage()
-      // getAllChatsAsyncStorage()
-      // getAllUsersFromUserSend()
+  //     // getAllSavedUsersAsyncStorage()
+  //     // getAllChatsAsyncStorage()
+  //     // getAllUsersFromUserSend()
 
-   }, []); 
+  //  }, []);
 
   return (
     <>

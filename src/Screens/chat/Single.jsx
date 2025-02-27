@@ -56,6 +56,8 @@ const Single = () => {
 
   LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
 
+
+  
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);

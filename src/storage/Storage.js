@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
+import { encryptMessage, decryptMessage, generateSecretKey } from '../cryption/Encryption'
 
 // Mỗi khi đăng nhập kiểm tra xem uid có thuộc users trong AsyncStorage không, trùng cập nhập, không thì thêm mới
 export const saveCurrentUserAsyncStorage = async () => {
@@ -22,11 +23,69 @@ export const saveCurrentUserAsyncStorage = async () => {
   };
 
   try {
-    // Lưu thông tin user vào AsyncStorage (ghi đè toàn bộ)
-    await AsyncStorage.setItem('users', JSON.stringify(newUser));
-    console.log('Thông tin user đã được lưu vào AsyncStorage:', newUser);
-  } catch (storageError) {
-    console.error('Lỗi lưu thông tin user vào AsyncStorage:', storageError);
+    const userRef = database().ref(`users/${user.uid}`);
+    const snapshot = await userRef.once('value');
+
+    if (!snapshot.exists()) {
+      console.log('Không tìm thấy thông tin user trong database.');
+      return;
+    }
+
+    const userData = snapshot.val();
+    if (!userData || Object.keys(userData).length === 0) {
+      console.log('Dữ liệu user không hợp lệ.');
+      return;
+    }
+
+    // Định dạng user mới
+    const newUser = {
+      uid: user.uid,
+      email: userData.email || '',
+      name: userData.name || '',
+      nickname: userData.nickname || '',
+      image: userData.Image || '',
+      countChat: userData.countChat || 0,
+      createdAt: userData.createdAt || '',
+    };
+
+    // Ghi đè lên user cũ
+    await AsyncStorage.setItem('currentUser', JSON.stringify(newUser));
+    console.log('Lưu user vào AsyncStorage:', newUser);
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu từ Firebase:', error);
+  }
+};
+// lấy user
+export const getCurrentUserFromStorage = async () => {
+  try {
+    const userStr = await AsyncStorage.getItem('currentUser');
+    if (!userStr) {
+      console.log('Không có user nào trong AsyncStorage.');
+      return null;
+    }
+    const user = JSON.parse(userStr);
+
+    const userdecryptMessage={
+       email : decryptMessage(user.email),
+       name : decryptMessage(user.name),
+       image : decryptMessage(user.image),
+       nickname : decryptMessage(user.nickname),
+    }
+    console.log('Lấy user của tao từ AsyncStorage:', userdecryptMessage);
+    return userdecryptMessage;
+  } catch (error) {
+    console.error('Lỗi khi lấy user từ AsyncStorage:', error);
+    return null;
+  }
+};
+
+// xóa user
+export const removeCurrentUserFromStorage = async () => {
+  try {
+    await AsyncStorage.removeItem('currentUser');
+    console.log('Xóa user khỏi AsyncStorage.');
+  } catch (error) {
+    console.error('Lỗi khi xóa user từ AsyncStorage:', error);
   }
 };
 
@@ -337,17 +396,16 @@ export const getUserFromUserSendById = async idUser => {
   }
 };
 
-//lấy từ AsyncStorage tất cả các chat có chứa idUser trong trường users: của mình
 export const getChatsByIdUserAsynStorage = async idUser => {
   try {
     const chatsStr = await AsyncStorage.getItem('chats');
     if (!chatsStr) {
       console.log('Không có chats nào được lưu.');
-      return {};
+      return [];
     }
 
     const chats = JSON.parse(chatsStr);
-    // Lọc các chat mà trong trường "users" có key bằng idUser
+    // Lọc các chat mà trong "users" có chứa idUser
     const filteredChats = Object.keys(chats).reduce((acc, chatId) => {
       const chat = chats[chatId];
       if (chat.users && chat.users[idUser]) {
@@ -357,9 +415,29 @@ export const getChatsByIdUserAsynStorage = async idUser => {
     }, {});
 
     console.log(`Danh sách chats của user ${idUser}:`, filteredChats);
-    return filteredChats;
+    const chatArray = Object.entries(filteredChats)
+    console.log("danh sach chat",chatArray[0])
+    return chatArray;
+    
   } catch (error) {
     console.error('Lỗi khi lấy danh sách chats từ AsyncStorage:', error);
-    return {};
+    return [];
   }
+};
+
+ const getMessagesFromChats = (chats) => {
+  if (!chats || typeof chats !== 'object') {
+    console.log('Dữ liệu chats không hợp lệ.');
+    return null;
+  }
+
+  // Lặp qua các cuộc trò chuyện và lấy messages
+  const allMessages = Object.values(chats).flatMap(chat => 
+    chat.messages ? Object.entries(chat.messages).map(([messageId, messageData]) => ({
+      id: messageId,
+      ...messageData
+    })) : []
+  );
+console.log("tao là cảnh",allMessages);
+  return allMessages;
 };
