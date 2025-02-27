@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Keyboard,
   LogBox,
 } from 'react-native';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {getFirestore} from '@react-native-firebase/firestore';
 import {
   encryptMessage,
@@ -73,153 +73,57 @@ const Single = () => {
       }
     };
   
-    typingRef.on('value', onTypingChange);
-  
-    // Lắng nghe tin nhắn từ Firebase
     const onMessageChange = async snapshot => {
-      if (!snapshot.exists()) {
-        console.log('📭 Không có tin nhắn mới từ Firebase.');
-        return;
-      }
-    
+      if (!snapshot.exists()) return;
+  
       try {
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-    
+  
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
-            if (!data || typeof data !== 'object') return null;
             if (!data.senderId || !data.text || !data.timestamp) return null;
-    
-            const decryptedText = decryptMessage(data.text, secretKey) || '❌ Lỗi giải mã';
-    
             return {
               id,
               senderId: data.senderId,
-              text: decryptedText,
+              text: decryptMessage(data.text, secretKey) || '❌ Lỗi giải mã',
               timestamp: data.timestamp,
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
               seen: data.seen || {},
-              saved: data.saved || {}, // ✅ Thêm trạng thái saved từ Firebase
+              saved: data.saved || {},
             };
           })
           .filter(msg => msg !== null);
-    
+  
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-    
+  
         // 📥 Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-    
+  
         // 🔥 Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
         const updatedMessages = [...oldMessages, ...newMessages].reduce((acc, msg) => {
           if (!acc.find(m => m.id === msg.id)) acc.push(msg);
           return acc;
         }, []);
-    
+  
         // 💾 Lưu lại vào AsyncStorage
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
         setMessages(updatedMessages);
-    
+  
         // ✅ Cập nhật trạng thái `saved` trong Firebase
         newMessages.forEach(msg => {
           database()
             .ref(`/chats/${chatId}/messages/${msg.id}/saved/${myId}`)
             .set(true);
         });
-    
-        // ✅ Kiểm tra và xóa tin nhắn nếu đủ điều kiện
-        checkAndDeleteMessages();
-    
+  
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error.message || error);
       }
     };
     
-    
-    
-    
-    
-  
-    messagesRef.on('value', onMessageChange);
-  
-    return () => {
-      messagesRef.off('value', onMessageChange);
-      typingRef.off('value', onTypingChange);
-    };
-  }, [chatId, secretKey, shouldAutoScroll]);
-  
-
-  const checkAndDeleteMessages = async () => {
-    try {
-      const messagesRef = database().ref(`/chats/${chatId}/messages`);
-      const snapshot = await messagesRef.once('value');
-  
-      if (!snapshot.exists()) return;
-  
-      const messages = snapshot.val();
-      const updates = {}; // Lưu danh sách tin nhắn cần xóa
-  
-      Object.entries(messages).forEach(([messageId, messageData]) => {
-        const savedByUser1 = messageData.saved?.[myId] || false;
-        const savedByUser2 = messageData.saved?.[userId] || false;
-  
-        if (savedByUser1 && savedByUser2) {
-          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa tin nhắn
-        }
-      });
-  
-      if (Object.keys(updates).length > 0) {
-        await database().ref().update(updates);
-        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
-      } else {
-        console.log("⏳ Chưa có tin nhắn nào đủ điều kiện để xóa.");
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
-    }
-  };
-  
-
-
-
-
-  useEffect(() => {
-    checkAndDeleteMessages(); // Kiểm tra và xóa tin nhắn nếu đủ điều kiện
-  }, [messages]);
-  
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimers(prevTimers => {
-        const newTimers = {};
-        messages.forEach(msg => {
-          if (msg.selfDestruct) {
-            // Tính thời gian còn lại
-            const timeLeft = Math.max(
-              0,
-              Math.floor(
-                (msg.timestamp + msg.selfDestructTime * 1000 - Date.now()) /
-                  1000,
-              ),
-            );
-            newTimers[msg.id] = timeLeft;
-
-            // Xóa tin nhắn khi hết giờ
-            if (timeLeft === 0) {
-              database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-            }
-          }
-        });
-        return newTimers;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [messages]);
-
-  useEffect(() => {
     const updateCountdown = async () => {
       try {
         const timestampRef = database().ref('/timestamp');
@@ -259,12 +163,6 @@ const Single = () => {
   
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
-  
-    return () => clearInterval(interval);
-  }, [chatId]);
-  
-
-  useEffect(() => {
     if (!cachedMessages || cachedMessages.length === 0) {
       const loadMessages = async () => {
         try {
@@ -278,9 +176,86 @@ const Single = () => {
       };
       loadMessages();
     }
-  }, [chatId]);
+  
+    messagesRef.on('value', onMessageChange);
+    typingRef.on('value', onTypingChange);
+  
+    return () => {
+      clearInterval(interval);
+      messagesRef.off('value', onMessageChange);
+      typingRef.off('value', onTypingChange);
+    };
+  }, [chatId, secretKey, shouldAutoScroll]);
+  
+
+  const checkAndDeleteMessages = async () => {
+    try {
+      const messagesRef = database().ref(`/chats/${chatId}/messages`);
+      const snapshot = await messagesRef.once('value');
+  
+      if (!snapshot.exists()) return;
+  
+      const messages = snapshot.val();
+      const updates = {}; // Lưu danh sách tin nhắn cần xóa
+  
+      Object.entries(messages).forEach(([messageId, messageData]) => {
+        const savedByUser1 = messageData.saved?.[myId] || false;
+        const savedByUser2 = messageData.saved?.[userId] || false;
+  
+        if (savedByUser1 && savedByUser2) {
+          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa tin nhắn
+        }
+      });
+  
+      if (Object.keys(updates).length > 0) {
+        await database().ref().update(updates);
+        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
+    }
+  };
+  
+  // ✅ Gọi `checkAndDeleteMessages()` khi quay lại màn hình Chat
+  useFocusEffect(
+    useCallback(() => {
+      checkAndDeleteMessages();
+    }, [messages])
+  );
   
   
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimers(prevTimers => {
+        const newTimers = {};
+        messages.forEach(msg => {
+          if (msg.selfDestruct) {
+            // Tính thời gian còn lại
+            const timeLeft = Math.max(
+              0,
+              Math.floor(
+                (msg.timestamp + msg.selfDestructTime * 1000 - Date.now()) /
+                  1000,
+              ),
+            );
+            newTimers[msg.id] = timeLeft;
+
+            // Xóa tin nhắn khi hết giờ
+            if (timeLeft === 0) {
+              database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+            }
+          }
+        });
+        return newTimers;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [messages]);
+
+
+
   
 
   useEffect(() => {

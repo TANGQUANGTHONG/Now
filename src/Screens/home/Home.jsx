@@ -19,72 +19,94 @@ import { oStackHome } from '../../navigations/HomeNavigation';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native'; // 🔥 Import useFocusEffect
+
 
 const { width, height } = Dimensions.get('window');
 const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
   const auth = getAuth();
   const db = getDatabase();
+  const myId = auth.currentUser?.uid;
+  const [storageChanged, setStorageChanged] = useState(false);
+
+  const loadLocalChats = async () => {
+    try {
+      const storedChats = await AsyncStorage.getItem('chatList');
+      if (storedChats) {
+        const parsedChats = JSON.parse(storedChats);
+        setChatList(parsedChats);
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi lấy dữ liệu từ AsyncStorage:', error);
+    }
+  };
 
   useEffect(() => {
     const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) return;
-  
+
     const chatRef = ref(db, 'chats');
-  
+
     onValue(chatRef, async snapshot => {
-      if (!snapshot.exists()) return;
-  
+      if (!snapshot.exists()) {
+        console.log('🔥 Firebase không có dữ liệu, lấy từ AsyncStorage.');
+        loadLocalChats();
+        return;
+      }
+
       const chatsData = snapshot.val();
       const chatEntries = Object.entries(chatsData);
-  
+
       const chatPromises = chatEntries.map(async ([chatId, chat]) => {
         if (!chat.users || !chat.users[currentUserId]) return null;
-  
+
         const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
         if (!otherUserId) return null;
-  
+
         const userRef = ref(db, `users/${otherUserId}`);
         const userSnapshot = await get(userRef);
         if (!userSnapshot.exists()) return null;
-  
+
         const userInfo = userSnapshot.val();
         const decryptedName = safeDecrypt(userInfo?.name);
         const decryptedImage = safeDecrypt(userInfo?.Image);
-  
+
         const secretKey = generateSecretKey(otherUserId, currentUserId);
-  
+
         const lastMessageRef = query(
           ref(db, `chats/${chatId}/messages`),
           orderByChild('timestamp'),
           limitToLast(1),
         );
         const lastMessageSnapshot = await get(lastMessageRef);
-  
+
         let lastMessage = 'Chưa có tin nhắn';
         let lastMessageTime = '';
         let lastMessageTimestamp = 0;
-  
+        let isFromFirebase = false;
+
         if (lastMessageSnapshot.exists()) {
           const lastMessageData = Object.values(lastMessageSnapshot.val())[0];
-          lastMessage =
-            decryptMessage(lastMessageData.text, secretKey) || 'Tin nhắn bị mã hóa';
+          lastMessage = decryptMessage(lastMessageData.text, secretKey) || 'Tin nhắn bị mã hóa';
           lastMessageTime = new Date(lastMessageData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
           lastMessageTimestamp = lastMessageData.timestamp;
+          isFromFirebase = true;
         }
-  
-        // ✅ Tính số tin nhắn chưa đọc
-        const allMessagesRef = query(ref(db, `chats/${chatId}/messages`));
-        const allMessagesSnapshot = await get(allMessagesRef);
-  
-        let unreadCount = 0;
-        if (allMessagesSnapshot.exists()) {
-          const allMessages = Object.values(allMessagesSnapshot.val());
-          unreadCount = allMessages.filter(
-            msg => msg.seen?.[currentUserId] === false,
-          ).length;
+
+        if (!isFromFirebase) {
+          const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+          if (storedMessages) {
+            const parsedMessages = JSON.parse(storedMessages);
+            if (parsedMessages.length > 0) {
+              const latestMessage = parsedMessages[parsedMessages.length - 1];
+              lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
+              lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+              lastMessageTimestamp = latestMessage.timestamp;
+            }
+          }
         }
-  
+
         return {
           chatId,
           id: otherUserId,
@@ -93,19 +115,25 @@ const Home = ({ navigation }) => {
           text: lastMessage,
           time: lastMessageTime,
           timestamp: lastMessageTimestamp,
-          unreadCount, // 🔥 Thêm số tin nhắn chưa đọc vào dữ liệu
         };
       });
-  
+
       const resolvedChats = await Promise.all(chatPromises);
       const filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
-  
-      // Lưu vào AsyncStorage
+
       await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
       setChatList(filteredChats);
+      setStorageChanged(prev => !prev); // 🔥 Đánh dấu AsyncStorage thay đổi
     });
   }, []);
   
+  
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("🔄 Quay lại Home, load dữ liệu từ AsyncStorage");
+      loadLocalChats();
+    }, [storageChanged]) // 🔥 Render lại khi storage thay đổi
+  );
   
   useEffect(() => {
     const loadLocalChats = async () => {
@@ -224,7 +252,43 @@ const Home = ({ navigation }) => {
       img,
       messages, // ✅ Gửi luôn tin nhắn đã lưu qua navigation
     });
+  
+    // ✅ Truyền `userId` khi gọi `checkAndDeleteMessages()`
+    checkAndDeleteMessages(chatId, userId);
   };
+  
+  
+  const checkAndDeleteMessages = async (chatId, userId) => {
+    try {
+      const messagesRef = ref(db, `chats/${chatId}/messages`);
+      const snapshot = await get(messagesRef);
+  
+      if (!snapshot.exists()) return;
+  
+      const messages = snapshot.val();
+      const updates = {};
+  
+      Object.entries(messages).forEach(([messageId, messageData]) => {
+        const savedByUser1 = messageData.saved?.[auth.currentUser?.uid] || false;
+        const savedByUser2 = messageData.saved?.[userId] || false; // ✅ Sửa lỗi undefined
+  
+        if (savedByUser1 && savedByUser2) {
+          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa messageID hoàn toàn
+        }
+      });
+  
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates);
+        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
+      } else {
+        console.log("⏳ Không có tin nhắn nào đủ điều kiện để xóa.");
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
+    }
+  };
+  
+  
   
 
   return (
