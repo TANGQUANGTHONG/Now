@@ -249,7 +249,8 @@ export const saveUserSendAsyncStorage = () => {
 
           const userData = userSnap.val();
           const newUser = {
-            uid: userId,
+            uid: currentUser.uid,
+            uidSend: userIds,
             email: userData.email || '',
             name: userData.name || '',
             nickname: userData.nickname || '',

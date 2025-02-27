@@ -33,7 +33,7 @@ const Login = ({navigation}) => {
 
   const loginWithEmailAndPass = () => {
     setIsLoading(true); // Bắt đầu loading
-    auth
+    auth()
       .signInWithEmailAndPassword(email, password)
       .then(() => {
         navigation.navigate('TabHome');
@@ -89,12 +89,10 @@ const Login = ({navigation}) => {
         await saveCurrentUserAsyncStorage();
         await saveChatsAsyncStorage();
         console.log('Thông tin người dùng đã đc lưu');
-        navigation.navigate('TabHome');
       } else {
         console.log('Đăng nhập thành công');
         await saveCurrentUserAsyncStorage();
         await saveChatsAsyncStorage();
-        navigation.navigate('TabHome');
 
       }
     } catch (error) {
