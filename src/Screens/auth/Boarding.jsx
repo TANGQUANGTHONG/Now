@@ -7,6 +7,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
+import{saveCurrentUserAsyncStorage,saveChatsAsyncStorage} from '../../storage/Storage';
 
 
 const Boarding = (props) => {
@@ -66,8 +67,12 @@ try {
         nickname: encryptMessage(nickname),
         createdAt: database.ServerValue.TIMESTAMP,
     });
+            await saveCurrentUserAsyncStorage();
+            await saveChatsAsyncStorage();
     console.log('User information saved to Realtime Database.');
   } else {
+            await saveCurrentUserAsyncStorage();
+            await saveChatsAsyncStorage();
     console.log('User already exists in Realtime Database.');
   }
 } catch (error) {

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 // Import màn hình
 import Home from '../Screens/home/Home';
@@ -9,20 +9,20 @@ import Setting from '../Screens/Profile_Settings/Setting';
 import Chat from '../Screens/chat/Single';
 import Login from '../Screens/auth/Login';
 import Single from '../Screens/chat/Single';
-import Group from '../Screens/chat/Group';
 import Search from '../Screens/search/Search';
 import ProfileView from '../Screens/Profile_Settings/ProfileView';
 import ChangeDisplayName from '../components/setting/ChangeDisplayName';
 import ChangePasswordScreen from '../components/setting/ChangePassWord';
 import DeleteAccountScreen from '../components/setting/Deleted';
 import Profile from '../Screens/Profile_Settings/Profile';
+import Gemini from '../Screens/chat/germiniAI';
 
 // Danh sách tab
 const oTab = {
   Home: {
     name: 'Home',
     component: Home,
-    icon: 'chatbubble-ellipses-outline',
+    icon: 'chatbox-ellipses',
     name: 'Message',
   },
   Profile: {
@@ -46,21 +46,21 @@ const TabHome = () => {
   return (
     <Tab.Navigator
       initialRouteName="Home"
-      screenOptions={({route}) => ({
-        tabBarIcon: ({focused, color, size}) => {
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
           const item = Object.values(oTab).find(tab => tab.name === route.name);
           return item ? (
             <Icon
               name={item.icon}
               size={size}
-              color={focused ? '#24786D' : 'gray'}
-              style={{fontWeight: focused ? 'bold' : 'normal'}}
+              color={focused ? '#99F2C8' : 'gray'}
+              style={{ fontWeight: focused ? 'bold' : 'normal' }}
             />
           ) : null;
         },
         headerShown: false,
-        tabBarActiveTintColor: '#24786D',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: '#99F2C8',
+        // tabBarInactiveTintColor: 'gray',
         tabBarHideOnKeyboard: true,
         tabBarLabelStyle: {
           fontSize: 12,
@@ -68,14 +68,9 @@ const TabHome = () => {
           marginBottom: 5,
         },
         tabBarStyle: {
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
+          backgroundColor: '#121212',
           height: 60,
-          paddingBottom: 8,
-          shadowColor: '#000',
-          shadowOffset: {width: 0, height: 2},
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
+          borderTopWidth: 0, // Loại bỏ đường kẻ xám
         },
       })}>
       {Object.values(oTab).map((item, index) => (
@@ -83,7 +78,7 @@ const TabHome = () => {
           key={index}
           name={item.name}
           component={item.component}
-          options={{title: item.name}}
+          options={{ title: item.name }}
         />
       ))}
     </Tab.Navigator>
@@ -97,12 +92,12 @@ const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},
   Single: {name: 'Single', component: Single},
-  Group: {name: 'Group', component: Group},
   Search: {name: 'Search', component: Search},
   Login: {name: 'Login', component: Login},
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
   ChangePasswordScreen: {name: 'ChangePasswordScreen', component: ChangePasswordScreen},
   DeleteAccountScreen: {name: 'DeleteAccountScreen', component: DeleteAccountScreen},
+  Gemini: {name: 'Gemini', component: Gemini},
 
 
 };
@@ -110,9 +105,26 @@ const oStackHome = {
 const StackHome = createNativeStackNavigator();
 
 const HomeNavigation = () => {
+  // useEffect(() => {
+  //   syncDataFromFirebase();
+  //   getAllMessagesFromSQLite();
+  // }, []);
+
+  // const logAllMessages = () => {
+  //   getAllMessagesFromSQLite(messages => {
+  //     console.log(
+  //       '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n \tDanh sách tất cả tin nhắn từ SQLite:',
+  //     );
+  //     console.log(JSON.stringify(messages, null, 2));
+  //   });
+  // };
+
+  // Gọi hàm để log tin nhắn
+  // logAllMessages();r
+
   return (
     <StackHome.Navigator
-      screenOptions={{headerShown: false}}>
+      screenOptions={{ headerShown: false }}>
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen
           key={index}
@@ -124,5 +136,5 @@ const HomeNavigation = () => {
   );
 };
 
-export {oTab, oStackHome};
+export { oTab, oStackHome };
 export default HomeNavigation;
