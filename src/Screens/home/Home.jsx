@@ -17,7 +17,6 @@ import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast, updat
 import { encryptMessage, decryptMessage, generateSecretKey } from '../../cryption/Encryption';
 import { oStackHome } from '../../navigations/HomeNavigation';
 import LinearGradient from 'react-native-linear-gradient';
-import { getAllChatsAsyncStorage } from '../../storage/Storage';
 import MaskedView from '@react-native-masked-view/masked-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,9 +25,6 @@ const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
   const auth = getAuth();
   const db = getDatabase();
-useEffect(() => {
-  getAllChatsAsyncStorage();
-}, []);
 
   useEffect(() => {
     const currentUserId = auth.currentUser?.uid;
@@ -157,28 +153,44 @@ useEffect(() => {
   };
 
   const handleUserPress = async (userId, username, img, chatId) => {
+    const myId = auth.currentUser?.uid;
+    if (!myId || !chatId) {
+      console.log('❌ Lỗi: Thiếu myId hoặc chatId');
+      return;
+    }
+    const messagesRef = ref(db, `chats/${chatId}/messages`);
+
     try {
-      console.log(`🔍 Đang lấy tin nhắn từ AsyncStorage cho chatId: ${chatId}`);
-  
-      // 📥 Lấy tin nhắn từ AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const messages = storedMessages ? JSON.parse(storedMessages) : [];
-  
-      console.log('📩 Tin nhắn từ AsyncStorage:', messages);
-  
-      // ✅ Chuyển đến màn hình chat, truyền luôn tin nhắn đã lưu
+      const snapshot = await get(messagesRef);
+      if (!snapshot.exists()) {
+        console.log('📭 Không có tin nhắn để cập nhật seen.');
+        return;
+      }
+
+      const updates = {};
+      const messages = snapshot.val();
+
+      // ✅ Cập nhật tất cả tin nhắn chưa đọc thành đã xem
+      Object.entries(messages).forEach(([msgId, msg]) => {
+        if (msg.seen?.[myId] === false) {
+          updates[`chats/${chatId}/messages/${msgId}/seen/${myId}`] = true;
+        }
+      });
+
+      await update(ref(db), updates);
+      console.log(`✅ Đã cập nhật seen cho chat ${chatId}`);
+
+      // ✅ Chuyển đến màn hình chat
       navigation.navigate(oStackHome.Single.name, {
         userId,
+        myId,
         username,
         img,
-        chatId,
-        messages, // 🔥 Truyền tin nhắn đã lưu
       });
     } catch (error) {
-      console.error('❌ Lỗi khi lấy tin nhắn từ AsyncStorage:', error);
+      console.error('❌ Lỗi khi cập nhật seen:', error);
     }
   };
-  
 
   return (
     <View style={styles.container}>
