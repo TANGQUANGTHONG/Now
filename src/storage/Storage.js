@@ -10,58 +10,23 @@ export const saveCurrentUserAsyncStorage = async () => {
     return;
   }
 
+  // Tạo đối tượng user mới từ thông tin đăng nhập
+  const newUser = {
+    uid: user.uid,
+    email: user.email,
+    name: user.displayName || '',
+    nickname: user.displayName || '',  
+    image: user.photoURL || '', 
+    countChat: 0, 
+    createdAt: user.metadata.creationTime || '', 
+  };
+
   try {
-    const userRef = database().ref(`users/${user.uid}`);
-    const snapshot = await userRef.once('value');
-    if (!snapshot.exists()) {
-      console.log('Không tìm thấy thông tin user trong database.');
-      return;
-    }
-
-    const userData = snapshot.val();
-    if (!userData || Object.keys(userData).length === 0) {
-      console.log('Dữ liệu user không hợp lệ.');
-      return;
-    }
-
-    // Tạo đối tượng user mới
-    const newUser = {
-      uid: user.uid,
-      email: user.email,
-      name: userData.name || '',
-      nickname: userData.nickname || '',
-      image: userData.image || '', // Sử dụng chữ thường cho "image"
-      countChat: userData.countChat || 0,
-      createdAt: userData.createdAt || '',
-    };
-
-    try {
-      const existingUsersStr = await AsyncStorage.getItem('users');
-      let usersArray = existingUsersStr ? JSON.parse(existingUsersStr) : [];
-
-      // Kiểm tra xem user đã tồn tại trong danh sách chưa
-      const userIndex = usersArray.findIndex(u => u.uid === newUser.uid);
-
-      if (userIndex !== -1) {
-        // Nếu đã tồn tại, cập nhật dữ liệu user mới
-        usersArray[userIndex] = newUser;
-        console.log('Cập nhật thông tin user hiện tại:', newUser);
-      } else {
-        // Nếu chưa tồn tại, thêm mới
-        usersArray.push(newUser);
-        console.log('Thêm user mới vào danh sách:', newUser);
-      }
-
-      await AsyncStorage.setItem('users', JSON.stringify(usersArray));
-      console.log(
-        '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n \t Danh sách user sau khi cập nhật:',
-        usersArray,
-      );
-    } catch (storageError) {
-      console.error('Lỗi lưu danh sách user vào AsyncStorage:', storageError);
-    }
-  } catch (firebaseError) {
-    console.error('Lỗi lấy dữ liệu từ Firebase:', firebaseError);
+    // Lưu thông tin user vào AsyncStorage (ghi đè toàn bộ)
+    await AsyncStorage.setItem('users', JSON.stringify(newUser));
+    console.log('Thông tin user đã được lưu vào AsyncStorage:', newUser);
+  } catch (storageError) {
+    console.error('Lỗi lưu thông tin user vào AsyncStorage:', storageError);
   }
 };
 
@@ -347,7 +312,7 @@ export const getAllChatsAsyncStorage = async () => {
     return {};
   }
 };
-//Lấy dữ liệu user từ usersSend ở AsyncStorage (key usersSend).
+//Lấy dữ liệu user từ usersSend ở AsyncStorage (key usersSend). người gửi
 export const getUserFromUserSendById = async idUser => {
   try {
     const existingUsersStr = await AsyncStorage.getItem('usersSend');
@@ -372,7 +337,7 @@ export const getUserFromUserSendById = async idUser => {
   }
 };
 
-//lấy từ AsyncStorage tất cả các chat có chứa idUser trong trường users:
+//lấy từ AsyncStorage tất cả các chat có chứa idUser trong trường users: của mình
 export const getChatsByIdUserAsynStorage = async idUser => {
   try {
     const chatsStr = await AsyncStorage.getItem('chats');

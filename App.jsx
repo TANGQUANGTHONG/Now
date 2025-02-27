@@ -11,12 +11,12 @@ const App = () => {
     configurePushNotification();
   }, []);
 
-  // Lắng nghe tin nhắn mới (đưa vào useEffect để tránh gọi nhiều lần)
-  useEffect(() => {
-    listenForNewMessages();
-  }, []);
+  // // Lắng nghe tin nhắn mới (đưa vào useEffect để tránh gọi nhiều lần)
+  // useEffect(() => {
+  //   listenForNewMessages();
+  // }, []);
 
-  // Lưu thông tin user, userSend, chat vào AsyncStorage
+  // // Lưu thông tin user, userSend, chat vào AsyncStorage
     useEffect(() => {
       saveCurrentUserAsyncStorage();
       saveUserSendAsyncStorage();
