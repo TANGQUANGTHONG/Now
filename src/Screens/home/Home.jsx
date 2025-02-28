@@ -30,7 +30,7 @@ const Home = ({ navigation }) => {
   const myId = auth.currentUser?.uid;
   const [storageChanged, setStorageChanged] = useState(false);
 
-  const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
+  // const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
 
   // console.log("chatlist",chatList)
 
@@ -66,6 +66,8 @@ const Home = ({ navigation }) => {
           const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
           if (!otherUserId) return null;
   
+          const secretKey = generateSecretKey(otherUserId, currentUserId);
+
           const userRef = ref(db, `users/${otherUserId}`);
           const userSnapshot = await get(userRef);
           if (!userSnapshot.exists()) return null;
@@ -91,7 +93,7 @@ const Home = ({ navigation }) => {
   
             if (sortedMessages.length > 0) {
               const latestMessage = sortedMessages[0];
-              lastMessage = decryptMessage(latestMessage.text, secretkey) || 'Tin nhắn bị mã hóa';
+              lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
               lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',

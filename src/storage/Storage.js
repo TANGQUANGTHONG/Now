@@ -272,7 +272,7 @@ export const saveUserSendAsyncStorage = () => {
       for (const userId of userIds) {
         // Kiểm tra xem user này đã có trong "usersSend" chưa
         if (usersArray.some(u => u.uid === userId)) {
-          console.log(`UserId=${userId} đã có trong "usersSend", bỏ qua.`);
+          // console.log(`UserId=${userId} đã có trong "usersSend", bỏ qua.`);
           continue;
         }
 
