@@ -55,7 +55,7 @@ const Single = () => {
   const options = ['5 giây', '10 giây', '1 phút', '5 phút', 'Hủy'];
 
   LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
-
+console.log("secretKey",secretKey)
 
   
   // 🔹 Lấy tin nhắn realtime
@@ -75,11 +75,11 @@ const Single = () => {
   
     const onMessageChange = async snapshot => {
       if (!snapshot.exists()) return;
-  
+    
       try {
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-  
+    
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
             if (!data.senderId || !data.text || !data.timestamp) return null;
@@ -91,38 +91,53 @@ const Single = () => {
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
               seen: data.seen || {},
-              saved: data.saved || {},
+              saved: data.saved || {}, // Lưu trạng thái saved
             };
           })
           .filter(msg => msg !== null);
-  
+    
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-  
+    
         // 📥 Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
+    
         // 🔥 Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
         const updatedMessages = [...oldMessages, ...newMessages].reduce((acc, msg) => {
           if (!acc.find(m => m.id === msg.id)) acc.push(msg);
           return acc;
         }, []);
-  
+    
         // 💾 Lưu lại vào AsyncStorage
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
         setMessages(updatedMessages);
-  
+    
         // ✅ Cập nhật trạng thái `saved` trong Firebase
-        newMessages.forEach(msg => {
-          database()
-            .ref(`/chats/${chatId}/messages/${msg.id}/saved/${myId}`)
-            .set(true);
-        });
-  
+        for (const msg of newMessages) {
+          const savedRef = database().ref(`/chats/${chatId}/messages/${msg.id}/saved`);
+          await savedRef.child(myId).set(true);
+    
+          // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
+          savedRef.once('value', snapshot => {
+            if (snapshot.exists()) {
+              const savedUsers = snapshot.val();
+              const totalUsers = Object.keys(savedUsers).length;
+    
+              if (totalUsers >= 2) { // 🔥 Kiểm tra nếu cả hai người đã lưu
+                console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
+                setTimeout(() => {
+                  console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
+                  database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+                }, 10000); // 10 giây (10000 ms)
+              }
+            }
+          });
+        }
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error.message || error);
       }
     };
+    
     
     const updateCountdown = async () => {
       try {
@@ -188,40 +203,40 @@ const Single = () => {
   }, [chatId, secretKey, shouldAutoScroll]);
   
 
-  const checkAndDeleteMessages = async () => {
-    try {
-      const messagesRef = database().ref(`/chats/${chatId}/messages`);
-      const snapshot = await messagesRef.once('value');
+  // const checkAndDeleteMessages = async () => {
+    // try {
+  //     const messagesRef = database().ref(`/chats/${chatId}/messages`);
+  //     const snapshot = await messagesRef.once('value');
   
-      if (!snapshot.exists()) return;
+  //     if (!snapshot.exists()) return;
   
-      const messages = snapshot.val();
-      const updates = {}; // Lưu danh sách tin nhắn cần xóa
+  //     const messages = snapshot.val();
+  //     const updates = {}; // Lưu danh sách tin nhắn cần xóa
   
-      Object.entries(messages).forEach(([messageId, messageData]) => {
-        const savedByUser1 = messageData.saved?.[myId] || false;
-        const savedByUser2 = messageData.saved?.[userId] || false;
+  //     Object.entries(messages).forEach(([messageId, messageData]) => {
+  //       const savedByUser1 = messageData.saved?.[myId] || false;
+  //       const savedByUser2 = messageData.saved?.[userId] || false;
   
-        if (savedByUser1 && savedByUser2) {
-          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa tin nhắn
-        }
-      });
+  //       if (savedByUser1 && savedByUser2) {
+  //         updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa tin nhắn
+  //       }
+  //     });
   
-      if (Object.keys(updates).length > 0) {
-        await database().ref().update(updates);
-        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
-    }
-  };
+  //     if (Object.keys(updates).length > 0) {
+  //       await database().ref().update(updates);
+  //       console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
+  //   }
+  // };
   
   // ✅ Gọi `checkAndDeleteMessages()` khi quay lại màn hình Chat
-  useFocusEffect(
-    useCallback(() => {
-      checkAndDeleteMessages();
-    }, [messages])
-  );
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     checkAndDeleteMessages();
+  //   }, [messages])
+  // );
   
   
 
@@ -330,29 +345,29 @@ const Single = () => {
   
 
   // 🔹 Xóa tin nhắn cả hai
-  const deleteMessageForBoth = async messageId => {
-    try {
-      const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
-      const snapshot = await messageRef.once('value');
+  // const deleteMessageForBoth = async messageId => {
+  //   try {
+  //     const messageRef = database().ref(`/chats/${chatId}/messages`);
+  //     const snapshot = await messageRef.once('value');
   
-      if (!snapshot.exists()) return;
+  //     if (!snapshot.exists()) return;
   
-      const messageData = snapshot.val();
-      const savedByUser1 = messageData.saved?.[myId] || false;
-      const savedByUser2 = messageData.saved?.[userId] || false;
+  //     const messageData = snapshot.val();
+  //     const savedByUser1 = messageData.saved?.[myId] || false;
+  //     const savedByUser2 = messageData.saved?.[userId] || false;
   
-      if (savedByUser1 && savedByUser2) {
-        // ✅ Chỉ xóa nếu cả 2 đã lưu
-        await messageRef.remove();
-        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
-        console.log(`✅ Đã xóa tin nhắn ${messageId} vì cả hai user đã lưu.`);
-      } else {
-        console.log(`⏳ Chưa xóa tin nhắn ${messageId} vì chưa đủ cả hai user lưu.`);
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi xóa tin nhắn:', error);
-    }
-  };
+  //     if (savedByUser1 && savedByUser2) {
+  //       // ✅ Chỉ xóa nếu cả 2 đã lưu
+  //       await messageRef.remove();
+  //       setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+  //       console.log(`✅ Đã xóa tin nhắn ${messageId} vì cả hai user đã lưu.`);
+  //     } else {
+  //       console.log(`⏳ Chưa xóa tin nhắn ${messageId} vì chưa đủ cả hai user lưu.`);
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Lỗi khi xóa tin nhắn:', error);
+  //   }
+  // };
   
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {

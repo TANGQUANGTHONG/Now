@@ -3,6 +3,8 @@ import CryptoJS from "crypto-js";
 
 // 🔹 Mã hóa userId & myId thành SecretKey cho mỗi phòng chat
 export const generateSecretKey = (userId, myId) => {
+  console.log("userID" ,userId)
+  console.log("MyID" ,myId)
   const sortedIds = [userId, myId].sort().join("_"); // Đảm bảo thứ tự luôn giống nhau
   return CryptoJS.enc.Base64.stringify(CryptoJS.SHA256(sortedIds));
 };

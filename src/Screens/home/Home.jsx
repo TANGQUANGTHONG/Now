@@ -30,234 +30,168 @@ const Home = ({ navigation }) => {
   const myId = auth.currentUser?.uid;
   const [storageChanged, setStorageChanged] = useState(false);
 
-  const loadLocalChats = async () => {
-    try {
-      const storedChats = await AsyncStorage.getItem('chatList');
-      if (storedChats) {
-        const parsedChats = JSON.parse(storedChats);
-        setChatList(parsedChats);
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi lấy dữ liệu từ AsyncStorage:', error);
-    }
-  };
+  const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
+
+  // console.log("chatlist",chatList)
 
   useEffect(() => {
-    const currentUserId = auth.currentUser?.uid;
-    if (!currentUserId) return;
-
-    const chatRef = ref(db, 'chats');
-
-    onValue(chatRef, async snapshot => {
-      if (!snapshot.exists()) {
-        console.log('🔥 Firebase không có dữ liệu, lấy từ AsyncStorage.');
-        loadLocalChats();
-        return;
-      }
-
-      const chatsData = snapshot.val();
-      const chatEntries = Object.entries(chatsData);
-
-      const chatPromises = chatEntries.map(async ([chatId, chat]) => {
-        if (!chat.users || !chat.users[currentUserId]) return null;
-
-        const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
-        if (!otherUserId) return null;
-
-        const userRef = ref(db, `users/${otherUserId}`);
-        const userSnapshot = await get(userRef);
-        if (!userSnapshot.exists()) return null;
-
-        const userInfo = userSnapshot.val();
-        const decryptedName = safeDecrypt(userInfo?.name);
-        const decryptedImage = safeDecrypt(userInfo?.Image);
-
-        const secretKey = generateSecretKey(otherUserId, currentUserId);
-
-        const lastMessageRef = query(
-          ref(db, `chats/${chatId}/messages`),
-          orderByChild('timestamp'),
-          limitToLast(1),
-        );
-        const lastMessageSnapshot = await get(lastMessageRef);
-
-        let lastMessage = 'Chưa có tin nhắn';
-        let lastMessageTime = '';
-        let lastMessageTimestamp = 0;
-        let isFromFirebase = false;
-
-        if (lastMessageSnapshot.exists()) {
-          const lastMessageData = Object.values(lastMessageSnapshot.val())[0];
-          lastMessage = decryptMessage(lastMessageData.text, secretKey) || 'Tin nhắn bị mã hóa';
-          lastMessageTime = new Date(lastMessageData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-          lastMessageTimestamp = lastMessageData.timestamp;
-          isFromFirebase = true;
-        }
-
-        if (!isFromFirebase) {
-          const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-          if (storedMessages) {
-            const parsedMessages = JSON.parse(storedMessages);
-            if (parsedMessages.length > 0) {
-              const latestMessage = parsedMessages[parsedMessages.length - 1];
-              lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
-              lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-              lastMessageTimestamp = latestMessage.timestamp;
-            }
-          }
-        }
-
-        return {
-          chatId,
-          id: otherUserId,
-          name: decryptedName || 'Người dùng',
-          img: decryptedImage || 'https://example.com/default-avatar.png',
-          text: lastMessage,
-          time: lastMessageTime,
-          timestamp: lastMessageTimestamp,
-        };
-      });
-
-      const resolvedChats = await Promise.all(chatPromises);
-      const filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
-
-      await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
-      setChatList(filteredChats);
-      setStorageChanged(prev => !prev); // 🔥 Đánh dấu AsyncStorage thay đổi
-    });
-  }, []);
-  
-  
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log("🔄 Quay lại Home, load dữ liệu từ AsyncStorage");
-      loadLocalChats();
-    }, [storageChanged]) // 🔥 Render lại khi storage thay đổi
-  );
-  
-  useEffect(() => {
-    const loadLocalChats = async () => {
+    const loadChats = async () => {
       try {
+        // 🔥 Lấy dữ liệu từ AsyncStorage trước
         const storedChats = await AsyncStorage.getItem('chatList');
         if (storedChats) {
-          const parsedChats = JSON.parse(storedChats);
-          setChatList(parsedChats);
+          setChatList(JSON.parse(storedChats));
         }
       } catch (error) {
         console.error('❌ Lỗi khi lấy dữ liệu từ AsyncStorage:', error);
       }
+  
+      const currentUserId = auth.currentUser?.uid;
+      if (!currentUserId) return;
+  
+      const chatRef = ref(db, 'chats');
+  
+      onValue(chatRef, async snapshot => {
+        if (!snapshot.exists()) {
+          console.log('🔥 Firebase không có dữ liệu, lấy từ AsyncStorage.');
+          return;
+        }
+  
+        const chatsData = snapshot.val();
+        const chatEntries = Object.entries(chatsData);
+  
+        const chatPromises = chatEntries.map(async ([chatId, chat]) => {
+          if (!chat.users || !chat.users[currentUserId]) return null;
+  
+          const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
+          if (!otherUserId) return null;
+  
+          const userRef = ref(db, `users/${otherUserId}`);
+          const userSnapshot = await get(userRef);
+          if (!userSnapshot.exists()) return null;
+  
+          const userInfo = userSnapshot.val();
+          const decryptedName = safeDecrypt(userInfo?.name);
+          const decryptedImage = safeDecrypt(userInfo?.Image);
+  
+          let lastMessage = '';
+          let lastMessageTime = '';
+          let lastMessageTimestamp = 0;
+          let unreadCount = 0; // 🔥 Số tin nhắn chưa đọc
+  
+          // 🔥 Kiểm tra tin nhắn trên Firebase
+          const messagesRef = ref(db, `chats/${chatId}/messages`);
+          const messagesSnapshot = await get(messagesRef);
+  
+          if (messagesSnapshot.exists()) {
+            const messagesData = messagesSnapshot.val();
+            const sortedMessages = Object.entries(messagesData)
+              .map(([msgId, msg]) => ({ msgId, ...msg }))
+              .sort((a, b) => b.timestamp - a.timestamp); // Sắp xếp theo thời gian giảm dần
+  
+            if (sortedMessages.length > 0) {
+              const latestMessage = sortedMessages[0];
+              lastMessage = decryptMessage(latestMessage.text, secretkey) || 'Tin nhắn bị mã hóa';
+              lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              lastMessageTimestamp = latestMessage.timestamp;
+  
+              // 🔥 Đếm tin nhắn chưa đọc chỉ nếu tin nhắn không thuộc currentUserId
+              unreadCount = sortedMessages.filter(
+                msg => msg.status !== 'read' && msg.senderId !== currentUserId
+              ).length;
+            }
+          } else {
+            console.log(`🔥 Không có tin nhắn trên Firebase, lấy từ local: ${chatId}`);
+  
+            // 🔥 Lấy tin nhắn từ AsyncStorage nếu Firebase không có dữ liệu
+            const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+            if (storedMessages) {
+              const parsedMessages = JSON.parse(storedMessages);
+              if (parsedMessages.length > 0) {
+                const latestLocalMessage = parsedMessages[parsedMessages.length - 1];
+                lastMessage =  latestLocalMessage.text || 'Tin nhắn bị mã hóa';
+                lastMessageTime = new Date(latestLocalMessage.timestamp).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                lastMessageTimestamp = latestLocalMessage.timestamp;
+  
+                // 🔥 Đếm số tin nhắn chưa đọc từ local storage
+                unreadCount = parsedMessages.filter(
+                  msg => msg.status !== 'read' && msg.senderId !== currentUserId
+                ).length;
+              }
+            }
+          }
+  
+          return {
+            chatId,
+            id: otherUserId,
+            name: decryptedName || 'Người dùng',
+            img: decryptedImage || 'https://example.com/default-avatar.png',
+            text: lastMessage,
+            time: lastMessageTime,
+            timestamp: lastMessageTimestamp,
+            unreadCount, // 🔥 Hiển thị số tin nhắn chưa đọc
+          };
+        });
+  
+        const resolvedChats = await Promise.all(chatPromises);
+        const filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
+  
+        // 🔥 Lưu vào AsyncStorage để dùng nếu Firebase rỗng sau này
+        await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
+        setChatList(filteredChats);
+        setStorageChanged(prev => !prev); // 🔥 Đánh dấu AsyncStorage thay đổi
+      });
     };
   
-    loadLocalChats(); // Lấy dữ liệu từ AsyncStorage trước khi lắng nghe Firebase
-  
-    const currentUserId = auth.currentUser?.uid;
-    if (!currentUserId) return;
-    
-    const chatRef = ref(db, 'chats');
-    
-    onValue(chatRef, async snapshot => {
-      if (!snapshot.exists()) return;
-    
-      const chatsData = snapshot.val();
-      const chatEntries = Object.entries(chatsData);
-  
-      const chatPromises = chatEntries.map(async ([chatId, chat]) => {
-        if (!chat.users || !chat.users[currentUserId]) return null;
-    
-        const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
-        if (!otherUserId) return null;
-    
-        const userRef = ref(db, `users/${otherUserId}`);
-        const userSnapshot = await get(userRef);
-        if (!userSnapshot.exists()) return null;
-    
-        const userInfo = userSnapshot.val();
-        const decryptedName = safeDecrypt(userInfo?.name);
-        const decryptedImage = safeDecrypt(userInfo?.Image);
-    
-        const secretKey = generateSecretKey(otherUserId, currentUserId);
-    
-        const lastMessageRef = query(
-          ref(db, `chats/${chatId}/messages`),
-          orderByChild('timestamp'),
-          limitToLast(1),
-        );
-        const lastMessageSnapshot = await get(lastMessageRef);
-    
-        let lastMessage = 'Chưa có tin nhắn';
-        let lastMessageTime = '';
-        let lastMessageTimestamp = 0;
-    
-        if (lastMessageSnapshot.exists()) {
-          const lastMessageData = Object.values(lastMessageSnapshot.val())[0];
-          lastMessage =
-            decryptMessage(lastMessageData.text, secretKey) || 'Tin nhắn bị mã hóa';
-          lastMessageTime = new Date(lastMessageData.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-          lastMessageTimestamp = lastMessageData.timestamp;
-        }
-    
-        return {
-          chatId,
-          id: otherUserId,
-          name: decryptedName || 'Người dùng',
-          img: decryptedImage || 'https://example.com/default-avatar.png',
-          text: lastMessage,
-          time: lastMessageTime,
-          timestamp: lastMessageTimestamp,
-        };
-      });
-    
-      const resolvedChats = await Promise.all(chatPromises);
-      const filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
-  
-      // Lưu vào AsyncStorage
-      await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
-      setChatList(filteredChats);
-    });
+    loadChats();
   }, []);
   
   
-
-  const safeDecrypt = (encryptedText, userId, myId) => {
+  
+  // Giải mã tin nhắn
+  const safeDecrypt = (encryptedText, secretKey) => {
     try {
       if (!encryptedText) return 'Nội dung trống';
-
-      // Giải mã bằng khóa bí mật của phòng chat
-      const decryptedText = decryptMessage(encryptedText, userId, myId);
-
-      // Kiểm tra nếu giải mã thất bại
+  
+      const decryptedText = decryptMessage(encryptedText, secretKey);
+  
       if (!decryptedText || decryptedText === '❌ Lỗi giải mã') {
         return 'Tin nhắn bị mã hóa';
       }
-
+  
       return decryptedText;
     } catch (error) {
-      // console.error("❌ Lỗi giải mã:", error);
       return 'Tin nhắn bị mã hóa';
     }
   };
-
+  
+  // Xử lý nhấn vào người dùng
   const handleUserPress = async (userId, username, img, chatId) => {
     const myId = auth.currentUser?.uid;
     if (!myId || !chatId) return;
   
     // ✅ Load tin nhắn từ AsyncStorage trước khi vào màn hình chat
-    const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-    const messages = storedMessages ? JSON.parse(storedMessages) : [];
+    // const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+    // const messages = storedMessages ? JSON.parse(storedMessages) : [];
   
     navigation.navigate(oStackHome.Single.name, {
       userId,
       myId,
       username,
       img,
-      messages, // ✅ Gửi luôn tin nhắn đã lưu qua navigation
+      // messages, // ✅ Gửi luôn tin nhắn đã lưu qua navigation
     });
   
-    // ✅ Truyền `userId` khi gọi `checkAndDeleteMessages()`
-    checkAndDeleteMessages(chatId, userId);
+   
   };
   
-  
+  // Kiểm tra và xóa tin nhắn nếu cả hai đã lưu
   const checkAndDeleteMessages = async (chatId, userId) => {
     try {
       const messagesRef = ref(db, `chats/${chatId}/messages`);
@@ -267,10 +201,12 @@ const Home = ({ navigation }) => {
   
       const messages = snapshot.val();
       const updates = {};
+      const myId = auth.currentUser?.uid;
+      if (!myId) return;
   
       Object.entries(messages).forEach(([messageId, messageData]) => {
-        const savedByUser1 = messageData.saved?.[auth.currentUser?.uid] || false;
-        const savedByUser2 = messageData.saved?.[userId] || false; // ✅ Sửa lỗi undefined
+        const savedByUser1 = messageData.saved?.[myId] || false;
+        const savedByUser2 = messageData.saved?.[userId] || false;
   
         if (savedByUser1 && savedByUser2) {
           updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa messageID hoàn toàn
