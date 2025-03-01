@@ -282,20 +282,20 @@ const Home = ({ navigation }) => {
 
         
         <FlatList
-  data={chatList}
-  renderItem={({item}) => (
-    <Item_home_chat
-      data_chat={item}
-      onPress={() =>
-        handleUserPress(item.id, item.name, item.img, item.chatId)
-      }
-    >
-      {item.unreadCount > 0 && (
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadText}>{item.unreadCount}</Text>
-        </View>
-      )}
-    </Item_home_chat>
+        data={chatList}
+        renderItem={({item}) => (
+          <Item_home_chat
+            data_chat={item}
+            onPress={() =>
+              handleUserPress(item.id, item.name, item.img, item.chatId)
+            }
+          >
+            {item.unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{item.unreadCount}</Text>
+              </View>
+            )}
+               </Item_home_chat>
   )}
   keyExtractor={item => item.chatId}
   showsVerticalScrollIndicator={false}
