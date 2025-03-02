@@ -30,8 +30,16 @@ export const decryptMessage = (encryptedMessage, userId, myId) => {
     return bytes.toString(CryptoJS.enc.Utf8);
   } catch (error) {
     // console.error("Giải mã lỗi:", error);
-    return "❌ Lỗi giải mã";
+    return "❌ Lỗi giải mã 1";
   }
+};
+
+export const getSecretKey = (myId, otherUserId) => {
+  if (!myId || !otherUserId) {
+    console.warn("⚠️ Không thể tạo secretKey vì thiếu ID người dùng.");
+    return null;
+  }
+  return generateSecretKey(otherUserId, myId);
 };
 
 
