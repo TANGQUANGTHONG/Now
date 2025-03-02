@@ -117,33 +117,61 @@ const Single = () => {
     
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
     
-        // 🔥 Cập nhật ngay thay vì chờ `useState`
-        for (const msg of newMessages) {
-          const savedRef = database().ref(`/chats/${chatId}/messages/${msg.id}/saved`);
-          await savedRef.child(myId).set(true);
+        // ✅ Cập nhật messagene để trigger useEffect
+        setMessageNe(newMessages);
     
-          // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
-          const snapshot = await savedRef.once('value');
-          if (snapshot.exists()) {
-            const savedUsers = snapshot.val();
-            const totalUsers = Object.keys(savedUsers).length;
+        // 📥 Lấy tin nhắn cũ từ AsyncStorage
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
     
-            if (totalUsers >= 2) {
-              console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
-              setTimeout(async () => {
-                console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
-                await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-              }, 10000);
-            }
-          }
+        // 🔥 Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
+        const updatedMessages = [...oldMessages, ...newMessages].reduce(
+          (acc, msg) => {
+            if (!acc.find(m => m.id === msg.id)) acc.push(msg);
+            return acc;
+          },
+          [],
+        );
+    
+        const filteredMessages = updatedMessages.filter(msg => !msg.selfDestruct);
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(filteredMessages));
+    
+        setMessages(updatedMessages);
+        if (isFirstRender.current && listRef.current) {
+          setTimeout(() => listRef.current.scrollToEnd({ animated: true }), 500);
+          isFirstRender.current = false;
         }
-    
-        setMessageNe(newMessages); // ✅ Cập nhật state sau khi xử lý
-    
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error.message || error);
       }
+
+      // ✅ Cập nhật trạng thái `saved` trong Firebase
+      // for (const msg of messagene) {
+      //   const savedRef = database().ref(
+      //     `/chats/${chatId}/messages/${msg.id}/saved`,
+      //   );
+      //   await savedRef.child(myId).set(true);
+
+      //   // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
+      //   savedRef.once('value', snapshot => {
+      //     if (snapshot.exists()) {
+      //       const savedUsers = snapshot.val();
+      //       const totalUsers = Object.keys(savedUsers).length;
+
+      //       if (totalUsers >= 2) {
+      //         // 🔥 Kiểm tra nếu cả hai người đã lưu
+      //         console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
+      //         setTimeout(() => {
+      //           console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
+      //           database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+      //         }, 10000); // 10 giây (10000 ms)
+      //       }
+      //     }
+      //   });
+      // }
     };
+
+    
     
 
     const updateCountdown = async () => {
@@ -214,6 +242,34 @@ const Single = () => {
       typingRef.off('value', onTypingChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
+
+  useEffect(() => {
+    if (messagene.length === 0) return; // Nếu không có tin nhắn mới, không làm gì cả
+  
+    const updateSavedStatus = async () => {
+      for (const msg of messagene) {
+        const savedRef = database().ref(`/chats/${chatId}/messages/${msg.id}/saved`);
+        await savedRef.child(myId).set(true);
+  
+        // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
+        const snapshot = await savedRef.once('value');
+        if (snapshot.exists()) {
+          const savedUsers = snapshot.val();
+          const totalUsers = Object.keys(savedUsers).length;
+  
+          if (totalUsers >= 2) {
+            console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
+            setTimeout(async () => {
+              console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
+              await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+            }, 10000);
+          }
+        }
+      }
+    };
+  
+    updateSavedStatus();
+  }, [messagene]); // 🔥 Chạy lại mỗi khi `messagene` thay đổi
 
   useEffect(() => {
     const interval = setInterval(() => {
