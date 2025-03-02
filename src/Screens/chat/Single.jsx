@@ -72,6 +72,76 @@ const Single = () => {
     {label: 'Tắt tự hủy', value: null},
   ];
 
+
+    //up lên cloudiary
+    const uploadFile = async (file) => {
+      try {
+          const data = new FormData();
+          data.append('file', {
+              uri: file.uri,
+              type: file.type,
+              name: file.fileName || (file.type.startsWith('video/') ? 'video.mp4' : 'image.png'),
+          });
+          data.append('upload_preset', 'ml_default');
+
+          const response = await axios.post('https://api.cloudinary.com/v1_1/ddbolgs7p/upload', data, {
+              headers: {
+                  'Content-Type': 'multipart/form-data',
+              },
+          });
+          //console.log(file.type.type);
+          const fileUrl = response.data.secure_url;
+          console.log('🌍 Link file Cloudinary:', fileUrl);
+
+          if (file.type.startsWith('image/')) {
+              console.log("image");
+              sendMessage('image', fileUrl)
+          }
+          if (file.type.startsWith('video/')) {
+              console.log("video");
+              sendMessage('video', fileUrl)
+          }
+
+      } catch (error) {
+          console.log('uploadFile -> ', error.response ? error.response.data : error.message);
+          console.log("lỗi khi tải file")
+      }
+  };
+
+
+
+    //mở thư viện
+    const onOpenGallery = async () => {
+      try {
+          const options = {
+              mediaType: 'mixed',
+              quality: 1,
+          };
+
+          launchImageLibrary(options, async (response) => {
+              //console.log(response);
+              if (response.didCancel) {
+                  console.log("đã hủy")
+              } else if (response.errorMessage) {
+                  console.log("lỗi khi mở thư viện")
+              } else {
+                  const selectedFile = response.assets[0];
+                  console.log('📂 File đã chọn:', selectedFile.uri);
+
+                  await uploadFile(selectedFile);
+              }
+          });
+      } catch (error) {
+          console.log('onOpenGallery -> ', error);
+      }
+  };
+
+  
+
+
+
+
+
   LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
   // console.log("secretKey",secretKey)
 
