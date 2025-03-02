@@ -151,7 +151,7 @@ console.warn = () => {};
         }
     
         // ✅ Cập nhật state để UI hiển thị đúng
-        setMessages(updatedMessages);
+        setMessages([...updatedMessages, ...newMessages]); // Giữ cả tin nhắn tự hủy
     
         if (isFirstRender.current && listRef.current) {
           setTimeout(() => listRef.current.scrollToEnd({ animated: true }), 500);
@@ -645,92 +645,68 @@ console.warn = () => {};
         </View>
 
         <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={({item}) => {
-            const messageId = item.id;
-            const isSentByMe = item.senderId === myId;
-            const isSelfDestruct = item.selfDestruct;
-            const timestamp = item.timestamp;
-            const selfDestructTime = item.selfDestructTime;
+  ref={listRef}
+  data={messages}
+  keyExtractor={item => item.id}
+  renderItem={({ item }) => {
+    const isSentByMe = item.senderId === myId;
+    const isSelfDestruct = item.selfDestruct;
+    const selfDestructTime = item.selfDestructTime;
+    const timestamp = item.timestamp;
 
-            const expirationTime = timestamp + selfDestructTime * 1000;
-            const timeLeft = isSelfDestruct
-              ? Math.max(
-                  0,
-                  Math.floor((expirationTime - (Date.now() + 3000)) / 1000),
-                )
-              : null;
+    // Tính thời gian còn lại trước khi xóa
+    const expirationTime = timestamp + selfDestructTime * 1000;
+    const timeLeft = isSelfDestruct
+      ? Math.max(0, Math.floor((expirationTime - Date.now()) / 1000))
+      : null;
 
-            return (
-              <View style={{flexDirection: 'column'}}>
-                <View
-                  style={
-                    isSentByMe ? styles.sentWrapper : styles.receivedWrapper
-                  }>
-                  {!isSentByMe && (
-                    <Image source={{uri: img}} style={styles.avatar} />
-                  )}
-                  <TouchableOpacity
-                    onLongPress={() => confirmDeleteMessage(item.id)}
-                    style={[
-                      isSentByMe
-                        ? styles.sentContainer
-                        : styles.receivedContainer,
-                      isSelfDestruct && styles.selfDestructMessage,
-                    ]}>
-                    {!isSentByMe && (
-                      <Text style={styles.usernameText}>{username}</Text>
-                    )}
+    return (
+      <View style={{ flexDirection: 'column' }}>
+        <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
+          {!isSentByMe && <Image source={{ uri: img }} style={styles.avatar} />}
+          <TouchableOpacity
+            onLongPress={() => confirmDeleteMessage(item.id)}
+            style={[
+              isSentByMe ? styles.sentContainer : styles.receivedContainer,
+              isSelfDestruct && styles.selfDestructMessage, // 🔥 Thêm màu đỏ cho tin nhắn tự hủy
+            ]}
+          >
+            {!isSentByMe && <Text style={styles.usernameText}>{username}</Text>}
 
-                    <Text
-                      style={
-                        isSentByMe
-                          ? styles.SendmessageText
-                          : styles.ReceivedmessageText
-                      }>
-                      {item.text}
-                    </Text>
-
-                    {/* Hiển thị thời gian đếm ngược */}
-                    {isSelfDestruct &&
-                      selfDestructTime !== null &&
-                      timeLeft > 0 && (
-                        <Text style={styles.selfDestructTimer}>
-                          🕒 {timeLeft}s
-                        </Text>
-                      )}
-
-                    {/* Hiển thị thời gian gửi tin nhắn */}
-                    <Text
-                      style={
-                        isSentByMe
-                          ? styles.Sendtimestamp
-                          : styles.Revecivedtimestamp
-                      }>
-                      {new Date(timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Đặt "Đã xem" ở dưới sentWrapper và receivedWrapper */}
-                {isSentByMe && (
-                  <View style={styles.seenStatusContainer}>
-                    <Text style={{color: item.seen[userId] ? 'white' : 'gray'}}>
-                      {item.seen[userId] ? 'Đã xem' : 'Đã gửi'}
-                    </Text>
-                  </View>
-                )}
+            {/* Nếu là tin nhắn tự hủy và thời gian còn lại > 0, hiển thị đếm ngược */}
+            {isSelfDestruct && timeLeft > 0 ? (
+              <View>
+              <Text style={styles.TextselfDestructTimer}>{item.text}</Text>
+              <Text style={styles.selfDestructTimer}>🕒 {timeLeft}s</Text>
               </View>
-            );
-          }}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-        />
+            ) : (
+              <Text
+                style={
+                  isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText
+                }
+              >
+                {item.text}
+              </Text>
+            )}
+
+            {/* Hiển thị thời gian gửi tin nhắn */}
+            <Text
+              style={isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp}
+            >
+              {new Date(timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+  
+      </View>
+    );
+  }}
+/>
+
 
         <FlatList
           data={user}
@@ -964,15 +940,7 @@ const styles = StyleSheet.create({
     color: 'red',
   },
 
-  selfDestructMessage: {
-    backgroundColor: '#ffcccb', // Màu đỏ nhạt để hiển thị tin nhắn tự hủy
-  },
-  selfDestructTimer: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'red',
-    textAlign: 'right',
-  },
+ 
   seenStatusContainer: {
     alignSelf: 'flex-end', // Để căn phải theo tin nhắn
     marginTop: 2, // Tạo khoảng cách với tin nhắn
@@ -1011,6 +979,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     width: '100%',
     alignItems: 'center',
+  },
+  selfDestructMessage: {
+    backgroundColor: '#ffcccb', // Màu đỏ nhạt cho tin nhắn tự hủy
+    opacity: 0.8, // Làm mờ tin nhắn để dễ nhận biết
+  },
+  selfDestructTimer: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'red',
+    textAlign: 'right',
+  },
+  
+  TextselfDestructTimer: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'black',
+    textAlign: 'right',
   },
 });
 
