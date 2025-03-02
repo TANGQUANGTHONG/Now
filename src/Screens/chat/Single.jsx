@@ -163,23 +163,26 @@ console.warn = () => {};
           const seenRef = database().ref(`/chats/${chatId}/messages/${msg.id}/seen`);
           await seenRef.child(myId).set(true); // Đánh dấu tin nhắn đã seen bởi người dùng hiện tại
     
-          // 🛑 Kiểm tra nếu cả hai người đã seen
-          seenRef.once("value", (snapshot) => {
-            if (snapshot.exists()) {
-              const seenUsers = snapshot.val();
-              const totalUsers = Object.keys(seenUsers).length;
-    
-              if (totalUsers >= 2) {
-                // console.log(`⏳ Tin nhắn ${msg.id} đã được cả hai seen, sẽ xóa sau 10 giây`);
-    
-                // 🏃‍♂️ Sau 10 giây, xóa tin nhắn
-                setTimeout(async () => {
-                  console.log(`🗑 Xóa tin nhắn ${msg.id} khỏi Firebase`);
-                  await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-                }, 10000);
+         // 🛑 Kiểm tra nếu cả hai người đã seen
+  seenRef.once("value", async (snapshot) => {
+    if (snapshot.exists()) {
+      const seenUsers = snapshot.val();
+      const userIds = Object.keys(seenUsers);
+      const totalUsers = userIds.length;
+
+      // Kiểm tra tất cả user có `seen = true`
+      const allSeen = userIds.every(userId => seenUsers[userId] === true);
+
+      if (totalUsers === 2 && allSeen) {
+        console.log(`⏳ Tin nhắn ${msg.id} đã được cả hai seen (đều = true), sẽ xóa sau 10 giây`);
+
+        setTimeout(async () => {
+          console.log(`🗑 Xóa tin nhắn ${msg.id} khỏi Firebase`);
+          await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+        }, 1000);
               }
             }
-          });
+          });          
         }
       } catch (error) {
         console.error("❌ Lỗi khi xử lý tin nhắn:", error.message || error);
@@ -266,33 +269,33 @@ console.warn = () => {};
     };
   }, [chatId, secretKey, shouldAutoScroll]);
 
-  useEffect(() => {
-    if (messagene.length === 0) return; // Nếu không có tin nhắn mới, không làm gì cả
+  // useEffect(() => {
+  //   if (messagene.length === 0) return; // Nếu không có tin nhắn mới, không làm gì cả
   
-    const updateSavedStatus = async () => {
-      for (const msg of messagene) {
-        const savedRef = database().ref(`/chats/${chatId}/messages/${msg.id}/saved`);
-        await savedRef.child(myId).set(true);
+  //   const updateSavedStatus = async () => {
+  //     for (const msg of messagene) {
+  //       const savedRef = database().ref(`/chats/${chatId}/messages/${msg.id}/saved`);
+  //       await savedRef.child(myId).set(true);
   
-        // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
-        const snapshot = await savedRef.once('value');
-        if (snapshot.exists()) {
-          const savedUsers = snapshot.val();
-          const totalUsers = Object.keys(savedUsers).length;
+  //       // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
+  //       const snapshot = await savedRef.once('value');
+  //       if (snapshot.exists()) {
+  //         const savedUsers = snapshot.val();
+  //         const totalUsers = Object.keys(savedUsers).length;
   
-          if (totalUsers >= 2) {
-            console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
-            setTimeout(async () => {
-              console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
-              await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-            }, 10000);
-          }
-        }
-      }
-    };
+  //         if (totalUsers >= 2) {
+  //           console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
+  //           setTimeout(async () => {
+  //             console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
+  //             await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+  //           }, 10000);
+  //         }
+  //       }
+  //     }
+  //   };
   
-    updateSavedStatus();
-  }, [messagene]); // 🔥 Chạy lại mỗi khi `messagene` thay đổi
+  //   updateSavedStatus();
+  // }, [messagene]); // 🔥 Chạy lại mỗi khi `messagene` thay đổi
 
   useEffect(() => {
     const interval = setInterval(() => {

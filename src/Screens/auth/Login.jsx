@@ -33,7 +33,7 @@ const Login = ({navigation}) => {
 
   const loginWithEmailAndPass = () => {
     setIsLoading(true); // Bắt đầu loading
-    auth
+    auth()
       .signInWithEmailAndPassword(email, password)
       .then(() => {
         navigation.navigate('TabHome');
