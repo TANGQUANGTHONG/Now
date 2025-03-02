@@ -76,7 +76,9 @@ const Single = () => {
     {label: 'Tắt tự hủy', value: null},
   ];
 
-  LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
+  // LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
+  LogBox.ignoreAllLogs(); // 🔥 Ẩn tất cả cảnh báo
+console.warn = () => {}; 
   // console.log("secretKey",secretKey)
 // console.log("userID",userId)
   // 🔹 Lấy tin nhắn realtime
@@ -253,8 +255,9 @@ const Single = () => {
       loadMessages();
     }
 
-    messagesRef.on('value', onMessageChange);
-    typingRef.on('value', onTypingChange);
+
+  messagesRef.on('value', onMessageChange);
+  typingRef.on('value', onTypingChange);
 
     return () => {
       clearInterval(interval);
@@ -321,16 +324,21 @@ const Single = () => {
   }, [messages]);
 
   useEffect(() => {
+    if (!myId) return;
+  
     const userRef = database().ref(`/users/${myId}/countChat`);
-
-    userRef.once('value').then(snapshot => {
+    const fetchUserData = async () => {
+      const snapshot = await userRef.once('value');
       if (snapshot.exists()) {
-        setcountChat(snapshot.val()); // Cập nhật số lượt nhắn tin từ Firebase
+        setcountChat(snapshot.val());
       }
-    });
-
-    return () => userRef.off(); // Cleanup
-  }, [myId]);
+    };
+  
+    fetchUserData();
+  
+    return () => userRef.off();
+  }, [myId, database]); // ✅ Thêm dependency
+  
 
   const deleteMessageLocallyAndRemotely = async (messageId) => {
     try {
