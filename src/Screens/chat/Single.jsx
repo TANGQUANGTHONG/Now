@@ -29,8 +29,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import database, {set} from '@react-native-firebase/database';
 import ActionSheet from 'react-native-actionsheet';
-import {launchImageLibrary} from 'react-native-image-picker';
-import axios from 'axios';
 import {
   getAllChatsAsyncStorage,
   getAllUsersFromUserSend,
@@ -66,8 +64,6 @@ const Single = () => {
   const isFirstRender = useRef(true); // Đánh dấu lần đầu render
   const actionSheetRef = useRef();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [messagene, setMessageNe] = useState([])
-  const [imageSend, setImageSend] = useState()
   const timeOptions = [
     {label: '5 giây', value: 5},
     {label: '10 giây', value: 10},
@@ -75,70 +71,6 @@ const Single = () => {
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
-
-
-    //up lên cloudiary
-    const uploadFile = async (file) => {
-      try {
-          const data = new FormData();
-          data.append('file', {
-            uri: file.uri,
-            type: file.type,
-            name: file.fileName,
-          });
-          data.append('upload_preset', 'ml_default');
-
-          const response = await axios.post('https://api.cloudinary.com/v1_1/ddasyg5z3/upload', data, {
-              headers: {
-                  'Content-Type': 'multipart/form-data',
-              },
-          });
-          //console.log(file.type.type);
-          const fileUrl = response.data.secure_url;
-          console.log('🌍 Link file Cloudinary:', fileUrl);
- 
-          console.log("image");
-          
-     
-
-      } catch (error) {
-          console.log('uploadFile -> ', error.response ? error.response.data : error.message);
-          console.log("lỗi khi tải file")
-      }
-  };
-
-
-
-    //mở thư viện
-    const onOpenGallery = async () => {
-      try {
-          const options = {
-              mediaType: 'image',
-              quality: 1,
-          };
-
-          launchImageLibrary(options, async (response) => {
-              if (response.didCancel) {
-                  console.log("đã hủy")
-              } else if (response.errorMessage) {
-                  console.log("lỗi khi mở thư viện")
-              } else {
-                  const selectedFile = response.assets[0];
-                  console.log('📂 File đã chọn:', selectedFile.uri);
-
-                  await uploadFile(selectedFile);
-              }
-          });
-      } catch (error) {
-          console.log('onOpenGallery -> ', error);
-      }
-  };
-
-  
-
-
-
-
 
   LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
   // console.log("secretKey",secretKey)
@@ -160,11 +92,11 @@ const Single = () => {
 
     const onMessageChange = async snapshot => {
       if (!snapshot.exists()) return;
-    
+
       try {
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-    
+
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
             if (!data.senderId || !data.text || !data.timestamp) return null;
@@ -176,21 +108,18 @@ const Single = () => {
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
               seen: data.seen || {},
-              saved: data.saved || {},
-              deleted: data.deleted || false,
+              saved: data.saved || {}, // Lưu trạng thái saved
+              deleted: data.deleted || false, // Thêm trạng thái xóa
             };
           })
           .filter(msg => msg !== null);
-    
+
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-    
-        // ✅ Cập nhật messagene để trigger useEffect
-        setMessageNe(newMessages);
-    
+
         // 📥 Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-    
+
         // 🔥 Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
         const updatedMessages = [...oldMessages, ...newMessages].reduce(
           (acc, msg) => {
@@ -199,13 +128,14 @@ const Single = () => {
           },
           [],
         );
-    
+
         const filteredMessages = updatedMessages.filter(msg => !msg.selfDestruct);
+        // updatedMessages = updatedMessages.filter(msg => !msg.deleted);
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(filteredMessages));
-    
+        
         setMessages(updatedMessages);
         if (isFirstRender.current && listRef.current) {
-          setTimeout(() => listRef.current.scrollToEnd({ animated: true }), 500);
+          setTimeout(() => listRef.current.scrollToEnd({animated: true}), 500);
           isFirstRender.current = false;
         }
       } catch (error) {
@@ -213,33 +143,30 @@ const Single = () => {
       }
 
       // ✅ Cập nhật trạng thái `saved` trong Firebase
-      // for (const msg of messagene) {
-      //   const savedRef = database().ref(
-      //     `/chats/${chatId}/messages/${msg.id}/saved`,
-      //   );
-      //   await savedRef.child(myId).set(true);
+      for (const msg of newMessages) {
+        const savedRef = database().ref(
+          `/chats/${chatId}/messages/${msg.id}/saved`,
+        );
+        await savedRef.child(myId).set(true);
 
-      //   // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
-      //   savedRef.once('value', snapshot => {
-      //     if (snapshot.exists()) {
-      //       const savedUsers = snapshot.val();
-      //       const totalUsers = Object.keys(savedUsers).length;
+        // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
+        savedRef.once('value', snapshot => {
+          if (snapshot.exists()) {
+            const savedUsers = snapshot.val();
+            const totalUsers = Object.keys(savedUsers).length;
 
-      //       if (totalUsers >= 2) {
-      //         // 🔥 Kiểm tra nếu cả hai người đã lưu
-      //         console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
-      //         setTimeout(() => {
-      //           console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
-      //           database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-      //         }, 10000); // 10 giây (10000 ms)
-      //       }
-      //     }
-      //   });
-      // }
+            if (totalUsers >= 2) {
+              // 🔥 Kiểm tra nếu cả hai người đã lưu
+              console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
+              setTimeout(() => {
+                console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
+                database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+              }, 10000); // 10 giây (10000 ms)
+            }
+          }
+        });
+      }
     };
-
-    
-    
 
     const updateCountdown = async () => {
       try {
@@ -309,34 +236,6 @@ const Single = () => {
       typingRef.off('value', onTypingChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
-
-  useEffect(() => {
-    if (messagene.length === 0) return; // Nếu không có tin nhắn mới, không làm gì cả
-  
-    const updateSavedStatus = async () => {
-      for (const msg of messagene) {
-        const savedRef = database().ref(`/chats/${chatId}/messages/${msg.id}/saved`);
-        await savedRef.child(myId).set(true);
-  
-        // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
-        const snapshot = await savedRef.once('value');
-        if (snapshot.exists()) {
-          const savedUsers = snapshot.val();
-          const totalUsers = Object.keys(savedUsers).length;
-  
-          if (totalUsers >= 2) {
-            console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
-            setTimeout(async () => {
-              console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
-              await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-            }, 10000);
-          }
-        }
-      }
-    };
-  
-    updateSavedStatus();
-  }, [messagene]); // 🔥 Chạy lại mỗi khi `messagene` thay đổi
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -645,11 +544,6 @@ const Single = () => {
             <Text>{selfDestructTime ? `${selfDestructTime}s` : 'Tắt'}</Text>
           </TouchableOpacity>
 
-            <TouchableOpacity onPress={onOpenGallery}>
-            <View style={{padding: 10, backgroundColor: '#f5f5f5', borderRadius: 10, alignItems: 'center'}} >
-              <Icon name="image" size={25}/>
-            </View>
-            </TouchableOpacity>
           {/* Modal chọn thời gian */}
           <Modal
             animationType="slide"
