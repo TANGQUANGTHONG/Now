@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,13 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   LogBox,
+  Modal,
 } from 'react-native';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from '@react-navigation/native';
 import {getFirestore} from '@react-native-firebase/firestore';
 import {
   encryptMessage,
@@ -34,7 +39,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
   const route = useRoute();
-  const {userId, myId, username, img, messages: cachedMessages} = route.params || {};
+  const {
+    userId,
+    myId,
+    username,
+    img,
+    messages: cachedMessages,
+  } = route.params || {};
   const [messages, setMessages] = useState(cachedMessages || []);
   const [text, setText] = useState('');
   const navigation = useNavigation();
@@ -50,19 +61,25 @@ const Single = () => {
   const [user, setUser] = useState([]);
   const [Seen, setSeen] = useState(false);
   const listRef = useRef(null);
+  const isFirstRender = useRef(true); // Đánh dấu lần đầu render
   const actionSheetRef = useRef();
-
-  const options = ['5 giây', '10 giây', '1 phút', '5 phút', 'Hủy'];
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const timeOptions = [
+    {label: '5 giây', value: 5},
+    {label: '10 giây', value: 10},
+    {label: '1 phút', value: 60},
+    {label: '5 phút', value: 300},
+    {label: 'Tắt tự hủy', value: null},
+  ];
 
   LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
+  // console.log("secretKey",secretKey)
 
-
-  
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-  
+
     // Lắng nghe trạng thái đang nhập
     const onTypingChange = snapshot => {
       if (snapshot.exists()) {
@@ -72,116 +89,153 @@ const Single = () => {
         setIsTyping(false);
       }
     };
-  
-    typingRef.on('value', onTypingChange);
-  
-    // Lắng nghe tin nhắn từ Firebase
+
     const onMessageChange = async snapshot => {
-      if (!snapshot.exists()) {
-        console.log('📭 Không có tin nhắn mới từ Firebase.');
-        return;
-      }
-    
+      if (!snapshot.exists()) return;
+
       try {
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-    
+
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
-            if (!data || typeof data !== 'object') return null;
             if (!data.senderId || !data.text || !data.timestamp) return null;
-    
-            const decryptedText = decryptMessage(data.text, secretKey) || '❌ Lỗi giải mã';
-    
             return {
               id,
               senderId: data.senderId,
-              text: decryptedText,
+              text: decryptMessage(data.text, secretKey) || '❌ Lỗi giải mã',
               timestamp: data.timestamp,
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
               seen: data.seen || {},
-              saved: data.saved || {}, // ✅ Thêm trạng thái saved từ Firebase
+              saved: data.saved || {}, // Lưu trạng thái saved
+              deleted: data.deleted || false, // Thêm trạng thái xóa
             };
           })
           .filter(msg => msg !== null);
-    
+
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-    
+
         // 📥 Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-    
+
         // 🔥 Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
-        const updatedMessages = [...oldMessages, ...newMessages].reduce((acc, msg) => {
-          if (!acc.find(m => m.id === msg.id)) acc.push(msg);
-          return acc;
-        }, []);
-    
-        // 💾 Lưu lại vào AsyncStorage
-        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+        const updatedMessages = [...oldMessages, ...newMessages].reduce(
+          (acc, msg) => {
+            if (!acc.find(m => m.id === msg.id)) acc.push(msg);
+            return acc;
+          },
+          [],
+        );
+
+        const filteredMessages = updatedMessages.filter(msg => !msg.selfDestruct);
+        // updatedMessages = updatedMessages.filter(msg => !msg.deleted);
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(filteredMessages));
+        
         setMessages(updatedMessages);
-    
-        // ✅ Cập nhật trạng thái `saved` trong Firebase
-        newMessages.forEach(msg => {
-          database()
-            .ref(`/chats/${chatId}/messages/${msg.id}/saved/${myId}`)
-            .set(true);
-        });
-    
+        if (isFirstRender.current && listRef.current) {
+          setTimeout(() => listRef.current.scrollToEnd({animated: true}), 500);
+          isFirstRender.current = false;
+        }
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error.message || error);
       }
+
+      // ✅ Cập nhật trạng thái `saved` trong Firebase
+      for (const msg of newMessages) {
+        const savedRef = database().ref(
+          `/chats/${chatId}/messages/${msg.id}/saved`,
+        );
+        await savedRef.child(myId).set(true);
+
+        // 🛑 Kiểm tra nếu tất cả người tham gia đã lưu
+        savedRef.once('value', snapshot => {
+          if (snapshot.exists()) {
+            const savedUsers = snapshot.val();
+            const totalUsers = Object.keys(savedUsers).length;
+
+            if (totalUsers >= 2) {
+              // 🔥 Kiểm tra nếu cả hai người đã lưu
+              console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
+              setTimeout(() => {
+                console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
+                database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+              }, 10000); // 10 giây (10000 ms)
+            }
+          }
+        });
+      }
     };
-    
-    
-    
-    
-  
+
+    const updateCountdown = async () => {
+      try {
+        const timestampRef = database().ref('/timestamp');
+        await timestampRef.set(database.ServerValue.TIMESTAMP);
+        const snapshot = await timestampRef.once('value');
+
+        if (!snapshot.exists()) {
+          throw new Error('Không thể lấy timestamp từ Firebase');
+        }
+
+        const currentTimestamp = snapshot.val();
+
+        const messagesSnapshot = await database()
+          .ref(`/chats/${chatId}/messages`)
+          .orderByChild('timestamp')
+          .limitToLast(1)
+          .once('value');
+
+        let lastMessageTimestamp = currentTimestamp;
+        if (messagesSnapshot.exists()) {
+          const lastMessage = Object.values(messagesSnapshot.val())[0];
+          lastMessageTimestamp = lastMessage.timestamp || currentTimestamp;
+        }
+
+        const now = new Date(currentTimestamp);
+        const nextResetTime = new Date(lastMessageTimestamp);
+        nextResetTime.setHours(24, 0, 0, 0);
+
+        const timeLeft = Math.max(0, Math.floor((nextResetTime - now) / 1000));
+        setResetCountdown(timeLeft);
+
+        await database().ref(`/users/${myId}/resetCountdown`).set(timeLeft);
+      } catch (error) {
+        console.error(
+          '❌ Lỗi cập nhật thời gian reset:',
+          error.message || error,
+        );
+      }
+    };
+
+    updateCountdown();
+
+    const interval = setInterval(updateCountdown, 1000);
+    if (!cachedMessages || cachedMessages.length === 0) {
+      const loadMessages = async () => {
+        try {
+          const storedMessages = await AsyncStorage.getItem(
+            `messages_${chatId}`,
+          );
+          if (storedMessages) {
+            setMessages(JSON.parse(storedMessages));
+          }
+        } catch (error) {
+          console.error('❌ Lỗi tải tin nhắn từ AsyncStorage:', error);
+        }
+      };
+      loadMessages();
+    }
+
     messagesRef.on('value', onMessageChange);
-  
+    typingRef.on('value', onTypingChange);
+
     return () => {
+      clearInterval(interval);
       messagesRef.off('value', onMessageChange);
       typingRef.off('value', onTypingChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
-  
-
-  const checkAndDeleteMessages = async () => {
-    try {
-      const messagesRef = database().ref(`/chats/${chatId}/messages`);
-      const snapshot = await messagesRef.once('value');
-  
-      if (!snapshot.exists()) return;
-  
-      const messages = snapshot.val();
-      const updates = {}; // Lưu danh sách tin nhắn cần xóa
-  
-      Object.entries(messages).forEach(([messageId, messageData]) => {
-        const savedByUser1 = messageData.saved?.[myId] || false;
-        const savedByUser2 = messageData.saved?.[userId] || false;
-  
-        if (savedByUser1 && savedByUser2) {
-          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa tin nhắn
-        }
-      });
-  
-      if (Object.keys(updates).length > 0) {
-        await database().ref().update(updates);
-        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
-      } else {
-        console.log("⏳ Chưa có tin nhắn nào đủ điều kiện để xóa.");
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
-    }
-  };
-  
-
-  useEffect(() => {
-    checkAndDeleteMessages(); // Kiểm tra và xóa tin nhắn nếu đủ điều kiện
-  }, [messages]);
-  
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -213,70 +267,6 @@ const Single = () => {
   }, [messages]);
 
   useEffect(() => {
-    const updateCountdown = async () => {
-      try {
-        const timestampRef = database().ref('/timestamp');
-        await timestampRef.set(database.ServerValue.TIMESTAMP);
-        const snapshot = await timestampRef.once('value');
-  
-        if (!snapshot.exists()) {
-          throw new Error('Không thể lấy timestamp từ Firebase');
-        }
-  
-        const currentTimestamp = snapshot.val();
-  
-        const messagesSnapshot = await database()
-          .ref(`/chats/${chatId}/messages`)
-          .orderByChild('timestamp')
-          .limitToLast(1)
-          .once('value');
-  
-        let lastMessageTimestamp = currentTimestamp;
-        if (messagesSnapshot.exists()) {
-          const lastMessage = Object.values(messagesSnapshot.val())[0];
-          lastMessageTimestamp = lastMessage.timestamp || currentTimestamp;
-        }
-  
-        const now = new Date(currentTimestamp);
-        const nextResetTime = new Date(lastMessageTimestamp);
-        nextResetTime.setHours(24, 0, 0, 0);
-  
-        const timeLeft = Math.max(0, Math.floor((nextResetTime - now) / 1000));
-        setResetCountdown(timeLeft);
-  
-        await database().ref(`/users/${myId}/resetCountdown`).set(timeLeft);
-      } catch (error) {
-        console.error('❌ Lỗi cập nhật thời gian reset:', error.message || error);
-      }
-    };
-  
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-  
-    return () => clearInterval(interval);
-  }, [chatId]);
-  
-
-  useEffect(() => {
-    if (!cachedMessages || cachedMessages.length === 0) {
-      const loadMessages = async () => {
-        try {
-          const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-          if (storedMessages) {
-            setMessages(JSON.parse(storedMessages));
-          }
-        } catch (error) {
-          console.error('❌ Lỗi tải tin nhắn từ AsyncStorage:', error);
-        }
-      };
-      loadMessages();
-    }
-  }, [chatId]);
-  
-  
-  
-
-  useEffect(() => {
     const userRef = database().ref(`/users/${myId}/countChat`);
 
     userRef.once('value').then(snapshot => {
@@ -295,7 +285,7 @@ const Single = () => {
     return `${hours}h ${minutes}m ${secs}s`;
   };
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!text.trim()) return;
     setShouldAutoScroll(true);
   
@@ -312,7 +302,7 @@ const Single = () => {
         return Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
       }
   
-      let { lastResetTimestamp = 0, countChat = 100 } = userSnapshot.val();
+      let { countChat = 100 } = userSnapshot.val();
   
       const timestampRef = database().ref('/timestamp');
       await timestampRef.set(database.ServerValue.TIMESTAMP);
@@ -322,63 +312,64 @@ const Single = () => {
         await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
   
-      // ✅ Gửi tin nhắn với timestamp chính xác
       const messageRef = chatRef.child('messages').push();
       const encryptedText = encryptMessage(text, secretKey);
   
-      await messageRef.set({
+      const messageData = {
         senderId: myId,
         text: encryptedText || "🔒 Tin nhắn mã hóa",
-        timestamp: database.ServerValue.TIMESTAMP, // Dùng timestamp dạng số
+        timestamp: currentTimestamp,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-        seen: {
-          [userId]: false,
-          [myId]: true,
-        },
-      });
+        seen: { [userId]: false, [myId]: true },
+      };
+  
+      await messageRef.set(messageData);
   
       await userRef.update({ countChat: countChat - 1 });
       setcountChat(countChat - 1);
       setText('');
+  
+      // Nếu tin nhắn **KHÔNG tự hủy**, lưu vào AsyncStorage
+      if (!isSelfDestruct) {
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+        const updatedMessages = [...oldMessages, { id: messageRef.key, ...messageData }];
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+      }
+  
     } catch (error) {
       console.error('❌ Lỗi khi gửi tin nhắn:', error);
     }
-  };
+  }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime]);
+  
+// xóa cả 2
+  // const deleteMessageForBoth = async (messageId) => {
+  //   try {
+  //     const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
+  
+  //     // Kiểm tra xem tin nhắn có tồn tại không
+  //     const snapshot = await messageRef.once('value');
+  //     if (!snapshot.exists()) return;
+  
+  //     // Cập nhật trạng thái `deleted: true` thay vì xóa ngay lập tức
+  //     await messageRef.update({ deleted: true });
+  
+  //     console.log(`✅ Đã đánh dấu tin nhắn ${messageId} là đã xóa.`);
+  //   } catch (error) {
+  //     console.error('❌ Lỗi khi xóa tin nhắn:', error);
+  //   }
+  // };
   
 
-  // 🔹 Xóa tin nhắn cả hai
-  const deleteMessageForBoth = async messageId => {
-    try {
-      const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
-      const snapshot = await messageRef.once('value');
-  
-      if (!snapshot.exists()) return;
-  
-      const messageData = snapshot.val();
-      const savedByUser1 = messageData.saved?.[myId] || false;
-      const savedByUser2 = messageData.saved?.[userId] || false;
-  
-      if (savedByUser1 && savedByUser2) {
-        // ✅ Chỉ xóa nếu cả 2 đã lưu
-        await messageRef.remove();
-        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
-        console.log(`✅ Đã xóa tin nhắn ${messageId} vì cả hai user đã lưu.`);
-      } else {
-        console.log(`⏳ Chưa xóa tin nhắn ${messageId} vì chưa đủ cả hai user lưu.`);
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi xóa tin nhắn:', error);
-    }
-  };
-  
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
-    Alert.alert('Xóa tin nhắn', 'Bạn muốn xóa tin nhắn này?', [
-      {text: 'Hủy', style: 'cancel'},
-      {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
+    Alert.alert('Xóa tin nhắn', 'Bạn có chắc muốn xóa tin nhắn này?', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Xóa', onPress: () => deleteMessageForBoth(messageId) },
     ]);
   };
+  
 
   const handleTyping = isTyping => {
     database()
@@ -392,10 +383,7 @@ const Single = () => {
       });
   };
 
-  const handleSelectTime = index => {
-    const timeOptions = [5, 10, 60, 300, null]; // Các tùy chọn thời gian
-    const selectedTime = timeOptions[index];
-
+  const handleSelectTime = selectedTime => {
     if (selectedTime === null) {
       setIsSelfDestruct(false);
       setSelfDestructTime(null);
@@ -403,6 +391,7 @@ const Single = () => {
       setSelfDestructTime(selectedTime);
       setIsSelfDestruct(true);
     }
+    setIsModalVisible(false); // Đóng modal sau khi chọn
   };
 
   useEffect(() => {
@@ -444,76 +433,92 @@ const Single = () => {
         </View>
 
         <FlatList
-  ref={listRef}
-  data={messages}
-  keyExtractor={item => item.id}
-  renderItem={({ item }) => {
-    const messageId = item.id;
-    const isSentByMe = item.senderId === myId;
-    const isSelfDestruct = item.selfDestruct;
-    const timestamp = item.timestamp;
-    const selfDestructTime = item.selfDestructTime;
+          ref={listRef}
+          data={messages}
+          keyExtractor={item => item.id}
+          renderItem={({item}) => {
+            const messageId = item.id;
+            const isSentByMe = item.senderId === myId;
+            const isSelfDestruct = item.selfDestruct;
+            const timestamp = item.timestamp;
+            const selfDestructTime = item.selfDestructTime;
 
-    const expirationTime = timestamp + selfDestructTime * 1000;
-    const timeLeft = isSelfDestruct
-      ? Math.max(
-          0,
-          Math.floor((expirationTime - (Date.now() + 3000)) / 1000),
-        )
-      : null;
+            const expirationTime = timestamp + selfDestructTime * 1000;
+            const timeLeft = isSelfDestruct
+              ? Math.max(
+                  0,
+                  Math.floor((expirationTime - (Date.now() + 3000)) / 1000),
+                )
+              : null;
 
-    return (
+            return (
+              <View style={{flexDirection: 'column'}}>
+                <View
+                  style={
+                    isSentByMe ? styles.sentWrapper : styles.receivedWrapper
+                  }>
+                  {!isSentByMe && (
+                    <Image source={{uri: img}} style={styles.avatar} />
+                  )}
+                  <TouchableOpacity
+                    onLongPress={() => confirmDeleteMessage(item.id)}
+                    style={[
+                      isSentByMe
+                        ? styles.sentContainer
+                        : styles.receivedContainer,
+                      isSelfDestruct && styles.selfDestructMessage,
+                    ]}>
+                    {!isSentByMe && (
+                      <Text style={styles.usernameText}>{username}</Text>
+                    )}
 
-      <View style={{ flexDirection: 'column' }}>
-  <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
-    {!isSentByMe && <Image source={{ uri: img }} style={styles.avatar} />}
-    <TouchableOpacity
-      onLongPress={() => confirmDeleteMessage(item.id)}
-      style={[
-        isSentByMe ? styles.sentContainer : styles.receivedContainer,
-        isSelfDestruct && styles.selfDestructMessage,
-      ]}
-    >
-      {!isSentByMe && <Text style={styles.usernameText}>{username}</Text>}
+                    <Text
+                      style={
+                        isSentByMe
+                          ? styles.SendmessageText
+                          : styles.ReceivedmessageText
+                      }>
+                      {item.text}
+                    </Text>
 
-      <Text
-        style={isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText}
-      >
-        {item.text}
-      </Text>
+                    {/* Hiển thị thời gian đếm ngược */}
+                    {isSelfDestruct &&
+                      selfDestructTime !== null &&
+                      timeLeft > 0 && (
+                        <Text style={styles.selfDestructTimer}>
+                          🕒 {timeLeft}s
+                        </Text>
+                      )}
 
-      {/* Hiển thị thời gian đếm ngược */}
-      {isSelfDestruct && selfDestructTime !== null && timeLeft > 0 && (
-        <Text style={styles.selfDestructTimer}>🕒 {timeLeft}s</Text>
-      )}
+                    {/* Hiển thị thời gian gửi tin nhắn */}
+                    <Text
+                      style={
+                        isSentByMe
+                          ? styles.Sendtimestamp
+                          : styles.Revecivedtimestamp
+                      }>
+                      {new Date(timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-      {/* Hiển thị thời gian gửi tin nhắn */}
-      <Text
-        style={isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp}
-      >
-        {new Date(timestamp).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
-      </Text>
-    </TouchableOpacity>
-  </View>
-
-  {/* Đặt "Đã xem" ở dưới sentWrapper và receivedWrapper */}
-  {isSentByMe && (
-    <View style={styles.seenStatusContainer}>
-      <Text style={{ color: item.seen[userId] ? 'white' : 'gray' }}>
-        {item.seen[userId] ? 'Đã xem' : 'Đã gửi'}
-      </Text>
-    </View>
-  )}
-</View>
-
-    );
-  }}
-  showsHorizontalScrollIndicator={false}
-  showsVerticalScrollIndicator={false}
-/>
+                {/* Đặt "Đã xem" ở dưới sentWrapper và receivedWrapper */}
+                {isSentByMe && (
+                  <View style={styles.seenStatusContainer}>
+                    <Text style={{color: item.seen[userId] ? 'white' : 'gray'}}>
+                      {item.seen[userId] ? 'Đã xem' : 'Đã gửi'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          }}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        />
 
         <FlatList
           data={user}
@@ -524,7 +529,7 @@ const Single = () => {
         {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
         <View style={styles.inputContainer}>
           <TouchableOpacity
-            onPress={() => actionSheetRef.current.show()}
+            onPress={() => setIsModalVisible(true)}
             style={{
               padding: 10,
               backgroundColor: '#f5f5f5',
@@ -538,13 +543,33 @@ const Single = () => {
             />
             <Text>{selfDestructTime ? `${selfDestructTime}s` : 'Tắt'}</Text>
           </TouchableOpacity>
-          <ActionSheet
-            ref={actionSheetRef}
-            title={'Chọn thời gian tự hủy'}
-            options={options}
-            cancelButtonIndex={4}
-            onPress={handleSelectTime}
-          />
+
+          {/* Modal chọn thời gian */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isModalVisible}
+            onRequestClose={() => setIsModalVisible(false)}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Chọn thời gian tự hủy</Text>
+                {timeOptions.map((option, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.modalOption}
+                    onPress={() => handleSelectTime(option.value)}>
+                    <Text style={styles.modalText}>{option.label}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  onPress={() => setIsModalVisible(false)}
+                  style={styles.modalCancel}>
+                  <Text style={styles.modalText}>Hủy</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
@@ -586,16 +611,21 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop:10,
-  
+    marginTop: 10,
   },
   receivedWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 5,
-    marginTop:10
+    marginTop: 10,
   },
-  avatar: {width: 40, height: 40, borderRadius: 20, marginRight: 8, marginLeft:10},
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 8,
+    marginLeft: 10,
+  },
   usernameText: {
     fontSize: 14,
     color: '#007bff',
@@ -662,7 +692,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     justifyContent: 'space-between',
     backgroundColor: '#000000',
-    width:"100%"
+    width: '100%',
   },
   userInfo: {
     flexDirection: 'row',
@@ -732,9 +762,43 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   seenStatusContainer: {
-    alignSelf: "flex-end", // Để căn phải theo tin nhắn
+    alignSelf: 'flex-end', // Để căn phải theo tin nhắn
     marginTop: 2, // Tạo khoảng cách với tin nhắn
     marginRight: 10, // Đẩy sát mép tin nhắn
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalOption: {
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  modalText: {
+    fontSize: 16,
+  },
+  modalCancel: {
+    marginTop: 10,
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
   },
 });
 
