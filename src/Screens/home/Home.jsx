@@ -196,20 +196,40 @@ const Home = ({ navigation }) => {
 
   // Xử lý nhấn vào người dùng
   // Khi nhấn vào chat, đánh dấu tin nhắn đã seen
-  const handleUserPress = async (userId, username, img, chatId, lastMessageId) => {
-    if (!myId || !chatId || !lastMessageId) return;
-
-    const messageRef = ref(db, `chats/${chatId}/messages/${lastMessageId}/seen`);
-    await update(messageRef, { [myId]: true });
-
-    navigation.navigate('Single', {
+  const handleUserPress = async (userId, username, img) => {
+    if (!myId) return;
+  
+    const chatId = await getStoredChatId(userId); // 🔥 Lấy chatId từ local
+    if (!chatId) {
+      console.warn("⚠️ Không tìm thấy chatId trong local, dùng mặc định.");
+      return;
+    }
+  
+    navigation.navigate("Single", {
       userId,
       myId,
       username,
       img,
-      chatId,
+      chatId, // 🔥 Truyền chatId đã lưu từ local
     });
   };
+  
+
+  const getStoredChatId = async (userId) => {
+    try {
+      const storedChats = await AsyncStorage.getItem("chatList");
+      if (!storedChats) return null;
+  
+      const chatList = JSON.parse(storedChats);
+      const chatItem = chatList.find((chat) => chat.id === userId);
+      
+      return chatItem ? chatItem.chatId : null;
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy chatId từ local:", error);
+      return null;
+    }
+  };
+  
 
   // Kiểm tra và xóa tin nhắn nếu cả hai đã lưu
   const checkAndDeleteMessages = async (chatId, userId) => {

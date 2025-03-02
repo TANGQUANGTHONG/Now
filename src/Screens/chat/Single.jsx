@@ -27,7 +27,7 @@ import {
 } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
-import database, {set} from '@react-native-firebase/database';
+import database, {set, onValue, ref } from '@react-native-firebase/database';
 import ActionSheet from 'react-native-actionsheet';
 import {
   getAllChatsAsyncStorage,
@@ -35,6 +35,8 @@ import {
   getChatsByIdUserAsynStorage,
 } from '../../storage/Storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
+
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
@@ -65,6 +67,7 @@ const Single = () => {
   const actionSheetRef = useRef();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [messagene, setMessageNe] = useState([])
+  
   const timeOptions = [
     {label: '5 giây', value: 5},
     {label: '10 giây', value: 10},
@@ -75,7 +78,7 @@ const Single = () => {
 
   LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
   // console.log("secretKey",secretKey)
-console.log("userID",userId)
+// console.log("userID",userId)
   // 🔹 Lấy tin nhắn realtime
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
@@ -108,7 +111,7 @@ console.log("userID",userId)
               timestamp: data.timestamp,
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
-              seen: data.seen || {}, // Dùng seen thay vì saved
+              seen: data.seen || {},
             };
           })
           .filter((msg) => msg !== null);
@@ -133,7 +136,18 @@ console.log("userID",userId)
     
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
     
-        console.log("💾 Tin nhắn đã lưu vào AsyncStorage:", updatedMessages);
+        // console.log("💾 Tin nhắn đã lưu vào AsyncStorage:", updatedMessages);
+    
+        // ✅ Cập nhật danh sách chatId trong local
+        const storedChatList = await AsyncStorage.getItem("chatList");
+        let chatList = storedChatList ? JSON.parse(storedChatList) : [];
+    
+        if (!chatList.includes(chatId)) {
+          chatList.push(chatId);
+          await AsyncStorage.setItem("chatList", JSON.stringify(chatList));
+          console.log("💾 ChatId đã lưu vào AsyncStorage:", chatList);
+        }
+    
         // ✅ Cập nhật state để UI hiển thị đúng
         setMessages(updatedMessages);
     
@@ -154,7 +168,7 @@ console.log("userID",userId)
               const totalUsers = Object.keys(seenUsers).length;
     
               if (totalUsers >= 2) {
-                console.log(`⏳ Tin nhắn ${msg.id} đã được cả hai seen, sẽ xóa sau 10 giây`);
+                // console.log(`⏳ Tin nhắn ${msg.id} đã được cả hai seen, sẽ xóa sau 10 giây`);
     
                 // 🏃‍♂️ Sau 10 giây, xóa tin nhắn
                 setTimeout(async () => {
@@ -169,6 +183,7 @@ console.log("userID",userId)
         console.error("❌ Lỗi khi xử lý tin nhắn:", error.message || error);
       }
     };
+    
     
     
     
@@ -474,12 +489,13 @@ console.log("userID",userId)
         const storedChats = await AsyncStorage.getItem('chatList');
         let chatListFromStorage = storedChats ? JSON.parse(storedChats) : [];
   
-        const currentUserId = auth.currentUser?.uid;
+        const currentUserId = auth().currentUser?.uid;
         if (!currentUserId) return;
   
-        const chatRef = ref(db, 'chats');
+        const chatRef = database().ref('chats');
+
   
-        onValue(chatRef, async snapshot => {
+        database().ref('chats').on('value', async (snapshot) => {
           if (!snapshot.exists()) {
             console.log('🔥 Firebase không có dữ liệu, hiển thị từ AsyncStorage.');
             setChatList(chatListFromStorage); // ✅ Nếu Firebase mất dữ liệu, giữ dữ liệu cũ
@@ -496,8 +512,9 @@ console.log("userID",userId)
             if (!otherUserId) return null;
   
             const secretKey = generateSecretKey(otherUserId, currentUserId);
-            const userRef = ref(db, `users/${otherUserId}`);
-            const userSnapshot = await get(userRef);
+            const userRef = database().ref(`users/${otherUserId}`);
+
+            const userSnapshot = await userRef.once('value');
             if (!userSnapshot.exists()) return null;
   
             const userInfo = userSnapshot.val();
@@ -511,8 +528,8 @@ console.log("userID",userId)
             let lastMessageId = null;
             let isSeen = true;
   
-            const messagesRef = ref(db, `chats/${chatId}/messages`);
-            const messagesSnapshot = await get(messagesRef);
+            const messagesRef = database().ref(`chats/${chatId}/messages`);
+            const messagesSnapshot = await messagesRef.once('value');
   
             if (messagesSnapshot.exists()) {
               const messagesData = messagesSnapshot.val();
@@ -572,7 +589,21 @@ console.log("userID",userId)
   }, []);
   
   
+  const safeDecrypt = (encryptedText, secretKey) => {
+      try {
+        if (!encryptedText) return 'Nội dung trống';
   
+        const decryptedText = decryptMessage(encryptedText, secretKey);
+  
+        if (!decryptedText || decryptedText === '') {
+          return 'Tin nhắn bị mã hóa';
+        }
+  
+        return decryptedText;
+      } catch (error) {
+        return 'Tin nhắn bị mã hóa';
+      }
+    };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
