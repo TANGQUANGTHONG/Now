@@ -32,7 +32,7 @@ const Login = ({navigation}) => {
   
 
   const loginWithEmailAndPass = () => {
-    setIsLoading(true); // Bắt đầu loading
+    setIsLoading(true);
     auth()
       .signInWithEmailAndPassword(email, password)
       .then(() => {
