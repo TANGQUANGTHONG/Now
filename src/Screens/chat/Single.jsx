@@ -29,6 +29,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import database, {set} from '@react-native-firebase/database';
 import ActionSheet from 'react-native-actionsheet';
+import {launchImageLibrary} from 'react-native-image-picker';
+import axios from 'axios';
 import {
   getAllChatsAsyncStorage,
   getAllUsersFromUserSend,
@@ -65,6 +67,7 @@ const Single = () => {
   const actionSheetRef = useRef();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [messagene, setMessageNe] = useState([])
+  const [imageSend, setImageSend] = useState()
   const timeOptions = [
     {label: '5 giây', value: 5},
     {label: '10 giây', value: 10},
@@ -79,13 +82,13 @@ const Single = () => {
       try {
           const data = new FormData();
           data.append('file', {
-              uri: file.uri,
-              type: file.type,
-              name: file.fileName || (file.type.startsWith('video/') ? 'video.mp4' : 'image.png'),
+            uri: file.uri,
+            type: file.type,
+            name: file.fileName,
           });
           data.append('upload_preset', 'ml_default');
 
-          const response = await axios.post('https://api.cloudinary.com/v1_1/ddbolgs7p/upload', data, {
+          const response = await axios.post('https://api.cloudinary.com/v1_1/ddasyg5z3/upload', data, {
               headers: {
                   'Content-Type': 'multipart/form-data',
               },
@@ -93,15 +96,10 @@ const Single = () => {
           //console.log(file.type.type);
           const fileUrl = response.data.secure_url;
           console.log('🌍 Link file Cloudinary:', fileUrl);
-
-          if (file.type.startsWith('image/')) {
-              console.log("image");
-              sendMessage('image', fileUrl)
-          }
-          if (file.type.startsWith('video/')) {
-              console.log("video");
-              sendMessage('video', fileUrl)
-          }
+ 
+          console.log("image");
+          
+     
 
       } catch (error) {
           console.log('uploadFile -> ', error.response ? error.response.data : error.message);
@@ -115,12 +113,11 @@ const Single = () => {
     const onOpenGallery = async () => {
       try {
           const options = {
-              mediaType: 'mixed',
+              mediaType: 'image',
               quality: 1,
           };
 
           launchImageLibrary(options, async (response) => {
-              //console.log(response);
               if (response.didCancel) {
                   console.log("đã hủy")
               } else if (response.errorMessage) {
@@ -648,6 +645,11 @@ const Single = () => {
             <Text>{selfDestructTime ? `${selfDestructTime}s` : 'Tắt'}</Text>
           </TouchableOpacity>
 
+            <TouchableOpacity onPress={onOpenGallery}>
+            <View style={{padding: 10, backgroundColor: '#f5f5f5', borderRadius: 10, alignItems: 'center'}} >
+              <Icon name="image" size={25}/>
+            </View>
+            </TouchableOpacity>
           {/* Modal chọn thời gian */}
           <Modal
             animationType="slide"
