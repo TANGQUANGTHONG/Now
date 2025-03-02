@@ -7,16 +7,13 @@ const Item_home_chat = ({ data_chat, onPress }) => {
   return (
     <Pressable onPress={onPress}>
       <View style={styles.container}>
-        {/* Hiển thị ảnh, nếu lỗi thì thay bằng ảnh mặc định */}
-
         <View style={styles.container_item}>
-          <View style = {{flexDirection:'row', alignItems:'center'}}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Image
               source={{ uri: error ? "https://example.com/default-avatar.png" : data_chat.img }}
               style={styles.img}
               onError={() => setError(true)}
             />
-            {/* Thông tin chat */}
             <View style={styles.container_content1}>
               <Text style={styles.text_name}>{data_chat.name}</Text>
               <Text
@@ -29,7 +26,6 @@ const Item_home_chat = ({ data_chat, onPress }) => {
             </View>
           </View>
 
-          {/* Thời gian + số tin chưa đọc */}
           <View style={styles.container_content}>
             <Text style={styles.text_time}>{data_chat.time}</Text>
             {data_chat.unreadCount > 0 && (
@@ -45,6 +41,7 @@ const Item_home_chat = ({ data_chat, onPress }) => {
 };
 
 export default Item_home_chat;
+
 
 const styles = StyleSheet.create({
   img: {
@@ -70,7 +67,7 @@ const styles = StyleSheet.create({
   container_content: {
     flexDirection: 'column',
     marginLeft: 10,
-    alignItems:"center"
+    alignItems: "center"
   },
   container_content1: {
     flexDirection: 'column',

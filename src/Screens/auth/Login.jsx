@@ -16,8 +16,8 @@ import{saveCurrentUserAsyncStorage,saveChatsAsyncStorage} from '../../storage/St
 const {width, height} = Dimensions.get('window');
 
 const Login = ({navigation}) => {
-  const [email, setEmail] = useState('nguyenhongphong1010.02@gmail.com');
-  const [password, setPassword] = useState('111111');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [isLoading, setIsLoading] = useState(false); // State loading
   const [nickname, setnickname] = useState('')
