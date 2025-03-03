@@ -464,7 +464,6 @@ const Single = () => {
       const messageData = {
         senderId: myId,
         text: encryptedText || '🔒 Tin nhắn mã hóa',
-        imageUrl: data.imageUrl || null,
         timestamp: currentTimestamp,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
