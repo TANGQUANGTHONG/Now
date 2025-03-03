@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Alert, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Camera, useCameraDevices } from "react-native-vision-camera";
+import { Camera, useCameraDevices, useCodeScanner } from "react-native-vision-camera";
 import { PermissionsAndroid, Platform } from "react-native";
 
 const QRScannerScreen = () => {
@@ -40,6 +40,24 @@ const QRScannerScreen = () => {
     requestCameraPermission();
   }, []);
 
+  // 📌 Xử lý khi quét mã QR thành công
+  const codeScanner = useCodeScanner({
+    codeTypes: ["qr"], // Chỉ quét QR Code
+    onCodeScanned: (codes) => {
+      if (codes.length > 0) {
+        const scannedData = codes[0].value; // Lấy dữ liệu từ mã QR
+        console.log("📌 Mã QR đã quét:", scannedData);
+
+        if (scannedData.startsWith("chatapp://chat/")) {
+          const userId = scannedData.replace("chatapp://chat/", "");
+          navigation.navigate("ChatScreen", { userId });
+        } else {
+          Alert.alert("Lỗi", "Mã QR không hợp lệ!");
+        }
+      }
+    },
+  });
+
   if (hasPermission === null) {
     return <Text>Đang kiểm tra quyền truy cập camera...</Text>;
   }
@@ -64,6 +82,7 @@ const QRScannerScreen = () => {
       style={{ flex: 1 }}
       device={device}
       isActive={true}
+      codeScanner={codeScanner} // 📌 Kích hoạt scanner để quét QR
     />
   );
 };

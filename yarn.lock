@@ -2138,6 +2138,11 @@
   resolved "https://registry.npmjs.org/@react-native-firebase/database/-/database-21.11.0.tgz"
   integrity sha512-WK/j7pHP86O+9GnlEUjAlkGlyDyYTzWPXP9nMzG8EaWzdaYw9+MkfD5UtmBZXjGQFF4ykAI7jxgmahu05dbn9g==
 
+"@react-native-firebase/dynamic-links@^21.11.0":
+  version "21.11.0"
+  resolved "https://registry.npmjs.org/@react-native-firebase/dynamic-links/-/dynamic-links-21.11.0.tgz"
+  integrity sha512-VMfQIQ/5bSd0Y/w98WmaA03dnElLRqwv0Jl0x3eDYa1L0gPbRYS6SAxHHMTWaPUWeCW7mFH2RnUAb6o/aCSMsQ==
+
 "@react-native-firebase/firestore@^21.11.0":
   version "21.11.0"
   resolved "https://registry.npmjs.org/@react-native-firebase/firestore/-/firestore-21.11.0.tgz"
