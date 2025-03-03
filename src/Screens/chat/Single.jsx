@@ -71,7 +71,7 @@ const Single = () => {
   // const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload';
-const CLOUDINARY_PRESET = 'ml_default';
+  const CLOUDINARY_PRESET = 'ml_default';
 
   const timeOptions = [
     {label: '5 giây', value: 5},
@@ -120,10 +120,12 @@ const CLOUDINARY_PRESET = 'ml_default';
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
             if (!data.senderId || !data.text || !data.timestamp) return null;
+
             return {
               id: id || `msg_${Date.now()}_${index}`, // Nếu không có ID, tạo ID duy nhất
               senderId: data.senderId,
               text: decryptMessage(data.text, secretKey) || '❌ Lỗi giải mã',
+              imageUrl: data.imageUrl || null,
               timestamp: data.timestamp,
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
@@ -186,7 +188,7 @@ const CLOUDINARY_PRESET = 'ml_default';
         }
 
         //  Đánh dấu tin nhắn đã seen (tức là đã lưu vào local)
-        for (const msg of nonSelfDestructMessages) {
+        for (const msg of newMessages) {
           const seenRef = database().ref(
             `/chats/${chatId}/messages/${msg.id}/seen`,
           );
@@ -289,34 +291,6 @@ const CLOUDINARY_PRESET = 'ml_default';
       typingRef.off('value', onTypingChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
-
-  // useEffect(() => {
-  //   if (messagene.length === 0) return; // Nếu không có tin nhắn mới, không làm gì cả
-
-  //   const updateSavedStatus = async () => {
-  //     for (const msg of messagene) {
-  //       const savedRef = database().ref(`/chats/${chatId}/messages/${msg.id}/saved`);
-  //       await savedRef.child(myId).set(true);
-
-  //       //  Kiểm tra nếu tất cả người tham gia đã lưu
-  //       const snapshot = await savedRef.once('value');
-  //       if (snapshot.exists()) {
-  //         const savedUsers = snapshot.val();
-  //         const totalUsers = Object.keys(savedUsers).length;
-
-  //         if (totalUsers >= 2) {
-  //           console.log(`🗑 Xóa tin nhắn ${msg.id} vì tất cả đã lưu`);
-  //           setTimeout(async () => {
-  //             console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
-  //             await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-  //           }, 10000);
-  //         }
-  //       }
-  //     }
-  //   };
-
-  //   updateSavedStatus();
-  // }, [messagene]); // 🔥 Chạy lại mỗi khi `messagene` thay đổi
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -464,24 +438,6 @@ const CLOUDINARY_PRESET = 'ml_default';
       console.error('❌ Lỗi khi gửi tin nhắn:', error);
     }
   }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime]);
-
-  // xóa cả 2
-  // const deleteMessageForBoth = async (messageId) => {
-  //   try {
-  //     const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
-
-  //     // Kiểm tra xem tin nhắn có tồn tại không
-  //     const snapshot = await messageRef.once('value');
-  //     if (!snapshot.exists()) return;
-
-  //     // Cập nhật trạng thái `deleted: true` thay vì xóa ngay lập tức
-  //     await messageRef.update({ deleted: true });
-
-  //     console.log(` Đã đánh dấu tin nhắn ${messageId} là đã xóa.`);
-  //   } catch (error) {
-  //     console.error(' Lỗi khi xóa tin nhắn:', error);
-  //   }
-  // };
 
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
@@ -668,22 +624,22 @@ const CLOUDINARY_PRESET = 'ml_default';
       mediaType: 'photo',
       quality: 1,
     };
-  
+
     launchImageLibrary(options, response => {
       if (response.didCancel) return;
       if (response.errorMessage) {
         Alert.alert('Lỗi', response.errorMessage);
         return;
       }
-  
+
       if (response.assets && response.assets.length > 0) {
         const imageUri = response.assets[0].uri;
-        uploadImageToCloudinary(imageUri); // Gửi ảnh lên Cloudinary
+        uploadImageToCloudinary(imageUri);
       }
     });
   };
 
-  const uploadImageToCloudinary = async (imageUri) => {
+  const uploadImageToCloudinary = async imageUri => {
     try {
       const formData = new FormData();
       formData.append('file', {
@@ -692,16 +648,16 @@ const CLOUDINARY_PRESET = 'ml_default';
         name: 'upload.jpg',
       });
       formData.append('upload_preset', CLOUDINARY_PRESET);
-  
+
       const response = await fetch(CLOUDINARY_URL, {
         method: 'POST',
         body: formData,
       });
-  
+
       const data = await response.json();
       if (data.secure_url) {
         console.log('✅ Ảnh đã tải lên Cloudinary:', data.secure_url);
-        sendImageMessage(data.secure_url); // Gửi link ảnh vào Firebase
+        sendImageMessage(data.secure_url);
       } else {
         throw new Error('Lỗi khi tải ảnh lên Cloudinary');
       }
@@ -715,12 +671,30 @@ const CLOUDINARY_PRESET = 'ml_default';
       const chatRef = database().ref(`/chats/${chatId}/messages`).push();
       const messageData = {
         senderId: myId,
-        imageUrl: imageUrl, // Chỉ lưu link ảnh
+        imageUrl: imageUrl, // Lưu ảnh vào tin nhắn
         timestamp: Date.now(),
+        seen: { [myId]: true, [userId]: false }, // 🔥 Mình đã seen, đối phương chưa
       };
   
       await chatRef.set(messageData);
       console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
+  
+      // 🔥 Lưu tin nhắn ảnh vào AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+  
+      const updatedMessages = [
+        ...oldMessages,
+        {id: chatRef.key, ...messageData},
+      ];
+  
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(updatedMessages),
+      );
+  
+      // Cập nhật UI ngay lập tức
+      setMessages(updatedMessages);
     } catch (error) {
       console.error('❌ Lỗi khi gửi ảnh:', error);
     }
@@ -783,21 +757,32 @@ const CLOUDINARY_PRESET = 'ml_default';
                   {!isSentByMe && (
                     <Image source={{uri: img}} style={styles.avatar} />
                   )}
-                  
+
                   <TouchableOpacity
                     onLongPress={() => confirmDeleteMessage(item.id)}
                     style={[
                       isSentByMe
                         ? styles.sentContainer
                         : styles.receivedContainer,
-                      isSelfDestruct && styles.selfDestructMessage, // 🔥 Thêm màu đỏ cho tin nhắn tự hủy
+                      isSelfDestruct && styles.selfDestructMessage,
                     ]}>
                     {!isSentByMe && (
                       <Text style={styles.usernameText}>{username}</Text>
                     )}
 
-                    {/* Nếu là tin nhắn tự hủy và thời gian còn lại > 0, hiển thị đếm ngược */}
-                    {isSelfDestruct && timeLeft > 0 ? (
+                    {/* Kiểm tra nếu tin nhắn là ảnh */}
+                    {item.imageUrl ? (
+                      <TouchableOpacity
+                        onPress={() =>
+                          console.log('Ảnh được nhấn:', item.imageUrl)
+                        }>
+                        <Image
+                          source={{uri: item.imageUrl}}
+                          style={{width: 200, height: 200, borderRadius: 10}}
+                        />
+                      </TouchableOpacity>
+                    ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản hoặc tin nhắn tự hủy
+                    isSelfDestruct && timeLeft > 0 ? (
                       <View>
                         <Text style={styles.TextselfDestructTimer}>
                           {item.text}
@@ -1134,7 +1119,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 10,
   },
-  
 });
 
 export default Single;

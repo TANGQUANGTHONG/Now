@@ -2148,6 +2148,11 @@
   resolved "https://registry.npmjs.org/@react-native-firebase/messaging/-/messaging-21.10.1.tgz"
   integrity sha512-zMxNMXRkmlE4V64i/KG7nNNY+ZIUrCWBOv2MwL4+55Plgfxorym6XYt4Xq+oimKu78gen5bE0PHk4aoCn/vkog==
 
+"@react-native-firebase/ml@^21.11.0":
+  version "21.11.0"
+  resolved "https://registry.npmjs.org/@react-native-firebase/ml/-/ml-21.11.0.tgz"
+  integrity sha512-iizMh5V1EigHdE7nVB1Z5hgjmYs7xNZEGC6nJcXHiP2rkbYbMep6UwqzIrkUMa2skBwVTNt++B2YXKuMmuwang==
+
 "@react-native-firebase/storage@^21.10.1":
   version "21.10.1"
   resolved "https://registry.npmjs.org/@react-native-firebase/storage/-/storage-21.10.1.tgz"
