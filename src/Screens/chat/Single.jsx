@@ -173,7 +173,7 @@ const Single = () => {
             return {
               id: id || `msg_${Date.now()}_${index}`, // Nếu không có ID, tạo ID duy nhất
               senderId: data.senderId,
-              text: decryptMessage(data.text, secretKey) || '❌ Lỗi giải mã',
+              text: decryptMessage(data.text, secretKey) || 'có ảnh mới',
               imageUrl: data.imageUrl || null,
               timestamp: data.timestamp,
               selfDestruct: data.selfDestruct || false,
