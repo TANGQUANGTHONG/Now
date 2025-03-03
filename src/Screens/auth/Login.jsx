@@ -32,7 +32,7 @@ const Login = ({navigation}) => {
   
 
   const loginWithEmailAndPass = () => {
-    setIsLoading(true);
+    setIsLoading(true); // Bắt đầu loading
     auth()
       .signInWithEmailAndPassword(email, password)
       .then(() => {
@@ -43,24 +43,24 @@ const Login = ({navigation}) => {
       .catch(err => console.log(err))
       .finally(() => setIsLoading(false)); 
   };
-
+  
   async function signInWithGoogle() {
     try {
       await GoogleSignin.signOut(); // Clear any existing sessions
-  
+      
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const signInResult = await GoogleSignin.signIn();
-  
+      
       const idToken = signInResult.idToken || signInResult.data?.idToken;
-  
+      
       if (!idToken) {
         throw new Error('No ID token found');
       }
-  
+      
       // Lấy thông tin người dùng từ kết quả Google Sign-In
-  
+      
       const name = signInResult.data.user.name;
-  
+      
       const avatar = signInResult.data.user.photo;
       const gmail = signInResult.data.user.email;
       // Log ra thông tin người dùng
@@ -121,7 +121,7 @@ const Login = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.content}>
-          {/* MaskedView with LinearGradient for title */}
+          
           <MaskedView
             maskElement={
               <Text style={[styles.title, { backgroundColor: 'transparent', color: '#99F2C8' }]}>

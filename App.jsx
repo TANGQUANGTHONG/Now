@@ -9,6 +9,7 @@ const App = () => {
   // Bật thông báo khi app khởi động
   useEffect(() => {
     configurePushNotification();
+    listenForNewMessages();
   }, []);
 
   // // Lắng nghe tin nhắn mới (đưa vào useEffect để tránh gọi nhiều lần)
