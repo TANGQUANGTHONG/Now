@@ -98,7 +98,12 @@ const Home = ({ navigation }) => {
             if (sortedMessages.length > 0) {
               const latestMessage = sortedMessages[0];
               lastMessageId = latestMessage.msgId;
-              lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
+              if (latestMessage.imageUrl) {
+                lastMessage = 'Có ảnh mới'; // Nếu là ảnh, hiển thị thông báo
+              } else {
+                lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
+              }
+              
               lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',

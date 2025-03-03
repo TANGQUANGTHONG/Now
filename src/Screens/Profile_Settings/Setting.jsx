@@ -20,6 +20,8 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { getCurrentUserFromStorage,removeCurrentUserFromStorage } from '../../storage/Storage';
+import QRCode from "react-native-qrcode-svg"; 
+import { oStackHome } from '../../navigations/HomeNavigation';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,6 +29,7 @@ const Setting = ({ navigation }) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false); // 🔥 State để hiển thị modal QR
   GoogleSignin.configure({
     webClientId:
       '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
@@ -160,8 +163,24 @@ const Setting = ({ navigation }) => {
                 <Text style={styles.name}>{myUser?.name}</Text>
                 <Text style={styles.status}>{myUser?.nickname}</Text>
               </View>
-              <Icon name="qr-code-outline" size={22} color="black" />
+              <TouchableOpacity onPress={() => setQrVisible(true)}>
+              <Icon name="qr-code-outline" size={30} color="black" />
+            </TouchableOpacity>
             </View>
+
+              {/* 🔥 Modal hiển thị QR Code */}
+          <Modal visible={qrVisible} transparent onRequestClose={() => setQrVisible(false)}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Mã QR của bạn</Text>
+                <QRCode value={`chatapp://chat/${myUser.id}`} size={200} />
+                <TouchableOpacity onPress={() => setQrVisible(false)} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>Đóng</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
             <ScrollView style={styles.list}>
               <TouchableOpacity
                 onPress={() => navigation.navigate('ChangeDisplayName')}>
@@ -191,6 +210,14 @@ const Setting = ({ navigation }) => {
                   icon="exit-outline"
                   title="Log out"
                   subtitle="Sign out from your account"
+                  color="red"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate(oStackHome.QRScannerScreen.name) }>
+                <Option
+                  icon="exit-outline"
+                  title="QR"
+                  subtitle="QR scan"
                   color="red"
                 />
               </TouchableOpacity>
@@ -320,33 +347,15 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: width * 0.03,
   },
-  profile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderBottomLeftRadius: width * 0.05,
-    borderBottomRightRadius: width * 0.05,
-    padding: width * 0.03,
-    marginVertical: height * 0.02,
-  },
-  avatar: {
-    width: width * 0.15,
-    height: width * 0.15,
-    borderRadius: width * 0.075,
-  },
-  profileInfo: {
-    flex: 1,
-    marginLeft: width * 0.04,
-  },
-  name: {
-    color: 'black',
-    fontSize: width * 0.045,
-    fontWeight: 'bold',
-  },
-  status: {
-    color: 'gray',
-    fontSize: width * 0.035,
-  },
+  profile: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  avatar: { width: 60, height: 60, borderRadius: 30, marginRight: 10 },
+  profileInfo: { flex: 1 },
+  name: { fontSize: 18, fontWeight: "bold" },
+  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" },
+  modalContent: { backgroundColor: "white", padding: 20, borderRadius: 10, alignItems: "center" },
+  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
+  closeButton: { marginTop: 10, padding: 10, backgroundColor: "blue", borderRadius: 5 },
+  closeButtonText: { color: "white", fontSize: 16 },
 });
 
 export default Setting;
