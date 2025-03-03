@@ -43,25 +43,26 @@ const Login = ({navigation}) => {
       .catch(err => console.log(err))
       .finally(() => setIsLoading(false)); 
   };
-
+  
   async function signInWithGoogle() {
     try {
       await GoogleSignin.signOut(); // Clear any existing sessions
-  
+      
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const signInResult = await GoogleSignin.signIn();
-  
+      
       const idToken = signInResult.idToken || signInResult.data?.idToken;
-  
+      
       if (!idToken) {
         throw new Error('No ID token found');
       }
-  
+      
       // Lấy thông tin người dùng từ kết quả Google Sign-In
-  
+      
       const name = signInResult.data.user.name;
-  
+      
       const avatar = signInResult.data.user.photo;
+      const gmail = signInResult.data.user.email;
       // Log ra thông tin người dùng
       console.log('User Name:', signInResult.data.user.name);
       console.log('User Photo:', signInResult.data.user.photo);
@@ -81,7 +82,7 @@ const Login = ({navigation}) => {
         // Người dùng chưa tồn tại, lưu thông tin vào database
         await userRef.set({
           name: encryptMessage(name),
-            email: encryptMessage(email),
+            email: encryptMessage(gmail),
             Image: encryptMessage(avatar),
             nickname: encryptMessage(nickname),
             createdAt: database.ServerValue.TIMESTAMP,
@@ -120,10 +121,10 @@ const Login = ({navigation}) => {
         </TouchableOpacity>
 
         <View style={styles.content}>
-          {/* MaskedView with LinearGradient for title */}
+          
           <MaskedView
             maskElement={
-              <Text style={[styles.title, { backgroundColor: 'transparent' }]}>
+              <Text style={[styles.title, { backgroundColor: 'transparent', color: '#99F2C8' }]}>
                 Log in to Now
               </Text>
             }

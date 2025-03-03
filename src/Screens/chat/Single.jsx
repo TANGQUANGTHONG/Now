@@ -66,9 +66,11 @@ const Single = () => {
   const listRef = useRef(null);
   const isFirstRender = useRef(true); // Đánh dấu lần đầu render
   const actionSheetRef = useRef();
+  
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [messagene, setMessageNe] = useState([]);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [lastActive, setLastActive] = useState(null);
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload';
   const CLOUDINARY_PRESET = 'ml_default';
@@ -95,6 +97,53 @@ const Single = () => {
   //     useNativeDriver: true,
   //   }).start();
   // }, []);
+
+  //hiển thị trạng thái hoạt động của người dùng
+  useEffect(() => {
+    const updateLastActive = async () => {
+      const userRef = database().ref(`/users/${myId}/lastActive`);
+      await userRef.set(database.ServerValue.TIMESTAMP);
+    };
+    
+    updateLastActive();
+
+    const interval = setInterval(updateLastActive, 60000);
+    return () => {
+      clearInterval(interval);
+    }
+  }, [myId]);
+  
+  //Lắng nghe thay đổi trạng thái hoạt động của người dùng khác và cập nhật giao diện người dùng
+  useEffect(() => {
+    const userRef = database().ref(`/users/${userId}/lastActive`);
+  
+    const onUserActiveChange = snapshot => {
+      if (snapshot.exists()) {
+        const lastActive = snapshot.val();
+        setLastActive(lastActive);
+      }
+    };
+    
+    userRef.on('value', onUserActiveChange);
+  
+    return () => userRef.off('value', onUserActiveChange);
+  }, [userId]);
+
+  //Hàm tính toán và hiển thị trạng thái hoạt động của user
+  const getStatusText = () => {
+    if(!lastActive) return 'Đang hoạt động';
+
+    const now = Date.now()
+    const diff = now - lastActive; 
+  
+    if(diff < 60000) return 'Đang hoạt động';
+   if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+   if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+  
+   return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+}
+    
+
 
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
@@ -130,6 +179,8 @@ const Single = () => {
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
               seen: data.seen || {},
+              saved: data.saved || {}, // Lưu trạng thái saved
+              deleted: data.deleted || false, // Thêm trạng thái xóa
             };
           })
           .filter(msg => msg !== null);
@@ -160,7 +211,7 @@ const Single = () => {
         );
 
         // console.log("💾 Tin nhắn đã lưu vào AsyncStorage:", updatedMessages);
-
+        
         //  Cập nhật danh sách chatId trong local
         const storedChatList = await AsyncStorage.getItem('chatList');
         let chatList = storedChatList ? JSON.parse(storedChatList) : [];
@@ -183,9 +234,14 @@ const Single = () => {
         setMessages(uniqueMessages);
 
         if (isFirstRender.current && listRef.current) {
-          setTimeout(() => listRef.current.scrollToEnd({animated: true}), 500);
+          setTimeout(() => {
+            if (listRef.current) {
+              listRef.current.scrollToEnd({ animated: true });
+            }
+          }, 500);
           isFirstRender.current = false;
         }
+        
 
         //  Đánh dấu tin nhắn đã seen (tức là đã lưu vào local)
         for (const msg of newMessages) {
@@ -310,7 +366,7 @@ const Single = () => {
 
             // Xóa tin nhắn khi hết giờ
             if (timeLeft === 0) {
-              deleteMessageLocallyAndRemotely(msg.id);
+              database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
             }
           }
         });
@@ -703,31 +759,39 @@ const Single = () => {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate(oStackHome.TabHome.name)}
-            style={styles.backButton}>
-            <Icon name="arrow-left" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
+       <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate(oStackHome.TabHome.name)}
+          style={styles.backButton}>
+          <Icon name="arrow-left" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
 
-          <View style={styles.userInfo}>
-            <Image source={{uri: img}} style={styles.headerAvatar} />
+        <View style={styles.userInfo}>
+          <Image source={{uri: img}} style={styles.headerAvatar} />
+          <View>
             <Text style={styles.headerUsername}>{username}</Text>
-          </View>
-
-          <View style={styles.chatStatus}>
-            {countChat > 0 ? (
-              <Text style={styles.chatCountText}>
-                {countChat} lượt nhắn tin
-              </Text>
-            ) : (
-              <Text style={styles.resetText}>
-                Reset sau {formatCountdown(resetCountdown)}
-              </Text>
-            )}
-          </View>
+            <View style={styles.statusContainer}>
+              {getStatusText() === 'Đang hoạt động' && (
+                <View style={styles.activeDot} />
+              )}
+              <Text style={styles.userStatus}>{getStatusText()}</Text>
+            </View>
+                </View>
         </View>
+
+        <View style={styles.chatStatus}>
+          {countChat > 0 ? (
+            <Text style={styles.chatCountText}>
+              {countChat} lượt nhắn tin
+            </Text>
+          ) : (
+            <Text style={styles.resetText}>
+              Reset sau {formatCountdown(resetCountdown)}
+            </Text>
+          )}
+        </View>
+      </View>
 
         <FlatList
           ref={listRef}
@@ -848,7 +912,7 @@ const Single = () => {
             <Icon name="image" size={24} color="#007bff" />
           </TouchableOpacity>
 
-          {/* Modal chọn thời gian */}
+          
           <Modal
             animationType="slide"
             transparent={true}
@@ -879,11 +943,11 @@ const Single = () => {
               style={styles.input}
               value={text}
               onChangeText={value => {
-                setText(value); // Cập nhật tin nhắn
-                handleTyping(value.length > 0); // Cập nhật trạng thái nhập
+                setText(value); 
+                handleTyping(value.length > 0); 
               }}
               placeholder="Nhập tin nhắn..."
-              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập
+              onBlur={() => handleTyping(false)} 
             />
           </View>
 
@@ -904,6 +968,23 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
+  statusContainer: {
+    marginLeft: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeDot:{
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'green',
+    marginLeft: 5,
+  },
+  userStatus: {
+    marginHorizontal: 5,
+    fontSize: 12,
+    color: '#888',
+  },
   container: {flex: 1, padding: 0, backgroundColor: '#121212'},
   username: {
     fontSize: 20,

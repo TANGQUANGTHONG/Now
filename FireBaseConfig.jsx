@@ -1,4 +1,3 @@
-// FireBaseConfig.jsx
 import { initializeApp } from '@react-native-firebase/app';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -13,6 +12,7 @@ const firebaseConfig = {
   appId: '1:462017273323:web:47d8e5e75f2be782becdae',
   measurementId: 'G-L0044B23WT',
 };
+
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
