@@ -42,7 +42,6 @@ const Setting = ({ navigation }) => {
   //   fetchUser();
   // }, [])
   
-  console.log("user của tao",myUser)
   useEffect(() => {
     const fetchUser = () => {
       const id = auth().currentUser?.uid;
