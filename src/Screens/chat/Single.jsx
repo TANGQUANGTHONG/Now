@@ -792,8 +792,13 @@ const Single = () => {
           <Image source={{uri: img}} style={styles.headerAvatar} />
           <View>
             <Text style={styles.headerUsername}>{username}</Text>
-            <Text style={styles.userStatus}>{getStatusText()}</Text>
-          </View>
+            <View style={styles.statusContainer}>
+              {getStatusText() === 'Đang hoạt động' && (
+                <View style={styles.activeDot} />
+              )}
+              <Text style={styles.userStatus}>{getStatusText()}</Text>
+            </View>
+                </View>
         </View>
 
         <View style={styles.chatStatus}>
@@ -917,7 +922,7 @@ const Single = () => {
             <Icon name="image" size={24} color="#007bff" />
           </TouchableOpacity>
 
-          {/* Modal chọn thời gian */}
+          
           <Modal
             animationType="slide"
             transparent={true}
@@ -948,11 +953,11 @@ const Single = () => {
               style={styles.input}
               value={text}
               onChangeText={value => {
-                setText(value); // Cập nhật tin nhắn
-                handleTyping(value.length > 0); // Cập nhật trạng thái nhập
+                setText(value); 
+                handleTyping(value.length > 0); 
               }}
               placeholder="Nhập tin nhắn..."
-              onBlur={() => handleTyping(false)} // Khi mất focus thì dừng nhập
+              onBlur={() => handleTyping(false)} 
             />
           </View>
 
@@ -973,7 +978,20 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
+  statusContainer: {
+    marginLeft: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeDot:{
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'green',
+    marginLeft: 5,
+  },
   userStatus: {
+    marginHorizontal: 5,
     fontSize: 12,
     color: '#888',
   },
