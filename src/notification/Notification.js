@@ -1,7 +1,11 @@
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import PushNotification from 'react-native-push-notification';
-import {decryptMessage, generateSecretKey} from '../cryption/Encryption';
+import {
+  decryptMessage,
+  encryptMessage,
+  generateSecretKey,
+} from '../cryption/Encryption';
 
 const lastProcessedMessage = {}; // Lưu tin nhắn cuối cùng của mỗi cuộc trò chuyện
 let lastNotificationTimestamp = 0; // Tránh spam thông báo liên tục
@@ -26,7 +30,7 @@ export const sendLocalNotification = (title, message) => {
 
   if (now - lastNotificationTimestamp < 3000) {
     console.log('Thông báo bị chặn để tránh spam.');
-    return; // Chặn spam thông báo trong vòng 3 giây
+    return;
   }
 
   lastNotificationTimestamp = now;
@@ -34,7 +38,7 @@ export const sendLocalNotification = (title, message) => {
 
   PushNotification.localNotification({
     channelId: 'default-channel-id',
-    title: "Người dùng",
+    title: title || 'Người dùng',
     message: message,
     playSound: true,
     soundName: 'default',
@@ -46,41 +50,52 @@ export const sendLocalNotification = (title, message) => {
 export const listenForNewMessages = async () => {
   const currentUserId = auth().currentUser?.uid;
   if (!currentUserId) {
-    console.log("Không tìm thấy ID user hiện tại.");
+    console.log('Không tìm thấy ID user hiện tại.');
     return;
   }
 
   const chatsRef = database().ref('/chats');
 
-  chatsRef.on("value", (snapshot) => {
+  chatsRef.on('value', snapshot => {
     if (!snapshot.exists()) return;
 
     const chatsData = snapshot.val();
-    Object.keys(chatsData).forEach(async (chatId) => {  
-      if (!chatsData[chatId].users || !chatsData[chatId].users[currentUserId]) return;
+    Object.keys(chatsData).forEach(async chatId => {
+      if (!chatsData[chatId].users || !chatsData[chatId].users[currentUserId])
+        return;
 
       const messagesRef = database().ref(`/chats/${chatId}/messages`);
-      messagesRef.off("child_added"); // 🔥 Hủy lắng nghe cũ trước khi đăng ký mới
+      messagesRef.off('child_added');
 
-      messagesRef.on("child_added", async (messageSnapshot) => {
+      messagesRef.on('child_added', async messageSnapshot => {
         const messageData = messageSnapshot.val();
-        if (!messageData || !messageData.senderId || !messageData.text || !messageData.timestamp) return;
-        if (messageData.senderId === currentUserId) return; // Bỏ qua tin nhắn của chính mình
+        if (
+          !messageData ||
+          !messageData.senderId ||
+          !messageData.text ||
+          !messageData.timestamp
+        )
+          return;
+        if (messageData.senderId === currentUserId) return;
 
         // Chỉ gửi thông báo nếu tin nhắn mới chưa được xử lý
-        if (!lastProcessedMessage[chatId] || messageData.timestamp > lastProcessedMessage[chatId]) {
+        if (
+          !lastProcessedMessage[chatId] ||
+          messageData.timestamp > lastProcessedMessage[chatId]
+        ) {
           lastProcessedMessage[chatId] = messageData.timestamp; // Cập nhật tin nhắn cuối cùng
 
-          // 🔥 Lấy và giải mã tên người gửi
-          const senderName = await getSenderName(messageData.senderId, currentUserId); // ❌ Không cần giải mã lại
+          const senderName = await getSenderName(
+            messageData.senderId,
+            currentUserId,
+          );
 
-          // 🔐 Giải mã tin nhắn
-          const secretKey = generateSecretKey(messageData.senderId, currentUserId);
+          const secretKey = generateSecretKey(
+            messageData.senderId,
+            currentUserId,
+          );
           const decryptedText = safeDecrypt(messageData.text, secretKey);
 
-          console.log(`📩 Tin nhắn mới từ ${senderName}: ${decryptedText}`);
-
-          // 🔔 Gửi thông báo với tên người gửi
           sendLocalNotification(senderName, decryptedText);
         }
       });
@@ -90,32 +105,19 @@ export const listenForNewMessages = async () => {
 
 const getSenderName = async (senderId, currentUserId) => {
   try {
-    const snapshot = await database().ref(`/users/${senderId}/name`).once('value');
+    const snapshot = await database()
+      .ref(`/users/${senderId}/name`)
+      .once('value');
 
     if (!snapshot.exists()) {
-      console.log(`❌ Không tìm thấy tên của ${senderId} trong Firebase.`);
-      return 'Người dùng';
     }
 
-    const encryptedName = snapshot.val(); // 🔥 Lấy tên đã mã hóa từ Firebase
-
-    // 🔐 Tạo secret key
-    const secretKey = generateSecretKey(senderId, currentUserId);
-
-    // 🔓 Giải mã tên người gửi
-    const decryptedName = decryptMessage(encryptedName, senderId, currentUserId);
-
-    console.log(`🔍 Dữ liệu từ Firebase: ${encryptedName}`);
-    console.log(`🔑 Secret Key: ${secretKey}`);
-    console.log(`✅ Tên đã giải mã: ${decryptedName}`);
-
-    return decryptedName !== '' ? decryptedName : 'Người dùng';
+    const name = decryptMessage(snapshot.val());
+    return name;
   } catch (error) {
-    console.error('❌ Lỗi khi lấy tên người gửi:', error);
-    return 'Người dùng';
+    return;
   }
 };
-
 
 // Hàm giải mã tin nhắn an toàn
 const safeDecrypt = (encryptedText, secretKey) => {
