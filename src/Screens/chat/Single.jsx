@@ -66,10 +66,11 @@ const Single = () => {
   const listRef = useRef(null);
   const isFirstRender = useRef(true); // Đánh dấu lần đầu render
   const actionSheetRef = useRef();
+  
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [messagene, setMessageNe] = useState([]);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
-
+  const [lastActive, setLastActive] = useState(null);
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload';
   const CLOUDINARY_PRESET = 'ml_default';
@@ -97,9 +98,51 @@ const Single = () => {
   //   }).start();
   // }, []);
 
+  //hiển thị trạng thái hoạt động của người dùng
+  useEffect(() => {
+    const updateLastActive = async () => {
+      const userRef = database().ref(`/users/${myId}/lastActive`);
+      await userRef.set(database.ServerValue.TIMESTAMP);
+    };
+    
+    updateLastActive();
 
+    const interval = setInterval(updateLastActive, 60000);
+    return () => {
+      clearInterval(interval);
+    }
+  }, [myId]);
   
+  //Lắng nghe thay đổi trạng thái hoạt động của người dùng khác và cập nhật giao diện người dùng
+  useEffect(() => {
+    const userRef = database().ref(`/users/${userId}/lastActive`);
+  
+    const onUserActiveChange = snapshot => {
+      if (snapshot.exists()) {
+        const lastActive = snapshot.val();
+        setLastActive(lastActive);
+      }
+    };
+    
+    userRef.on('value', onUserActiveChange);
+  
+    return () => userRef.off('value', onUserActiveChange);
+  }, [userId]);
 
+  //Hàm tính toán và hiển thị trạng thái hoạt động của user
+  const getStatusText = () => {
+    if(!lastActive) return 'Đang hoạt động';
+
+    const now = Date.now()
+    const diff = now - lastActive; 
+  
+    if(diff < 60000) return 'Đang hoạt động';
+   if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+   if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+  
+   return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+}
+    
 
 
   useEffect(() => {
@@ -737,31 +780,34 @@ const Single = () => {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate(oStackHome.TabHome.name)}
-            style={styles.backButton}>
-            <Icon name="arrow-left" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
+       <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate(oStackHome.TabHome.name)}
+          style={styles.backButton}>
+          <Icon name="arrow-left" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
 
-          <View style={styles.userInfo}>
-            <Image source={{uri: img}} style={styles.headerAvatar} />
+        <View style={styles.userInfo}>
+          <Image source={{uri: img}} style={styles.headerAvatar} />
+          <View>
             <Text style={styles.headerUsername}>{username}</Text>
-          </View>
-
-          <View style={styles.chatStatus}>
-            {countChat > 0 ? (
-              <Text style={styles.chatCountText}>
-                {countChat} lượt nhắn tin
-              </Text>
-            ) : (
-              <Text style={styles.resetText}>
-                Reset sau {formatCountdown(resetCountdown)}
-              </Text>
-            )}
+            <Text style={styles.userStatus}>{getStatusText()}</Text>
           </View>
         </View>
+
+        <View style={styles.chatStatus}>
+          {countChat > 0 ? (
+            <Text style={styles.chatCountText}>
+              {countChat} lượt nhắn tin
+            </Text>
+          ) : (
+            <Text style={styles.resetText}>
+              Reset sau {formatCountdown(resetCountdown)}
+            </Text>
+          )}
+        </View>
+      </View>
 
         <FlatList
           ref={listRef}
@@ -927,6 +973,10 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
+  userStatus: {
+    fontSize: 12,
+    color: '#888',
+  },
   container: {flex: 1, padding: 0, backgroundColor: '#121212'},
   username: {
     fontSize: 20,
