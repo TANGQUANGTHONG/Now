@@ -66,7 +66,7 @@ const Single = () => {
   const listRef = useRef(null);
   const isFirstRender = useRef(true); // Đánh dấu lần đầu render
   const actionSheetRef = useRef();
-  
+
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [messagene, setMessageNe] = useState([]);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -104,46 +104,46 @@ const Single = () => {
       const userRef = database().ref(`/users/${myId}/lastActive`);
       await userRef.set(database.ServerValue.TIMESTAMP);
     };
-    
+
     updateLastActive();
 
     const interval = setInterval(updateLastActive, 60000);
     return () => {
       clearInterval(interval);
-    }
+    };
   }, [myId]);
-  
+
   //Lắng nghe thay đổi trạng thái hoạt động của người dùng khác và cập nhật giao diện người dùng
   useEffect(() => {
     const userRef = database().ref(`/users/${userId}/lastActive`);
-  
+
     const onUserActiveChange = snapshot => {
       if (snapshot.exists()) {
         const lastActive = snapshot.val();
         setLastActive(lastActive);
       }
     };
-    
+
     userRef.on('value', onUserActiveChange);
-  
+
     return () => userRef.off('value', onUserActiveChange);
   }, [userId]);
 
   //Hàm tính toán và hiển thị trạng thái hoạt động của user
   const getStatusText = () => {
-    if(!lastActive) return 'Đang hoạt động';
+    if (!lastActive) return 'Đang hoạt động';
 
-    const now = Date.now()
-    const diff = now - lastActive; 
-  
-    if(diff < 60000) return 'Đang hoạt động';
-   if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
-   if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
-  
-   return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
-}
-    
+    const now = Date.now();
+    const diff = now - lastActive;
 
+    if (diff < 60000) return 'Đang hoạt động';
+    if (diff < 3600000)
+      return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+    if (diff < 86400000)
+      return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+
+    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+  };
 
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
@@ -168,7 +168,7 @@ const Single = () => {
 
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
-            if (!data.senderId || !data.text || !data.timestamp) return null;
+            if (!data.senderId  || !data.timestamp) return null;
 
             return {
               id: id || `msg_${Date.now()}_${index}`, // Nếu không có ID, tạo ID duy nhất
@@ -211,7 +211,7 @@ const Single = () => {
         );
 
         // console.log("💾 Tin nhắn đã lưu vào AsyncStorage:", updatedMessages);
-        
+
         //  Cập nhật danh sách chatId trong local
         const storedChatList = await AsyncStorage.getItem('chatList');
         let chatList = storedChatList ? JSON.parse(storedChatList) : [];
@@ -236,12 +236,11 @@ const Single = () => {
         if (isFirstRender.current && listRef.current) {
           setTimeout(() => {
             if (listRef.current) {
-              listRef.current.scrollToEnd({ animated: true });
+              listRef.current.scrollToEnd({animated: true});
             }
           }, 500);
           isFirstRender.current = false;
         }
-        
 
         //  Đánh dấu tin nhắn đã seen (tức là đã lưu vào local)
         for (const msg of newMessages) {
@@ -465,6 +464,7 @@ const Single = () => {
       const messageData = {
         senderId: myId,
         text: encryptedText || '🔒 Tin nhắn mã hóa',
+        imageUrl: data.imageUrl || null,
         timestamp: currentTimestamp,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
@@ -722,82 +722,81 @@ const Single = () => {
     }
   };
 
-  const sendImageMessage = async (imageUrl) => {
+  const sendImageMessage = async imageUrl => {
     try {
       const chatRef = database().ref(`/chats/${chatId}/messages`).push();
       const messageData = {
         senderId: myId,
         imageUrl: imageUrl, // Lưu ảnh vào tin nhắn
         timestamp: Date.now(),
-        seen: { [myId]: true, [userId]: false }, // 🔥 Mình đã seen, đối phương chưa
+        seen: {[myId]: true, [userId]: false}, // 🔥 Mình đã seen, đối phương chưa
       };
-  
+
       await chatRef.set(messageData);
       console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
-  
+
       // 🔥 Lưu tin nhắn ảnh vào AsyncStorage
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
+
       const updatedMessages = [
         ...oldMessages,
         {id: chatRef.key, ...messageData},
       ];
-  
+
       await AsyncStorage.setItem(
         `messages_${chatId}`,
         JSON.stringify(updatedMessages),
       );
-  
+
       // Cập nhật UI ngay lập tức
       setMessages(updatedMessages);
     } catch (error) {
       console.error('❌ Lỗi khi gửi ảnh:', error);
     }
   };
-  
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-       <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate(oStackHome.TabHome.name)}
-          style={styles.backButton}>
-          <Icon name="arrow-left" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate(oStackHome.TabHome.name)}
+            style={styles.backButton}>
+            <Icon name="arrow-left" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
 
-        <View style={styles.userInfo}>
-          <Image source={{uri: img}} style={styles.headerAvatar} />
-          <View>
-            <Text style={styles.headerUsername}>{username}</Text>
-            <View style={styles.statusContainer}>
-              {getStatusText() === 'Đang hoạt động' && (
-                <View style={styles.activeDot} />
-              )}
-              <Text style={styles.userStatus}>{getStatusText()}</Text>
+          <View style={styles.userInfo}>
+            <Image source={{uri: img}} style={styles.headerAvatar} />
+            <View>
+              <Text style={styles.headerUsername}>{username}</Text>
+              <View style={styles.statusContainer}>
+                {getStatusText() === 'Đang hoạt động' && (
+                  <View style={styles.activeDot} />
+                )}
+                <Text style={styles.userStatus}>{getStatusText()}</Text>
+              </View>
             </View>
-                </View>
-        </View>
+          </View>
 
-        <View style={styles.chatStatus}>
-          {countChat > 0 ? (
-            <Text style={styles.chatCountText}>
-              {countChat} lượt nhắn tin
-            </Text>
-          ) : (
-            <Text style={styles.resetText}>
-              Reset sau {formatCountdown(resetCountdown)}
-            </Text>
-          )}
+          <View style={styles.chatStatus}>
+            {countChat > 0 ? (
+              <Text style={styles.chatCountText}>
+                {countChat} lượt nhắn tin
+              </Text>
+            ) : (
+              <Text style={styles.resetText}>
+                Reset sau {formatCountdown(resetCountdown)}
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
 
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(item, index) =>
-            item.id ? item.id.toString() : index.toString()
+            item.id ? `${item.id}-${index}` : `fallback-${index}`
           }
           // inverted={true} // Giúp tin nhắn mới nhất luôn hiển thị ở dưới cùng
           renderItem={({item}) => {
@@ -818,6 +817,7 @@ const Single = () => {
                   style={
                     isSentByMe ? styles.sentWrapper : styles.receivedWrapper
                   }>
+                  {/* Hiển thị Avatar nếu là tin nhắn của người khác */}
                   {!isSentByMe && (
                     <Image source={{uri: img}} style={styles.avatar} />
                   )}
@@ -830,22 +830,26 @@ const Single = () => {
                         : styles.receivedContainer,
                       isSelfDestruct && styles.selfDestructMessage,
                     ]}>
+                    {/* Hiển thị tên người gửi nếu là tin nhắn của người khác */}
                     {!isSentByMe && (
                       <Text style={styles.usernameText}>{username}</Text>
                     )}
 
-                    {/* Kiểm tra nếu tin nhắn là ảnh */}
+                    {/* Nếu tin nhắn là ảnh, hiển thị ảnh với căn chỉnh phù hợp */}
                     {item.imageUrl ? (
-                      <TouchableOpacity
-                        onPress={() =>
-                          console.log('Ảnh được nhấn:', item.imageUrl)
-                        }>
+                      <View>
+                        {/* {console.log('🖼 Hiển thị ảnh:', item.imageUrl)} */}
                         <Image
                           source={{uri: item.imageUrl}}
-                          style={{width: 200, height: 200, borderRadius: 10}}
+                          style={[
+                            styles.imageMessage,
+                            isSentByMe
+                              ? styles.sentImage
+                              : styles.receivedImage,
+                          ]}
                         />
-                      </TouchableOpacity>
-                    ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản hoặc tin nhắn tự hủy
+                      </View>
+                    ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản
                     isSelfDestruct && timeLeft > 0 ? (
                       <View>
                         <Text style={styles.TextselfDestructTimer}>
@@ -912,7 +916,6 @@ const Single = () => {
             <Icon name="image" size={24} color="#007bff" />
           </TouchableOpacity>
 
-          
           <Modal
             animationType="slide"
             transparent={true}
@@ -943,11 +946,11 @@ const Single = () => {
               style={styles.input}
               value={text}
               onChangeText={value => {
-                setText(value); 
-                handleTyping(value.length > 0); 
+                setText(value);
+                handleTyping(value.length > 0);
               }}
               placeholder="Nhập tin nhắn..."
-              onBlur={() => handleTyping(false)} 
+              onBlur={() => handleTyping(false)}
             />
           </View>
 
@@ -973,7 +976,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  activeDot:{
+  activeDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
@@ -1199,6 +1202,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginRight: 10,
+  },
+  imageMessage: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    marginTop: 5,
+  },
+  sentImage: {
+    alignSelf: 'flex-end', // Ảnh gửi đi nằm bên phải
+  },
+  receivedImage: {
+    alignSelf: 'flex-start', // Ảnh nhận nằm bên trái
   },
 });
 
