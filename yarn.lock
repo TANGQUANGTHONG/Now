@@ -3815,6 +3815,11 @@ diffie-hellman@^5.0.0:
     miller-rabin "^4.0.0"
     randombytes "^2.0.0"
 
+dijkstrajs@^1.0.1:
+  version "1.0.3"
+  resolved "https://registry.npmjs.org/dijkstrajs/-/dijkstrajs-1.0.3.tgz"
+  integrity sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==
+
 dir-glob@^3.0.1:
   version "3.0.1"
   resolved "https://registry.npmjs.org/dir-glob/-/dir-glob-3.0.1.tgz"
@@ -6731,6 +6736,11 @@ plist@^3.1.0:
     base64-js "^1.5.1"
     xmlbuilder "^15.1.1"
 
+pngjs@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.npmjs.org/pngjs/-/pngjs-5.0.0.tgz"
+  integrity sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw==
+
 possible-typed-array-names@^1.0.0:
   version "1.1.0"
   resolved "https://registry.npmjs.org/possible-typed-array-names/-/possible-typed-array-names-1.1.0.tgz"
@@ -6792,7 +6802,7 @@ prompts@^2.0.1, prompts@^2.4.2:
     kleur "^3.0.3"
     sisteransi "^1.0.5"
 
-prop-types@^15.6.0, prop-types@^15.6.2, prop-types@^15.7.2, prop-types@^15.8.1:
+prop-types@^15.6.0, prop-types@^15.6.2, prop-types@^15.7.2, prop-types@^15.8.0, prop-types@^15.8.1:
   version "15.8.1"
   resolved "https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz"
   integrity sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==
@@ -6840,6 +6850,15 @@ pure-rand@^6.0.0:
   version "6.1.0"
   resolved "https://registry.npmjs.org/pure-rand/-/pure-rand-6.1.0.tgz"
   integrity sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==
+
+qrcode@^1.5.4:
+  version "1.5.4"
+  resolved "https://registry.npmjs.org/qrcode/-/qrcode-1.5.4.tgz"
+  integrity sha512-1ca71Zgiu6ORjHqFBDpnSMTR2ReToX4l1Au1VFLyVeBTFavzQnv5JxMFr3ukHVKpSrSA2MCk0lNJSykjUfz7Zg==
+  dependencies:
+    dijkstrajs "^1.0.1"
+    pngjs "^5.0.0"
+    yargs "^15.3.1"
 
 query-string@^7.1.3:
   version "7.1.3"
@@ -7033,6 +7052,15 @@ react-native-push-notification@^8.1.1:
   resolved "https://registry.npmjs.org/react-native-push-notification/-/react-native-push-notification-8.1.1.tgz"
   integrity sha512-XpBtG/w+a6WXTxu6l1dNYyTiHnbgnvjoc3KxPTxYkaIABRmvuJZkFxqruyGvfCw7ELAlZEAJO+dthdTabCe1XA==
 
+react-native-qrcode-svg@^6.3.15:
+  version "6.3.15"
+  resolved "https://registry.npmjs.org/react-native-qrcode-svg/-/react-native-qrcode-svg-6.3.15.tgz"
+  integrity sha512-vLuNImGfstE8u+rlF4JfFpq65nPhmByuDG6XUPWh8yp8MgLQX11rN5eQ8nb/bf4OB+V8XoLTJB/AZF2g7jQSSQ==
+  dependencies:
+    prop-types "^15.8.0"
+    qrcode "^1.5.4"
+    text-encoding "^0.7.0"
+
 react-native-safe-area-context@^4.14.1:
   version "4.14.1"
   resolved "https://registry.npmjs.org/react-native-safe-area-context/-/react-native-safe-area-context-4.14.1.tgz"
@@ -7084,6 +7112,11 @@ react-native-vector-icons@^10.2.0:
   dependencies:
     prop-types "^15.7.2"
     yargs "^16.1.1"
+
+react-native-vision-camera@^4.6.4:
+  version "4.6.4"
+  resolved "https://registry.npmjs.org/react-native-vision-camera/-/react-native-vision-camera-4.6.4.tgz"
+  integrity sha512-d998uTHsGJ9bTlsClgT37RK1sK7ZQekv5y6ylynds3vmdK6YbFQJUoi2cvMrFN4dp9qvSlCjEfwekjMIz3guQA==
 
 react-native@^0.74.1:
   version "0.74.1"
@@ -7973,6 +8006,11 @@ test-exclude@^6.0.0:
     glob "^7.1.4"
     minimatch "^3.0.4"
 
+text-encoding@^0.7.0:
+  version "0.7.0"
+  resolved "https://registry.npmjs.org/text-encoding/-/text-encoding-0.7.0.tgz"
+  integrity sha512-oJQ3f1hrOnbRLOcwKz0Liq2IcrvDeZRHXhd9RgLrsT+DjWY/nty1Hi7v3dtkaEYbPYe0mUoOfzRrMwfXXwgPUA==
+
 text-table@^0.2.0:
   version "0.2.0"
   resolved "https://registry.npmjs.org/text-table/-/text-table-0.2.0.tgz"
@@ -8450,6 +8488,23 @@ yargs-parser@^21.1.1:
   integrity sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==
 
 yargs@^15.1.0:
+  version "15.4.1"
+  resolved "https://registry.npmjs.org/yargs/-/yargs-15.4.1.tgz"
+  integrity sha512-aePbxDmcYW++PaqBsJ+HYUFwCdv4LVvdnhBy78E57PIor8/OVvhMrADFFEDh8DHDFRv/O9i3lPhsENjO7QX0+A==
+  dependencies:
+    cliui "^6.0.0"
+    decamelize "^1.2.0"
+    find-up "^4.1.0"
+    get-caller-file "^2.0.1"
+    require-directory "^2.1.1"
+    require-main-filename "^2.0.0"
+    set-blocking "^2.0.0"
+    string-width "^4.2.0"
+    which-module "^2.0.0"
+    y18n "^4.0.0"
+    yargs-parser "^18.1.2"
+
+yargs@^15.3.1:
   version "15.4.1"
   resolved "https://registry.npmjs.org/yargs/-/yargs-15.4.1.tgz"
   integrity sha512-aePbxDmcYW++PaqBsJ+HYUFwCdv4LVvdnhBy78E57PIor8/OVvhMrADFFEDh8DHDFRv/O9i3lPhsENjO7QX0+A==

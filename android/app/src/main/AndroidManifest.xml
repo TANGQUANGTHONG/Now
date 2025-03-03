@@ -13,6 +13,10 @@
     <!-- Nhận thông báo khi khởi động lại -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+        <!-- Quyền truy cập camera -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+
     <application
         android:name=".MainApplication"
         android:label="@string/app_name"

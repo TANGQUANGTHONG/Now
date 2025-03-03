@@ -16,6 +16,8 @@ import ChangePasswordScreen from '../components/setting/ChangePassWord';
 import DeleteAccountScreen from '../components/setting/Deleted';
 import Profile from '../Screens/Profile_Settings/Profile';
 import Gemini from '../Screens/chat/germiniAI';
+import QRScannerScreen from '../Screens/Profile_Settings/QRScannerScreen';
+
 
 // Danh sách tab
 const oTab = {
@@ -98,6 +100,7 @@ const oStackHome = {
   ChangePasswordScreen: {name: 'ChangePasswordScreen', component: ChangePasswordScreen},
   DeleteAccountScreen: {name: 'DeleteAccountScreen', component: DeleteAccountScreen},
   Gemini: {name: 'Gemini', component: Gemini},
+  QRScannerScreen: {name: 'QRScannerScreen', component: QRScannerScreen},
 
 
 };
