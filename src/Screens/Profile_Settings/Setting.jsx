@@ -233,7 +233,7 @@ const Setting = ({navigation}) => {
                   navigation.navigate(oStackHome.QRScannerScreen.name)
                 }>
                 <Option
-                  icon="exit-outline"
+                  icon="scan"
                   title="QR"
                   subtitle="QR scan"
                   color="red"
