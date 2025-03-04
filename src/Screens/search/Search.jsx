@@ -38,10 +38,18 @@ const Search = () => {
       if (usersData) {
         const userList = Object.keys(usersData).filter(key => key !== myId).map(key => {
           const user = usersData[key];
+                    let decryptedNickname = user.nickname
+                      ? decryptMessage(user.nickname)
+                      : 'Không có nickname';
+          
+                    // Thêm @ vào trước nickname nếu chưa có
+                    if (decryptedNickname && !decryptedNickname.startsWith('@')) {
+                      decryptedNickname = `@${decryptedNickname}`;
+                    }
           return {
             id: key,
             username: user.name ? decryptMessage(user.name) : 'Không có tên',
-            nickname: user.nickname ? decryptMessage(user.nickname) : '',
+            nickname: decryptedNickname,
             email: user.email ? decryptMessage(user.email) : 'Không có email',
             img: user.Image ? decryptMessage(user.Image) : 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg',
           };
@@ -56,19 +64,26 @@ const Search = () => {
     return () => usersRef.off('value');
   };
 
-  // Tối ưu tìm kiếm với debounce
   const handleSearch = (text) => {
     setSearchText(text);
     if (text === '') {
       setFilteredUsers([]);
-    } else {
-      const filtered = users.filter(user => 
-        user.username.toLowerCase().includes(text.toLowerCase()) ||
+    } else if (text.startsWith('@')) {
+      // Nếu text bắt đầu bằng @ thì tìm kiếm theo nickname (bỏ ký tự @ khi so sánh)
+      const filtered = users.filter(user =>
         user.nickname.toLowerCase().includes(text.toLowerCase())
       );
       setFilteredUsers(filtered);
+    } else {
+      // Ngược lại, tìm kiếm theo username
+      const filtered = users.filter(user =>
+        user.username.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredUsers(filtered);
     }
-  }// Đặt debounce time là 500ms
+  };
+  
+  
 
   useEffect(() => {
     fetchUsers();
@@ -106,7 +121,7 @@ export default Search;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: '#121212',
     paddingHorizontal: width * 0.06,
     paddingTop: height * 0.02,
     flex: 1,
@@ -123,6 +138,6 @@ const styles = StyleSheet.create({
     fontSize: width * 0.03,
   },
   list_search: {
-    marginTop: height * 0.06,
+    marginTop: height * 0.02,
   },
 });
