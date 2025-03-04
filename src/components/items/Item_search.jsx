@@ -7,7 +7,7 @@ const Item_search = ({ data, onPress }) => {
       <Image source={{ uri: data.img }} style={styles.image} />
       <View>
         <Text style={styles.username}>{data.username}</Text>
-        <Text style={styles.username}>{data.nickname}</Text>
+        <Text style={[styles.username,{fontSize:10,fontWeight:'400'}]}>{data.nickname}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -28,6 +28,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   username: {
+    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
