@@ -337,7 +337,7 @@ const Single = () => {
                 console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
                 setTimeout(async () => {
                   await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-                }, 10000);
+                }, 30000);
               }
             }
           });
@@ -429,6 +429,33 @@ const Single = () => {
       console.error('❌ Lỗi khi xóa tin nhắn:', error);
     }
   };
+
+
+  //xoa ca hai
+  const deleteMessageForBoth = async (messageId) => {
+    try {
+      // 🔥 Xóa tin nhắn trong Firebase
+      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
+
+      // 🔥 Xóa tin nhắn trong AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      // 🔥 Lọc bỏ tin nhắn vừa bị xóa
+      messages = messages.filter(msg => msg.id !== messageId);
+
+      // 🔥 Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
+      await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
+
+      // 🔥 Cập nhật state để UI phản hồi ngay lập tức
+      setMessages(messages);
+
+      console.log(`🗑 Tin nhắn ${messageId} đã bị xóa trên cả Firebase và AsyncStorage.`);
+    } catch (error) {
+      console.error('❌ Lỗi khi xóa tin nhắn:', error);
+    }
+  };
+
 
   const formatCountdown = seconds => {
     const hours = Math.floor(seconds / 3600);
@@ -989,6 +1016,7 @@ const Single = () => {
               </View>
             </View>
           </Modal>
+
 
           <View style={styles.inputWrapper}>
             <TextInput
