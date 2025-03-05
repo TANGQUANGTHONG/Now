@@ -38,9 +38,6 @@ const Home = ({ navigation }) => {
   // console.log("chatlist",secretKey)
 
   useEffect(() => {
-
-
-
     loadChats();
   }, []);
 

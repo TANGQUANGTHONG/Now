@@ -254,7 +254,7 @@ const Single = () => {
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-
+  
     // Lắng nghe trạng thái đang nhập
     const onTypingChange = snapshot => {
       if (snapshot.exists()) {
@@ -264,21 +264,21 @@ const Single = () => {
         setIsTyping(false);
       }
     };
-
+  
     // Lắng nghe tin nhắn mới
     const onMessageChange = async snapshot => {
       if (!snapshot.exists()) return;
-
+  
       try {
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-
+  
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
             if (!data.senderId || !data.timestamp) return null;
-
+  
             return {
-              id: id, // Sử dụng ID từ Firebase thay vì `index`
+              id: id, 
               senderId: data.senderId,
               text: data.text ? decryptMessage(data.text, secretKey) : '📷 Ảnh mới',
               imageUrl: data.imageUrl || null,
@@ -290,16 +290,16 @@ const Single = () => {
             };
           })
           .filter(msg => msg !== null);
-
+  
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-
+  
         // Lọc tin nhắn không tự hủy
         const nonSelfDestructMessages = newMessages.filter(msg => !msg.selfDestruct);
-
+  
         // Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
+  
         // Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
         const updatedMessages = [...oldMessages, ...nonSelfDestructMessages].reduce(
           (acc, msg) => {
@@ -308,31 +308,31 @@ const Single = () => {
           },
           []
         );
-
+  
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-
+  
         // Cập nhật UI với tin nhắn mới
         setMessages(updatedMessages);
-
+  
         // Kiểm tra nếu cuộn xuống không bị chặn bởi người dùng
         if (shouldAutoScroll && listRef.current) {
           setTimeout(() => {
             listRef.current.scrollToEnd({ animated: true });
           }, 300);
         }
-
+  
         // Đánh dấu tin nhắn đã seen
         for (const msg of newMessages) {
           const seenRef = database().ref(`/chats/${chatId}/messages/${msg.id}/seen`);
           await seenRef.child(myId).set(true);
-
+  
           // Kiểm tra nếu cả hai người đã seen thì xóa tin nhắn
           seenRef.once('value', async snapshot => {
             if (snapshot.exists()) {
               const seenUsers = snapshot.val();
               const userIds = Object.keys(seenUsers);
               const allSeen = userIds.length === 2 && userIds.every(userId => seenUsers[userId]);
-
+              
               if (allSeen) {
                 console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
                 setTimeout(async () => {
@@ -346,14 +346,14 @@ const Single = () => {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
     };
-
+  
     // Đăng ký lắng nghe sự kiện từ Firebase
-    messagesRef.on('value', onMessageChange);
     typingRef.on('value', onTypingChange);
-
+    messagesRef.on('value', onMessageChange);
+  
     return () => {
-      messagesRef.off('value', onMessageChange);
       typingRef.off('value', onTypingChange);
+      messagesRef.off('value', onMessageChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
 
@@ -766,32 +766,29 @@ const Single = () => {
         senderId: myId,
         imageUrl: imageUrl, // Lưu ảnh vào tin nhắn
         timestamp: Date.now(),
-        seen: { [myId]: true, [userId]: false }, // 🔥 Mình đã seen, đối phương chưa
+        seen: { [myId]: true, [userId]: false },
       };
-
+  
       await chatRef.set(messageData);
       console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
-
-      // 🔥 Lưu tin nhắn ảnh vào AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      const updatedMessages = [
-        ...oldMessages,
-        { id: chatRef.key, ...messageData },
-      ];
-
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(updatedMessages),
-      );
-
-      // Cập nhật UI ngay lập tức
-      setMessages(updatedMessages);
+  
+      // Chờ 1 giây để Firebase cập nhật trước khi lưu vào AsyncStorage
+      setTimeout(async () => {
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+  
+        // Kiểm tra nếu tin nhắn đã tồn tại thì không thêm vào AsyncStorage
+        if (!oldMessages.some(msg => msg.id === chatRef.key)) {
+          const updatedMessages = [...oldMessages, { id: chatRef.key, ...messageData }];
+          await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+          setMessages(updatedMessages);
+        }
+      }, 1000);
     } catch (error) {
       console.error('❌ Lỗi khi gửi ảnh:', error);
     }
   };
+  
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
