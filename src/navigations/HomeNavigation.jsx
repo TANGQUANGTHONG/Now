@@ -1,7 +1,7 @@
 import React, {useEffect} from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 
 // Import màn hình
 import Home from '../Screens/home/Home';
@@ -17,7 +17,7 @@ import DeleteAccountScreen from '../components/setting/Deleted';
 import Profile from '../Screens/Profile_Settings/Profile';
 import Gemini from '../Screens/chat/germiniAI';
 import QRScannerScreen from '../Screens/Profile_Settings/QRScannerScreen';
-
+import SearchMessage from '../Screens/chat/SearchMessage';
 
 // Danh sách tab
 const oTab = {
@@ -39,7 +39,6 @@ const oTab = {
     icon: 'settings',
     name: 'Setting',
   },
-
 };
 
 const Tab = createBottomTabNavigator();
@@ -48,15 +47,15 @@ const TabHome = () => {
   return (
     <Tab.Navigator
       initialRouteName="Home"
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
+      screenOptions={({route}) => ({
+        tabBarIcon: ({focused, color, size}) => {
           const item = Object.values(oTab).find(tab => tab.name === route.name);
           return item ? (
             <Icon
               name={item.icon}
               size={size}
               color={focused ? '#99F2C8' : 'gray'}
-              style={{ fontWeight: focused ? 'bold' : 'normal' }}
+              style={{fontWeight: focused ? 'bold' : 'normal'}}
             />
           ) : null;
         },
@@ -80,7 +79,7 @@ const TabHome = () => {
           key={index}
           name={item.name}
           component={item.component}
-          options={{ title: item.name }}
+          options={{title: item.name}}
         />
       ))}
     </Tab.Navigator>
@@ -89,7 +88,6 @@ const TabHome = () => {
 
 // Danh sách Stack Home
 
-
 const oStackHome = {
   TabHome: {name: 'TabHome', component: TabHome},
   Chat: {name: 'Chat', component: Chat},
@@ -97,12 +95,17 @@ const oStackHome = {
   Search: {name: 'Search', component: Search},
   Login: {name: 'Login', component: Login},
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
-  ChangePasswordScreen: {name: 'ChangePasswordScreen', component: ChangePasswordScreen},
-  DeleteAccountScreen: {name: 'DeleteAccountScreen', component: DeleteAccountScreen},
+  ChangePasswordScreen: {
+    name: 'ChangePasswordScreen',
+    component: ChangePasswordScreen,
+  },
+  DeleteAccountScreen: {
+    name: 'DeleteAccountScreen',
+    component: DeleteAccountScreen,
+  },
   Gemini: {name: 'Gemini', component: Gemini},
   QRScannerScreen: {name: 'QRScannerScreen', component: QRScannerScreen},
-
-
+  QRScannerScreen: {name: 'SearchMessage', component: SearchMessage},
 };
 
 const StackHome = createNativeStackNavigator();
@@ -126,8 +129,7 @@ const HomeNavigation = () => {
   // logAllMessages();r
 
   return (
-    <StackHome.Navigator
-      screenOptions={{ headerShown: false }}>
+    <StackHome.Navigator screenOptions={{headerShown: false}}>
       {Object.values(oStackHome).map((item, index) => (
         <StackHome.Screen
           key={index}
@@ -139,5 +141,5 @@ const HomeNavigation = () => {
   );
 };
 
-export { oTab, oStackHome };
+export {oTab, oStackHome};
 export default HomeNavigation;
