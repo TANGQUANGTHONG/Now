@@ -495,7 +495,6 @@ const Single = () => {
       if (!chatSnapshot.exists()) {
         await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
-
       const messageRef = chatRef.child('messages').push();
       const encryptedText = encryptMessage(text, secretKey);
 
@@ -515,18 +514,18 @@ const Single = () => {
       setText('');
 
       // Nếu tin nhắn **KHÔNG tự hủy**, lưu vào AsyncStorage
-      if (!isSelfDestruct) {
-        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-        const updatedMessages = [
-          ...oldMessages,
-          { id: messageRef.key, ...messageData },
-        ];
-        await AsyncStorage.setItem(
-          `messages_${chatId}`,
-          JSON.stringify(updatedMessages),
-        );
-      }
+
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+      const updatedMessages = [
+        ...oldMessages,
+        { id: messageRef.key, ...messageData },
+      ];
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(updatedMessages),
+      );
+
     } catch (error) {
       console.error('❌ Lỗi khi gửi tin nhắn:', error);
     }
