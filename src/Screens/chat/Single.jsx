@@ -38,6 +38,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
 import {Animated} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
+import {white} from 'react-native-paper/lib/typescript/styles/themes/v2/colors';
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
@@ -82,6 +83,113 @@ const Single = () => {
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
+
+  //search tin nhan
+  const searchMessage = () => {};
+
+  //ghim tin nhan
+  const pinMessage = async messageId => {
+    try {
+      // Lấy tin nhắn trong AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      // Cập nhật trạng thái ghim của tin nhắn
+      messages = messages.map(msg =>
+        msg.id === messageId ? {...msg, isPinned: true} : msg,
+      );
+
+      // Lưu lại vào AsyncStorage
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(messages),
+      );
+
+      // Cập nhật state để UI phản ứng ngay lập tức
+      setMessages(messages);
+    } catch (error) {
+      console.error('❌ Lỗi khi ghim tin nhắn:', error);
+    }
+  };
+
+  const unpinMessage = async messageId => {
+    try {
+      // Lấy tin nhắn trong AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      // Cập nhật trạng thái isPinned thành false cho đúng tin nhắn
+      messages = messages.map(msg =>
+        msg.id === messageId ? {...msg, isPinned: false} : msg,
+      );
+
+      // Lưu lại vào AsyncStorage
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(messages),
+      );
+
+      // Cập nhật state để UI phản ứng ngay lập tức
+      setMessages(messages);
+    } catch (error) {
+      console.error('❌ Lỗi khi bỏ ghim tin nhắn:', error);
+    }
+  };
+
+  const handlePinMessage = message => {
+    if (message.isPinned) {
+      // Nếu tin nhắn đã ghim, mở modal bỏ ghim
+      handleUnpinRequest(message);
+    } else {
+      // Nếu tin nhắn chưa ghim, mở modal ghim
+      setSelectedMessage(message);
+      setIsPinModalVisible(true);
+    }
+  };
+
+  const handleUnpinRequest = message => {
+    setSelectedMessage(message); // Lưu tin nhắn cần bỏ ghim
+    setIsPinModalVisible(true); // Mở modals
+  };
+
+  const renderPinnedMessage = ({item}) => {
+    return (
+      <TouchableOpacity onPress={() => handleUnpinRequest(item)}>
+        <View style={styles.pinnedMessageContainer}>
+          <Text style={styles.pinnedMessageText}>{item.text}</Text>
+          <Text style={styles.pinnedMessageTime}>
+            {new Date(item.timestamp).toLocaleTimeString()}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderPinnedMessages = () => {
+    const pinnedMessages = messages.filter(msg => msg.isPinned);
+
+    return (
+      <FlatList
+        data={pinnedMessages}
+        keyExtractor={item => item.id}
+        renderItem={renderPinnedMessage}
+      />
+    );
+  };
+
+  useEffect(() => {
+    const loadMessagesFromStorage = async () => {
+      try {
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        const messages = storedMessages ? JSON.parse(storedMessages) : [];
+        setMessages(messages); // Cập nhật state với tin nhắn từ AsyncStorage
+      } catch (error) {
+        console.error('❌ Lỗi khi tải tin nhắn từ AsyncStorage:', error);
+      }
+    };
+
+    loadMessagesFromStorage();
+  }, [chatId]); // Chạy lại khi `chatId` thay đổi
 
   // LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
   LogBox.ignoreAllLogs();
@@ -174,7 +282,9 @@ const Single = () => {
             return {
               id: id, // Sử dụng ID từ Firebase thay vì `index`
               senderId: data.senderId,
-              text: data.text ? decryptMessage(data.text, secretKey) : '📷 Ảnh mới',
+              text: data.text
+                ? decryptMessage(data.text, secretKey)
+                : '📷 Ảnh mới',
               imageUrl: data.imageUrl || null,
               timestamp: data.timestamp,
               selfDestruct: data.selfDestruct || false,
@@ -188,36 +298,45 @@ const Single = () => {
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
   
         // Lọc tin nhắn không tự hủy
-        const nonSelfDestructMessages = newMessages.filter(msg => !msg.selfDestruct);
-  
+        const nonSelfDestructMessages = newMessages.filter(
+          msg => !msg.selfDestruct,
+        );
+
         // Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
   
         // Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
-        const updatedMessages = [...oldMessages, ...nonSelfDestructMessages].reduce(
-          (acc, msg) => {
-            if (!acc.some(m => m.id === msg.id)) acc.push(msg);
-            return acc;
-          },
-          []
+        const updatedMessages = [
+          ...oldMessages,
+          ...nonSelfDestructMessages,
+        ].reduce((acc, msg) => {
+          if (!acc.some(m => m.id === msg.id)) acc.push(msg);
+          return acc;
+        }, []);
+
+        await AsyncStorage.setItem(
+          `messages_${chatId}`,
+          JSON.stringify(updatedMessages),
         );
-  
-        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-  
+
         // Cập nhật UI với tin nhắn mới
         setMessages(updatedMessages);
   
         // Kiểm tra nếu cuộn xuống không bị chặn bởi người dùng
         if (shouldAutoScroll && listRef.current) {
           setTimeout(() => {
-            listRef.current.scrollToEnd({ animated: true });
+            if (listRef.current) {
+              listRef.current.scrollToEnd({animated: true});
+            }
           }, 300);
         }
   
         // Đánh dấu tin nhắn đã seen
         for (const msg of newMessages) {
-          const seenRef = database().ref(`/chats/${chatId}/messages/${msg.id}/seen`);
+          const seenRef = database().ref(
+            `/chats/${chatId}/messages/${msg.id}/seen`,
+          );
           await seenRef.child(myId).set(true);
   
           // Kiểm tra nếu cả hai người đã seen thì xóa tin nhắn
@@ -225,13 +344,17 @@ const Single = () => {
             if (snapshot.exists()) {
               const seenUsers = snapshot.val();
               const userIds = Object.keys(seenUsers);
-              const allSeen = userIds.length === 2 && userIds.every(userId => seenUsers[userId]);
-  
+              const allSeen =
+                userIds.length === 2 &&
+                userIds.every(userId => seenUsers[userId]);
+
               if (allSeen) {
                 console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
                 setTimeout(async () => {
-                  await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-                }, 10000);
+                  await database()
+                    .ref(`/chats/${chatId}/messages/${msg.id}`)
+                    .remove();
+                }, 30000);
               }
             }
           });
@@ -250,7 +373,6 @@ const Single = () => {
       typingRef.off('value', onTypingChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
-  
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -319,6 +441,36 @@ const Single = () => {
         `🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase và AsyncStorage.`,
       );
       setMessages(updatedMessages); // Cập nhật UI
+    } catch (error) {
+      console.error('❌ Lỗi khi xóa tin nhắn:', error);
+    }
+  };
+
+  //xoa ca hai
+  const deleteMessageForBoth = async messageId => {
+    try {
+      // 🔥 Xóa tin nhắn trong Firebase
+      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
+
+      // 🔥 Xóa tin nhắn trong AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      // 🔥 Lọc bỏ tin nhắn vừa bị xóa
+      messages = messages.filter(msg => msg.id !== messageId);
+
+      // 🔥 Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(messages),
+      );
+
+      // 🔥 Cập nhật state để UI phản hồi ngay lập tức
+      setMessages(messages);
+
+      console.log(
+        `🗑 Tin nhắn ${messageId} đã bị xóa trên cả Firebase và AsyncStorage.`,
+      );
     } catch (error) {
       console.error('❌ Lỗi khi xóa tin nhắn:', error);
     }
@@ -670,16 +822,36 @@ const Single = () => {
             <Icon name="arrow-left" size={28} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <View style={styles.userInfo}>
-            <Image source={{uri: img}} style={styles.headerAvatar} />
-            <View>
-              <Text style={styles.headerUsername}>{username}</Text>
-              <View style={styles.statusContainer}>
-                {getStatusText() === 'Đang hoạt động' && (
-                  <View style={styles.activeDot} />
-                )}
-                <Text style={styles.userStatus}>{getStatusText()}</Text>
+            <View style={styles.userInfo}>
+              <Image source={{uri: img}} style={styles.headerAvatar} />
+              <View>
+                <Text style={styles.headerUsername}>{username}</Text>
+                <View style={styles.statusContainer}>
+                  {getStatusText() === 'Đang hoạt động' && (
+                    <View style={styles.activeDot} />
+                  )}
+                  <Text style={styles.userStatus}>{getStatusText()}</Text>
+                </View>
               </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('SearchMessage');
+              }}
+              style={{flex: 1}}>
+              <Text style={{color: 'white'}}>Tìm kiếm tin nhắn</Text>
+            </TouchableOpacity>
+
+            <View style={styles.chatStatus}>
+              {countChat > 0 ? (
+                <Text style={styles.chatCountText}>
+                  {countChat} lượt nhắn tin
+                </Text>
+              ) : (
+                <Text style={styles.resetText}>
+                  Reset sau {formatCountdown(resetCountdown)}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -838,6 +1010,50 @@ const Single = () => {
                 ))}
                 <TouchableOpacity
                   onPress={() => setIsModalVisible(false)}
+                  style={styles.modalCancel}>
+                  <Text style={styles.modalText}>Hủy</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isPinModalVisible}
+            onRequestClose={() => setIsPinModalVisible(false)}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>
+                  {selectedMessage?.isPinned
+                    ? 'Bỏ ghim tin nhắn?'
+                    : 'Ghim tin nhắn?'}
+                </Text>
+
+                {selectedMessage?.isPinned ? (
+                  // Nếu tin nhắn đã ghim, hiển thị nút bỏ ghim
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => {
+                      unpinMessage(selectedMessage.id);
+                      setIsPinModalVisible(false);
+                    }}>
+                    <Text style={styles.modalText}>Bỏ ghim</Text>
+                  </TouchableOpacity>
+                ) : (
+                  // Nếu tin nhắn chưa ghim, hiển thị nút ghim
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => {
+                      pinMessage(selectedMessage.id);
+                      setIsPinModalVisible(false);
+                    }}>
+                    <Text style={styles.modalText}>Ghim</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  onPress={() => setIsPinModalVisible(false)}
                   style={styles.modalCancel}>
                   <Text style={styles.modalText}>Hủy</Text>
                 </TouchableOpacity>
