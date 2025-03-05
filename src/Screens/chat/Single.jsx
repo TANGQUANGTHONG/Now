@@ -278,7 +278,7 @@ const Single = () => {
             if (!data.senderId || !data.timestamp) return null;
   
             return {
-              id: id, 
+              id: id, // Sử dụng ID từ Firebase thay vì `index`
               senderId: data.senderId,
               text: data.text ? decryptMessage(data.text, secretKey) : '📷 Ảnh mới',
               imageUrl: data.imageUrl || null,
@@ -332,7 +332,7 @@ const Single = () => {
               const seenUsers = snapshot.val();
               const userIds = Object.keys(seenUsers);
               const allSeen = userIds.length === 2 && userIds.every(userId => seenUsers[userId]);
-              
+  
               if (allSeen) {
                 console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
                 setTimeout(async () => {
@@ -766,29 +766,32 @@ const Single = () => {
         senderId: myId,
         imageUrl: imageUrl, // Lưu ảnh vào tin nhắn
         timestamp: Date.now(),
-        seen: { [myId]: true, [userId]: false },
+        seen: { [myId]: true, [userId]: false }, // 🔥 Mình đã seen, đối phương chưa
       };
   
       await chatRef.set(messageData);
       console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
   
-      // Chờ 1 giây để Firebase cập nhật trước khi lưu vào AsyncStorage
-      setTimeout(async () => {
-        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+      // 🔥 Lưu tin nhắn ảnh vào AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
   
-        // Kiểm tra nếu tin nhắn đã tồn tại thì không thêm vào AsyncStorage
-        if (!oldMessages.some(msg => msg.id === chatRef.key)) {
-          const updatedMessages = [...oldMessages, { id: chatRef.key, ...messageData }];
-          await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-          setMessages(updatedMessages);
-        }
-      }, 1000);
+      const updatedMessages = [
+        ...oldMessages,
+        { id: chatRef.key, ...messageData },
+      ];
+  
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(updatedMessages),
+      );
+  
+      // Cập nhật UI ngay lập tức
+      setMessages(updatedMessages);
     } catch (error) {
       console.error('❌ Lỗi khi gửi ảnh:', error);
     }
   };
-  
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
