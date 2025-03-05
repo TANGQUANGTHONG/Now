@@ -38,7 +38,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
 import {Animated} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
-import {white} from 'react-native-paper/lib/typescript/styles/themes/v2/colors';
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
@@ -73,6 +72,9 @@ const Single = () => {
   // const fadeAnim = useRef(new Animated.Value(0)).current;
   const [lastActive, setLastActive] = useState(null);
 
+  const [isPinModalVisible, setIsPinModalVisible] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload';
   const CLOUDINARY_PRESET = 'ml_default';
 
@@ -83,9 +85,6 @@ const Single = () => {
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
-
-  //search tin nhan
-  const searchMessage = () => {};
 
   //ghim tin nhan
   const pinMessage = async messageId => {
@@ -256,7 +255,7 @@ const Single = () => {
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-  
+
     // Lắng nghe trạng thái đang nhập
     const onTypingChange = snapshot => {
       if (snapshot.exists()) {
@@ -266,19 +265,19 @@ const Single = () => {
         setIsTyping(false);
       }
     };
-  
+
     // Lắng nghe tin nhắn mới
     const onMessageChange = async snapshot => {
       if (!snapshot.exists()) return;
-  
+
       try {
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-  
+
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => {
             if (!data.senderId || !data.timestamp) return null;
-            
+
             return {
               id: id, // Sử dụng ID từ Firebase thay vì `index`
               senderId: data.senderId,
@@ -290,13 +289,13 @@ const Single = () => {
               selfDestruct: data.selfDestruct || false,
               selfDestructTime: data.selfDestructTime || null,
               seen: data.seen || {},
-              deleted: data.deleted || false, 
+              deleted: data.deleted || false,
             };
           })
           .filter(msg => msg !== null);
-  
+
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-  
+
         // Lọc tin nhắn không tự hủy
         const nonSelfDestructMessages = newMessages.filter(
           msg => !msg.selfDestruct,
@@ -305,7 +304,7 @@ const Single = () => {
         // Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
+
         // Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
         const updatedMessages = [
           ...oldMessages,
@@ -320,9 +319,14 @@ const Single = () => {
           JSON.stringify(updatedMessages),
         );
 
+        await AsyncStorage.setItem(
+          `messages_${chatId}`,
+          JSON.stringify(updatedMessages),
+        );
+
         // Cập nhật UI với tin nhắn mới
         setMessages(updatedMessages);
-  
+
         // Kiểm tra nếu cuộn xuống không bị chặn bởi người dùng
         if (shouldAutoScroll && listRef.current) {
           setTimeout(() => {
@@ -331,14 +335,14 @@ const Single = () => {
             }
           }, 300);
         }
-  
+
         // Đánh dấu tin nhắn đã seen
         for (const msg of newMessages) {
           const seenRef = database().ref(
             `/chats/${chatId}/messages/${msg.id}/seen`,
           );
           await seenRef.child(myId).set(true);
-  
+
           // Kiểm tra nếu cả hai người đã seen thì xóa tin nhắn
           seenRef.once('value', async snapshot => {
             if (snapshot.exists()) {
@@ -363,11 +367,11 @@ const Single = () => {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
     };
-  
+
     // Đăng ký lắng nghe sự kiện từ Firebase
     messagesRef.on('value', onMessageChange);
     typingRef.on('value', onTypingChange);
-  
+
     return () => {
       messagesRef.off('value', onMessageChange);
       typingRef.off('value', onTypingChange);
@@ -815,12 +819,13 @@ const Single = () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate(oStackHome.TabHome.name)}
-            style={styles.backButton}>
-            <Icon name="arrow-left" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
+        <View>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate(oStackHome.TabHome.name)}
+              style={styles.backButton}>
+              <Icon name="arrow-left" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
 
             <View style={styles.userInfo}>
               <Image source={{uri: img}} style={styles.headerAvatar} />
@@ -834,13 +839,6 @@ const Single = () => {
                 </View>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                navigation.navigate('SearchMessage');
-              }}
-              style={{flex: 1}}>
-              <Text style={{color: 'white'}}>Tìm kiếm tin nhắn</Text>
-            </TouchableOpacity>
 
             <View style={styles.chatStatus}>
               {countChat > 0 ? (
@@ -854,20 +852,8 @@ const Single = () => {
               )}
             </View>
           </View>
-
-          <View style={styles.chatStatus}>
-            {countChat > 0 ? (
-              <Text style={styles.chatCountText}>
-                {countChat} lượt nhắn tin
-              </Text>
-            ) : (
-              <Text style={styles.resetText}>
-                Reset sau {formatCountdown(resetCountdown)}
-              </Text>
-            )}
-          </View>
+          {renderPinnedMessages()}
         </View>
-
         <FlatList
           ref={listRef}
           data={messages}
@@ -899,6 +885,7 @@ const Single = () => {
                   )}
 
                   <TouchableOpacity
+                    onPress={() => handlePinMessage(item)}
                     onLongPress={() => confirmDeleteMessage(item.id)}
                     style={[
                       isSentByMe
@@ -1334,6 +1321,27 @@ const styles = StyleSheet.create({
   },
   receivedImage: {
     alignSelf: 'flex-start', // Ảnh nhận nằm bên trái
+  },
+  pinnedMessageContainer: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    margin: 5,
+    borderRadius: 10,
+  },
+  pinnedMessageText: {
+    fontSize: 16,
+    color: 'blue',
+  },
+  pinnedMessageTime: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 5,
+  },
+  pinnedHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    padding: 10,
+    backgroundColor: '#e0e0e0',
   },
 });
 

@@ -66,38 +66,14 @@ export const listenForNewMessages = async () => {
 
       const messagesRef = database().ref(`/chats/${chatId}/messages`);
       messagesRef.off('child_added');
+      messagesRef.off('child_changed'); // 👈 Lắng nghe cả `child_changed`
 
       messagesRef.on('child_added', async messageSnapshot => {
-        const messageData = messageSnapshot.val();
-        if (
-          !messageData ||
-          !messageData.senderId ||
-          !messageData.text ||
-          !messageData.timestamp
-        )
-          return;
-        if (messageData.senderId === currentUserId) return;
+        handleIncomingMessage(messageSnapshot, chatId, currentUserId);
+      });
 
-        // Chỉ gửi thông báo nếu tin nhắn mới chưa được xử lý
-        if (
-          !lastProcessedMessage[chatId] ||
-          messageData.timestamp > lastProcessedMessage[chatId]
-        ) {
-          lastProcessedMessage[chatId] = messageData.timestamp; // Cập nhật tin nhắn cuối cùng
-
-          const senderName = await getSenderName(
-            messageData.senderId,
-            currentUserId,
-          );
-
-          const secretKey = generateSecretKey(
-            messageData.senderId,
-            currentUserId,
-          );
-          const decryptedText = safeDecrypt(messageData.text, secretKey);
-
-          sendLocalNotification(senderName, decryptedText);
-        }
+      messagesRef.on('child_changed', async messageSnapshot => {
+        handleIncomingMessage(messageSnapshot, chatId, currentUserId);
       });
     });
   });
@@ -131,5 +107,24 @@ const safeDecrypt = (encryptedText, secretKey) => {
   } catch (error) {
     console.error('Lỗi giải mã:', error);
     return 'Tin nhắn bị mã hóa';
+  }
+};
+
+const handleIncomingMessage = async (messageSnapshot, chatId, currentUserId) => {
+  const messageData = messageSnapshot.val();
+  if (!messageData || !messageData.senderId || !messageData.text || !messageData.timestamp)
+    return;
+
+  if (messageData.senderId === currentUserId) return; // Bỏ qua tin nhắn của chính mình
+
+  // Kiểm tra nếu tin nhắn đã xử lý
+  if (!lastProcessedMessage[chatId] || messageData.timestamp > lastProcessedMessage[chatId]) {
+    lastProcessedMessage[chatId] = messageData.timestamp; // Cập nhật tin nhắn cuối cùng
+
+    const senderName = await getSenderName(messageData.senderId, currentUserId);
+    const secretKey = generateSecretKey(messageData.senderId, currentUserId);
+    const decryptedText = safeDecrypt(messageData.text, secretKey);
+
+    sendLocalNotification(senderName, decryptedText);
   }
 };

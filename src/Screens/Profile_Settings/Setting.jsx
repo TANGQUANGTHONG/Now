@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,19 +13,22 @@ import {
   Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import {GoogleSignin} from '@react-native-google-signin/google-signin';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
-import { getCurrentUserFromStorage,removeCurrentUserFromStorage } from '../../storage/Storage';
-import QRCode from "react-native-qrcode-svg"; // ✅ Import thư viện QR Code
-import { oStackHome } from '../../navigations/HomeNavigation';
+import {
+  getCurrentUserFromStorage,
+  removeCurrentUserFromStorage,
+} from '../../storage/Storage';
+import QRCode from 'react-native-qrcode-svg'; // ✅ Import thư viện QR Code
+import {oStackHome} from '../../navigations/HomeNavigation';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
-const Setting = ({ navigation }) => {
+const Setting = ({navigation}) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -44,7 +47,7 @@ const Setting = ({ navigation }) => {
   //   }
   //   fetchUser();
   // }, [])
-  
+
   useEffect(() => {
     const fetchUser = () => {
       const id = auth().currentUser?.uid;
@@ -120,32 +123,32 @@ const Setting = ({ navigation }) => {
   return (
     <View style={styles.container}>
       {!myUser ? (
-        <Text style={{ color: 'white', textAlign: 'center', marginTop: 20 }}>
+        <Text style={{color: 'white', textAlign: 'center', marginTop: 20}}>
           Đang tải...
         </Text>
       ) : (
         <>
           <View style={styles.header}>
-
             {/* <Text style={styles.textSetting}>Setting</Text> */}
 
             <MaskedView
               maskElement={
-                <Text style={[styles.textSetting, { backgroundColor: 'transparent', color: "#99F2C8" }]}>
+                <Text
+                  style={[
+                    styles.textSetting,
+                    {backgroundColor: 'transparent', color: '#99F2C8'},
+                  ]}>
                   Setting
                 </Text>
-              }
-            >
+              }>
               <LinearGradient
                 colors={['#438875', '#99F2C8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}>
                 {/* Invisible text to preserve spacing */}
-                <Text style={[styles.textSetting, { opacity: 0 }]}>Setting</Text>
+                <Text style={[styles.textSetting, {opacity: 0}]}>Setting</Text>
               </LinearGradient>
             </MaskedView>
-
           </View>
           <View style={styles.body}>
             <View style={styles.profile}>
@@ -153,7 +156,7 @@ const Setting = ({ navigation }) => {
                 <Image
                   source={
                     myUser?.img
-                      ? { uri: myUser.img }
+                      ? {uri: myUser.img}
                       : require('../../../assest/images/avatar_default.png')
                   }
                   style={styles.avatar}
@@ -164,22 +167,34 @@ const Setting = ({ navigation }) => {
                 <Text style={styles.status}>{myUser?.nickname}</Text>
               </View>
               <TouchableOpacity onPress={() => setQrVisible(true)}>
-              <Icon name="qr-code-outline" size={30} color="black" />
-            </TouchableOpacity>
+                <Icon name="qr-code-outline" size={30} color="black" />
+              </TouchableOpacity>
             </View>
 
-              {/* 🔥 Modal hiển thị QR Code */}
-          <Modal visible={qrVisible} transparent onRequestClose={() => setQrVisible(false)}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Mã QR của bạn</Text>
-                <QRCode value={`chatapp://chat/${myUser.id}`} size={200} />
-                <TouchableOpacity onPress={() => setQrVisible(false)} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>Đóng</Text>
-                </TouchableOpacity>
+            {/* 🔥 Modal hiển thị QR Code */}
+            <Modal
+              visible={qrVisible}
+              transparent
+              onRequestClose={() => setQrVisible(false)}>
+              <View style={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Mã QR của bạn</Text>
+                  <QRCode
+                    value={`chatapp://chat/${
+                      myUser.id
+                    }?username=${encodeURIComponent(
+                      myUser.name,
+                    )}&img=${encodeURIComponent(myUser.img)}`}
+                    size={200}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setQrVisible(false)}
+                    style={styles.closeButton}>
+                    <Text style={styles.closeButtonText}>Đóng</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </Modal>
+            </Modal>
 
             <ScrollView style={styles.list}>
               <TouchableOpacity
@@ -213,9 +228,12 @@ const Setting = ({ navigation }) => {
                   color="red"
                 />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate(oStackHome.QRScannerScreen.name) }>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate(oStackHome.QRScannerScreen.name)
+                }>
                 <Option
-                  icon="exit-outline"
+                  icon="scan"
                   title="QR"
                   subtitle="QR scan"
                   color="red"
@@ -243,7 +261,7 @@ const Setting = ({ navigation }) => {
                   borderRadius: 10,
                 }}>
                 <Text
-                  style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
+                  style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10}}>
                   Nhập mật khẩu
                 </Text>
 
@@ -252,7 +270,7 @@ const Setting = ({ navigation }) => {
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
-                  style={{ borderBottomWidth: 1, marginBottom: 20 }}
+                  style={{borderBottomWidth: 1, marginBottom: 20}}
                 />
 
                 <View
@@ -262,14 +280,14 @@ const Setting = ({ navigation }) => {
                   }}>
                   <TouchableOpacity
                     onPress={() => setModalVisible(false)}
-                    style={{ padding: 10 }}>
-                    <Text style={{ color: 'blue' }}>Hủy</Text>
+                    style={{padding: 10}}>
+                    <Text style={{color: 'blue'}}>Hủy</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     onPress={handleDeleteAccount}
-                    style={{ padding: 10 }}>
-                    <Text style={{ color: 'red' }}>Xóa</Text>
+                    style={{padding: 10}}>
+                    <Text style={{color: 'red'}}>Xóa</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -281,11 +299,11 @@ const Setting = ({ navigation }) => {
   );
 };
 
-const Option = ({ icon, title, subtitle, color = 'black' }) => (
+const Option = ({icon, title, subtitle, color = 'black'}) => (
   <View style={styles.option}>
     <Icon name={icon} size={20} color={color} />
     <View style={styles.optionText}>
-      <Text style={[styles.optionTitle, { color }]}>{title}</Text>
+      <Text style={[styles.optionTitle, {color}]}>{title}</Text>
       {subtitle && <Text style={styles.optionSubtitle}>{subtitle}</Text>}
     </View>
   </View>
@@ -347,15 +365,30 @@ const styles = StyleSheet.create({
     color: 'gray',
     fontSize: width * 0.03,
   },
-  profile: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
-  avatar: { width: 60, height: 60, borderRadius: 30, marginRight: 10 },
-  profileInfo: { flex: 1 },
-  name: { fontSize: 18, fontWeight: "bold" },
-  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" },
-  modalContent: { backgroundColor: "white", padding: 20, borderRadius: 10, alignItems: "center" },
-  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-  closeButton: { marginTop: 10, padding: 10, backgroundColor: "blue", borderRadius: 5 },
-  closeButtonText: { color: "white", fontSize: 16 },
+  profile: {flexDirection: 'row', alignItems: 'center', marginBottom: 20},
+  avatar: {width: 60, height: 60, borderRadius: 30, marginRight: 10},
+  profileInfo: {flex: 1},
+  name: {fontSize: 18, fontWeight: 'bold',color:'black'},
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalTitle: {fontSize: 18, fontWeight: 'bold', marginBottom: 10},
+  closeButton: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: 'blue',
+    borderRadius: 5,
+  },
+  closeButtonText: {color: 'white', fontSize: 16},
 });
 
 export default Setting;

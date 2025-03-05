@@ -77,18 +77,13 @@ const Profile = (props) => {
       <View style={styles.header}>
         <View style={styles.iconBack}>
           <Pressable onPress={()=> navigation.goBack()}>
-          <Icon name="chevron-back" size={width* 0.066} color={'gray'}/>
+          {/* <Icon name="chevron-back" size={width* 0.066} color={'gray'}/> */}
           </Pressable>
         </View>
         <Image source={{ uri: myUser.img }} style={styles.avatar} />
         <Text style={styles.name}>{myUser.name}</Text>
         <Text style={styles.username}>{myUser.nickname}</Text>
-        <View style={styles.iconRow}>
-          <Icon name="chatbubble-ellipses-outline" size={width * 0.06} color="white" />
-          <Icon name="videocam" size={width * 0.06} color="white" />
-          <Icon name="call" size={width * 0.06} color="white" />
-          <Icon name="ellipsis-horizontal" size={width * 0.06} color="white" />
-        </View>
+
       </View>
 
       {/* Body */}
@@ -119,7 +114,7 @@ const Profile = (props) => {
         </View>
         {/* Media Section */}
      
-        <ImageGallery images={user.media}/>
+        {/* <ImageGallery images={user.media}/> */}
       </View>
           </>
         )

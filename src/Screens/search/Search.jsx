@@ -129,7 +129,7 @@ export default Search;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: '#121212',
     paddingHorizontal: width * 0.06,
     paddingTop: height * 0.02,
     flex: 1,
@@ -146,6 +146,6 @@ const styles = StyleSheet.create({
     fontSize: width * 0.03,
   },
   list_search: {
-    marginTop: height * 0.06,
+    marginTop: height * 0.02,
   },
 });
