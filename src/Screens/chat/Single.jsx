@@ -48,7 +48,7 @@ const Single = () => {
     username,
     img,
     messages: cachedMessages,
-  } = route.params || {}; //lấy các tham số truyền vào từ route , bao gồm userID, myID , username, hình ảnh và tin nhắn đã cache 
+  } = route.params || {}; //lấy các tham số truyền vào từ route , bao gồm userID, myID , username, hình ảnh và tin nhắn đã cache
 
   const [messages, setMessages] = useState(cachedMessages || []); //State để quản lí tin nhắn, nếu có cache thì lấy từ
   const [text, setText] = useState(''); // State để quản lý nội dung tin nhắn hiện tại
@@ -129,7 +129,6 @@ const Single = () => {
       );
 
       setMessages(messages); // Cập nhật state để UI phản hồi ngay lập tức
-
     } catch (error) {
       console.error('❌ Lỗi khi bỏ ghim tin nhắn:', error);
     }
@@ -252,6 +251,7 @@ const Single = () => {
     return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
   };
 
+  // lấy dữ liệu từ firebase về để show lên
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
@@ -297,22 +297,22 @@ const Single = () => {
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
 
         // Lọc tin nhắn không tự hủy
-        const nonSelfDestructMessages = newMessages.filter(
-          msg => !msg.selfDestruct,
-        );
+        // const nonSelfDestructMessages = newMessages.filter(
+        //   msg => !msg.selfDestruct,
+        // );
 
         // Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
         // Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
-        const updatedMessages = [
-          ...oldMessages,
-          ...nonSelfDestructMessages,
-        ].reduce((acc, msg) => {
-          if (!acc.some(m => m.id === msg.id)) acc.push(msg);
-          return acc;
-        }, []);
+        const updatedMessages = [...oldMessages, ...newMessages].reduce(
+          (acc, msg) => {
+            if (!acc.some(m => m.id === msg.id)) acc.push(msg);
+            return acc;
+          },
+          [],
+        );
 
         await AsyncStorage.setItem(
           `messages_${chatId}`,
@@ -325,8 +325,8 @@ const Single = () => {
         );
 
         // Cập nhật UI với tin nhắn mới
-        const uniqueMessages = updatedMessages.filter((msg, index, self) =>
-          index === self.findIndex((m) => m.id === msg.id)
+        const uniqueMessages = updatedMessages.filter(
+          (msg, index, self) => index === self.findIndex(m => m.id === msg.id),
         );
         setMessages(uniqueMessages);
 
@@ -339,7 +339,7 @@ const Single = () => {
           }, 300);
         }
 
-        // Đánh dấu tin nhắn đã seen
+        // xóa tin nhắn khi cả 2 đã seen
         for (const msg of newMessages) {
           const seenRef = database().ref(
             `/chats/${chatId}/messages/${msg.id}/seen`,
@@ -381,13 +381,14 @@ const Single = () => {
     };
   }, [chatId, secretKey, shouldAutoScroll]);
 
+  //Kiểm tra thời gian và tự động xóa tin nhắn
   useEffect(() => {
     const interval = setInterval(() => {
       setTimers(prevTimers => {
         const newTimers = {};
-        messages.forEach(msg => {
+        messages.forEach(async msg => {
+          // Chuyển đổi thành hàm async trong forEach
           if (msg.selfDestruct) {
-            // Tính thời gian còn lại
             const timeLeft = Math.max(
               0,
               Math.floor(
@@ -397,9 +398,8 @@ const Single = () => {
             );
             newTimers[msg.id] = timeLeft;
 
-            // Xóa tin nhắn khi hết giờ
             if (timeLeft === 0) {
-              database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+              await deleteMessage(msg.id); // Gọi hàm async xóa tin nhắn
             }
           }
         });
@@ -409,6 +409,33 @@ const Single = () => {
 
     return () => clearInterval(interval);
   }, [messages]);
+
+  //hàm xóa tin nhắn dưới local
+  const deleteMessage = async messageId => {
+    try {
+      // Xóa tin nhắn khỏi Firebase
+      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
+
+      // Xóa tin nhắn khỏi AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      // Lọc bỏ tin nhắn đã hết thời gian tự hủy
+      const updatedMessages = oldMessages.filter(m => m.id !== messageId);
+
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(updatedMessages),
+      );
+
+      console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase & local.`);
+
+      // Cập nhật state để UI phản ánh ngay
+      setMessages(updatedMessages);
+    } catch (error) {
+      console.error('❌ Lỗi khi xóa tin nhắn:', error);
+    }
+  };
 
   useEffect(() => {
     if (!myId) return;
@@ -546,26 +573,24 @@ const Single = () => {
       setText(''); // Xóa nội dung nhập vào sau khi gửi
 
       // Nếu tin nhắn **KHÔNG tự hủy**, lưu vào AsyncStorage
-      if (!isSelfDestruct) {
-        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-        const updatedMessages = [
-          ...oldMessages,
-          {id: messageRef.key, ...messageData},
-        ];
-        await AsyncStorage.setItem(
-          `messages_${chatId}`,
-          JSON.stringify(updatedMessages),
-        );
-      }
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      const updatedMessages = [
+        ...oldMessages,
+        {id: messageRef.key, ...messageData},
+      ];
+
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(updatedMessages),
+      );
     } catch (error) {
       console.error('❌ Lỗi khi gửi tin nhắn:', error);
     } finally {
       setTimeout(() => setIsSending(false), 1000); // Cho phép gửi lại sau 1 giây
     }
   }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime, isSending]);
-
-
 
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
@@ -599,7 +624,6 @@ const Single = () => {
     }
     setIsModalVisible(false); // Đóng modal sau khi chọn
   };
-
 
   // useEffect để lấy danh sách người dùng từ AsyncStorage khi component được mount
   useEffect(() => {
@@ -647,7 +671,9 @@ const Single = () => {
               if (!chat.users || !chat.users[currentUserId]) return null;
               // Kiểm tra xem cuộc trò chuyện có danh sách người dùng hay không và người dùng hiện tại có tham gia cuộc trò chuyện không. Nếu không, bỏ qua cuộc trò chuyện này.
 
-              const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
+              const otherUserId = Object.keys(chat.users).find(
+                uid => uid !== currentUserId,
+              );
               // Lấy ID của người dùng còn lại trong cuộc trò chuyện (người mà bạn đang chat) bằng cách lọc ra userId khác với `currentUserId`.
 
               if (!otherUserId) return null;
@@ -708,10 +734,17 @@ const Single = () => {
                   lastMessageId = latestMessage.msgId;
                   // Lưu lại ID của tin nhắn cuối cùng.
 
-                  lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
+                  lastMessage =
+                    decryptMessage(latestMessage.text, secretKey) ||
+                    'Tin nhắn bị mã hóa';
                   // Giải mã nội dung tin nhắn cuối cùng bằng cách sử dụng khóa bí mật (secretKey), nếu không giải mã được thì hiển thị thông báo "Tin nhắn bị mã hóa".
 
-                  lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  lastMessageTime = new Date(
+                    latestMessage.timestamp,
+                  ).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
                   // Chuyển đổi timestamp của tin nhắn cuối cùng thành thời gian định dạng giờ và phút.
 
                   lastMessageTimestamp = latestMessage.timestamp;
@@ -754,7 +787,6 @@ const Single = () => {
 
               .sort((a, b) => b.timestamp - a.timestamp);
             // Sắp xếp các cuộc trò chuyện theo thứ tự thời gian, cuộc trò chuyện mới nhất sẽ ở trên cùng.
-
 
             if (filteredChats.length === 0) {
               console.log('🔥 Firebase mất dữ liệu, giữ lại danh sách cũ.');
@@ -839,20 +871,21 @@ const Single = () => {
     }
   };
 
-
-  const sendImageMessage = async (imageUrl) => {
+  const sendImageMessage = async imageUrl => {
     if (!imageUrl || isSending) return; // Ngăn gửi nếu đang xử lý gửi ảnh
     setIsSending(true);
 
     try {
-      const chatRef = database().ref(`/chats/${chatId}/messages`).push(); 
-      // Tạo một reference mới đến danh sách tin nhắn của cuộc trò chuyện với `chatId` trong Firebase. Hàm `push()` sẽ tạo một ID ngẫu nhiên cho tin nhắn mới này.
-    
+      const chatRef = database().ref(`/chats/${chatId}/messages`).push();
+      const timestamp = Date.now();
+
       const messageData = {
         senderId: myId,
-        imageUrl: imageUrl, // Lưu ảnh vào tin nhắn
-        timestamp: Date.now(),
-        seen: {[myId]: true, [userId]: false}, // 🔥 Mình đã seen, đối phương chưa
+        imageUrl: imageUrl,
+        timestamp: timestamp,
+        seen: {[myId]: true, [userId]: false},
+        selfDestruct: isSelfDestruct, // Áp dụng tự hủy nếu bật
+        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
       };
 
       await chatRef.set(messageData);
@@ -875,15 +908,11 @@ const Single = () => {
       // Cập nhật UI ngay lập tức
       setMessages(updatedMessages);
     } catch (error) {
-      console.error('❌ Lỗi khi gửi ảnh:', error); 
-      // Bắt lỗi nếu quá trình gửi ảnh hoặc lưu tin nhắn gặp vấn đề, và in ra lỗi đó.
+      console.error('❌ Lỗi khi gửi ảnh:', error);
     } finally {
-      setTimeout(() => setIsSending(false), 1000); 
-      // Đặt trạng thái `isSending` về `false` sau 1 giây để cho phép gửi tin nhắn tiếp theo. Điều này ngăn chặn spam tin nhắn.
+      setTimeout(() => setIsSending(false), 1000);
     }
-    
   };
-
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -944,79 +973,89 @@ const Single = () => {
 
             return (
               <View style={{flexDirection: 'column'}}>
-                <View
-                  style={
-                    isSentByMe ? styles.sentWrapper : styles.receivedWrapper
-                  }>
+              <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
                   {/* Hiển thị Avatar nếu là tin nhắn của người khác */}
                   {!isSentByMe && (
-                    <Image source={{uri: img}} style={styles.avatar} />
+                      <Image source={{uri: img}} style={styles.avatar} />
                   )}
-
+          
                   <TouchableOpacity
-                    onPress={() => handlePinMessage(item)}
-                    onLongPress={() => confirmDeleteMessage(item.id)}
-                    style={[
-                      isSentByMe
-                        ? styles.sentContainer
-                        : styles.receivedContainer,
-                      isSelfDestruct && styles.selfDestructMessage,
-                    ]}>
-                    {/* Hiển thị tên người gửi nếu là tin nhắn của người khác */}
-                    {!isSentByMe && (
-                      <Text style={styles.usernameText}>{username}</Text>
-                    )}
-
-                    {/* Nếu tin nhắn là ảnh, hiển thị ảnh với căn chỉnh phù hợp */}
-                    {item.imageUrl ? (
-                      <View>
-                        {/* {console.log('🖼 Hiển thị ảnh:', item.imageUrl)} */}
-                        <Image
-                          source={{uri: item.imageUrl}}
-                          style={[
-                            styles.imageMessage,
-                            isSentByMe
-                              ? styles.sentImage
-                              : styles.receivedImage,
-                          ]}
-                        />
-                      </View>
-                    ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản
-                    isSelfDestruct && timeLeft > 0 ? (
-                      <View>
-                        <Text style={styles.TextselfDestructTimer}>
-                          {item.text}
-                        </Text>
-                        <Text style={styles.selfDestructTimer}>
-                          🕒 {timeLeft}s
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        style={
+                      onPress={() => handlePinMessage(item)}
+                      onLongPress={() => confirmDeleteMessage(item.id)}
+                      style={[
                           isSentByMe
-                            ? styles.SendmessageText
-                            : styles.ReceivedmessageText
-                        }>
-                        {item.text}
+                              ? styles.sentContainer
+                              : styles.receivedContainer,
+                          isSelfDestruct && styles.selfDestructMessage,
+                      ]}>
+                      {/* Hiển thị tên người gửi nếu là tin nhắn của người khác */}
+                      {!isSentByMe && (
+                          <Text style={styles.usernameText}>{username}</Text>
+                      )}
+          
+                      {/* Nếu tin nhắn là ảnh */}
+                      {item.imageUrl ? (
+                          isSelfDestruct ? ( // Chỉ đếm ngược nếu ảnh có chế độ tự hủy
+                              timeLeft > 0 ? (
+                                  <View>
+                                      <Image
+                                          source={{uri: item.imageUrl}}
+                                          style={styles.imageMessage}
+                                      />
+                                      <Text style={styles.selfDestructTimer}>
+                                          🕒 {timeLeft}s
+                                      </Text>
+                                  </View>
+                              ) : (
+                                  <Text style={styles.deletedText}>🔒 Ảnh đã bị xóa</Text>
+                              )
+                          ) : (
+                              <Image
+                                  source={{uri: item.imageUrl}}
+                                  style={styles.imageMessage}
+                              />
+                          )
+                      ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản
+                      isSelfDestruct ? (
+                          timeLeft > 0 ? (
+                              <View>
+                                  <Text style={styles.TextselfDestructTimer}>
+                                      {item.text}
+                                  </Text>
+                                  <Text style={styles.selfDestructTimer}>
+                                      🕒 {timeLeft}s
+                                  </Text>
+                              </View>
+                          ) : (
+                              <Text style={styles.deletedText}>🔒 Tin nhắn đã bị xóa</Text>
+                          )
+                      ) : (
+                          <Text
+                              style={
+                                  isSentByMe
+                                      ? styles.SendmessageText
+                                      : styles.ReceivedmessageText
+                              }>
+                              {item.text}
+                          </Text>
+                      )}
+          
+                      {/* Hiển thị thời gian gửi tin nhắn */}
+                      <Text
+                          style={
+                              isSentByMe
+                                  ? styles.Sendtimestamp
+                                  : styles.Revecivedtimestamp
+                          }>
+                          {new Date(timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                          })}
                       </Text>
-                    )}
-
-                    {/* Hiển thị thời gian gửi tin nhắn */}
-                    <Text
-                      style={
-                        isSentByMe
-                          ? styles.Sendtimestamp
-                          : styles.Revecivedtimestamp
-                      }>
-                      {new Date(timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
                   </TouchableOpacity>
-                </View>
               </View>
+          </View>
+          
             );
           }}
         />
@@ -1137,10 +1176,13 @@ const Single = () => {
             <Icon
               name="send"
               size={24}
-              color={!text.trim() || countChat === 0 || isSending ? '#aaa' : '#007bff'}
+              color={
+                !text.trim() || countChat === 0 || isSending
+                  ? '#aaa'
+                  : '#007bff'
+              }
             />
           </TouchableOpacity>
-
         </View>
       </View>
     </TouchableWithoutFeedback>
