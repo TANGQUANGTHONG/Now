@@ -48,24 +48,23 @@ const Single = () => {
     username,
     img,
     messages: cachedMessages,
-  } = route.params || {};
-  const [messages, setMessages] = useState(cachedMessages || []);
-  const [text, setText] = useState('');
+  } = route.params || {}; //lấy các tham số truyền vào từ route , bao gồm userID, myID , username, hình ảnh và tin nhắn đã cache 
+
+  const [messages, setMessages] = useState(cachedMessages || []); //State để quản lí tin nhắn, nếu có cache thì lấy từ
+  const [text, setText] = useState(''); // State để quản lý nội dung tin nhắn hiện tại
   const navigation = useNavigation();
-  const chatId = encodeChatId(userId, myId);
-  const secretKey = generateSecretKey(userId, myId); // Tạo secretKey cho phòng chat
-  const [isSelfDestruct, setIsSelfDestruct] = useState(false);
-  const [selfDestructTime, setSelfDestructTime] = useState(null);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
-  const [countChat, setcountChat] = useState();
+  const chatId = encodeChatId(userId, myId); // Tạo mã phòng chat dựa trên userId và myId
+  const secretKey = generateSecretKey(userId, myId); // Tạo secretKey dùng cho việc mã hóa và giải mã tin nhắn
+
+  const [isSelfDestruct, setIsSelfDestruct] = useState(false); // Theo dõi trạng thái tin nhắn tự hủy
+  const [selfDestructTime, setSelfDestructTime] = useState(null); // Thời gian tin nhắn tự hủy sau khi được gửi
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true); // Theo dõi trạng thái cuộn tin nhắn tự động khi có tin nhắn mới
+  const [isTyping, setIsTyping] = useState(false); // Trạng thái người dùng đang nhập tin nhắn
+  const [countChat, setcountChat] = useState(); // Số lượt tin nhắn người dùng còn có thể gửi
   const [resetCountdown, setResetCountdown] = useState(null);
   const [timers, setTimers] = useState({});
   const [user, setUser] = useState([]);
-  const [Seen, setSeen] = useState(false);
-  const listRef = useRef(null);
-  const isFirstRender = useRef(true); // Đánh dấu lần đầu render
-  const actionSheetRef = useRef();
+  const listRef = useRef(null); // Tham chiếu đến danh sách tin nhắn để thực hiện các hành động như cuộn tự động
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [messagene, setMessageNe] = useState([]);
@@ -74,9 +73,10 @@ const Single = () => {
 
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [isSending, setIsSending] = useState(false);
 
-  const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload';
-  const CLOUDINARY_PRESET = 'ml_default';
+  const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
+  const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
 
   const timeOptions = [
     { label: '5 giây', value: 5 },
@@ -92,24 +92,25 @@ const Single = () => {
   const pinMessage = async (messageId) => {
     try {
       // Lấy tin nhắn trong AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      let messages = storedMessages ? JSON.parse(storedMessages) : [];
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`); // Lấy tin nhắn từ AsyncStorage
+      let messages = storedMessages ? JSON.parse(storedMessages) : []; // Nếu có dữ liệu thì parse sang JSON, nếu không thì mảng rỗng
 
       // Cập nhật trạng thái ghim của tin nhắn
       messages = messages.map(msg =>
         msg.id === messageId ? { ...msg, isPinned: true } : msg
-      );
+      ); // Cập nhật trạng thái isPinned thành true cho tin nhắn có id tương ứng
 
       // Lưu lại vào AsyncStorage
       await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
 
       // Cập nhật state để UI phản ứng ngay lập tức
-      setMessages(messages);
+      setMessages(messages); // Cập nhật state để giao diện phản ứng ngay lập tức
     } catch (error) {
-      console.error('❌ Lỗi khi ghim tin nhắn:', error);
+      console.error('❌ Lỗi khi ghim tin nhắn:', error); // Bắt lỗi nếu có vấn đề trong quá trình ghim tin nhắn
     }
   };
 
+  // Hàm bỏ ghim tin nhắn
   const unpinMessage = async (messageId) => {
     try {
       // Lấy tin nhắn trong AsyncStorage
@@ -119,13 +120,13 @@ const Single = () => {
       // Cập nhật trạng thái isPinned thành false cho đúng tin nhắn
       messages = messages.map(msg =>
         msg.id === messageId ? { ...msg, isPinned: false } : msg
-      );
+      ); // Cập nhật trạng thái isPinned thành false cho tin nhắn có id tương ứng
 
       // Lưu lại vào AsyncStorage
       await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
 
-      // Cập nhật state để UI phản ứng ngay lập tức
-      setMessages(messages);
+      setMessages(messages); // Cập nhật state để UI phản hồi ngay lập tức
+
     } catch (error) {
       console.error('❌ Lỗi khi bỏ ghim tin nhắn:', error);
     }
@@ -312,7 +313,10 @@ const Single = () => {
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
 
         // Cập nhật UI với tin nhắn mới
-        setMessages(updatedMessages);
+        const uniqueMessages = updatedMessages.filter((msg, index, self) =>
+          index === self.findIndex((m) => m.id === msg.id)
+        );
+        setMessages(uniqueMessages);
 
         // Kiểm tra nếu cuộn xuống không bị chặn bởi người dùng
         if (shouldAutoScroll && listRef.current) {
@@ -348,12 +352,12 @@ const Single = () => {
     };
 
     // Đăng ký lắng nghe sự kiện từ Firebase
-    messagesRef.on('value', onMessageChange);
     typingRef.on('value', onTypingChange);
+    messagesRef.on('value', onMessageChange);
 
     return () => {
-      messagesRef.off('value', onMessageChange);
       typingRef.off('value', onTypingChange);
+      messagesRef.off('value', onMessageChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
 
@@ -465,18 +469,20 @@ const Single = () => {
   };
 
   const sendMessage = useCallback(async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || isSending) return; // Kiểm tra nếu tin nhắn rỗng hoặc đang gửi thì chặn gửi
+
     if (countChat === 0) {
       Alert.alert('Thông báo', 'Bạn đã hết lượt nhắn tin!');
       return;
     }
 
-    setShouldAutoScroll(true);
+    setIsSending(true); // Đánh dấu trạng thái đang gửi để tránh spam gửi liên tục
 
     try {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
 
+      // Lấy dữ liệu người dùng và kiểm tra nếu cuộc trò chuyện đã tồn tại
       const [userSnapshot, chatSnapshot] = await Promise.all([
         userRef.once('value'),
         chatRef.once('value'),
@@ -486,50 +492,53 @@ const Single = () => {
         return Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
       }
 
-      let { countChat = 100 } = userSnapshot.val();
+      let { countChat = 100 } = userSnapshot.val(); // Lấy số lượt chat từ Firebase, mặc định là 100 nếu không có
 
+      // Tạo timestamp chung để đảm bảo đồng bộ thời gian giữa các thiết bị
       const timestampRef = database().ref('/timestamp');
-      await timestampRef.set(database.ServerValue.TIMESTAMP);
-      const currentTimestamp = (await timestampRef.once('value')).val();
+      await timestampRef.set(database.ServerValue.TIMESTAMP); // Lưu timestamp hiện tại
+      const currentTimestamp = (await timestampRef.once('value')).val(); // Lấy timestamp từ Firebase
 
+      // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
       if (!chatSnapshot.exists()) {
         await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
-      const messageRef = chatRef.child('messages').push();
-      const encryptedText = encryptMessage(text, secretKey);
 
+      // Mã hóa tin nhắn trước khi gửi
+      const encryptedText = encryptMessage(text, secretKey);
+      const messageRef = chatRef.child('messages').push(); // Tạo reference cho tin nhắn mới
       const messageData = {
         senderId: myId,
-        text: encryptedText || '🔒 Tin nhắn mã hóa',
-        timestamp: currentTimestamp,
-        selfDestruct: isSelfDestruct,
-        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-        seen: { [userId]: false, [myId]: true },
+        text: encryptedText || '🔒 Tin nhắn mã hóa', // Nội dung tin nhắn đã mã hóa
+        timestamp: currentTimestamp, // Thời gian gửi tin nhắn
+        selfDestruct: isSelfDestruct, // Nếu tin nhắn tự hủy
+        selfDestructTime: isSelfDestruct ? selfDestructTime : null, // Thời gian tự hủy nếu có
+        seen: { [userId]: false, [myId]: true }, // Trạng thái xem tin nhắn
       };
 
+      // Gửi tin nhắn lên Firebase
       await messageRef.set(messageData);
 
+      // Cập nhật số lượt chat còn lại
       await userRef.update({ countChat: countChat - 1 });
       setcountChat(countChat - 1);
-      setText('');
+      setText(''); // Xóa nội dung nhập vào sau khi gửi
 
       // Nếu tin nhắn **KHÔNG tự hủy**, lưu vào AsyncStorage
-
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-      const updatedMessages = [
-        ...oldMessages,
-        { id: messageRef.key, ...messageData },
-      ];
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(updatedMessages),
-      );
-
+      if (!isSelfDestruct) {
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+        const updatedMessages = [...oldMessages, { id: messageRef.key, ...messageData }];
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+      }
     } catch (error) {
       console.error('❌ Lỗi khi gửi tin nhắn:', error);
+    } finally {
+      setTimeout(() => setIsSending(false), 1000); // Cho phép gửi lại sau 1 giây
     }
-  }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime]);
+  }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime, isSending]);
+
+
 
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
@@ -539,6 +548,7 @@ const Single = () => {
     ]);
   };
 
+  //Hàm xử lý khi người dùng đang nhập tin nhắn
   const handleTyping = isTyping => {
     database()
       .ref(`/chats/${chatId}`)
@@ -551,6 +561,7 @@ const Single = () => {
       });
   };
 
+  //Hàm xử lý khi người dùng chọn thời gian tự hủy tin nhắn
   const handleSelectTime = selectedTime => {
     if (selectedTime === null) {
       setIsSelfDestruct(false);
@@ -562,6 +573,8 @@ const Single = () => {
     setIsModalVisible(false); // Đóng modal sau khi chọn
   };
 
+
+  // useEffect để lấy danh sách người dùng từ AsyncStorage khi component được mount
   useEffect(() => {
     const fetchUsers = async () => {
       const data = await getChatsByIdUserAsynStorage();
@@ -572,6 +585,7 @@ const Single = () => {
     fetchUsers();
   }, []);
 
+  // useEffect để tải danh sách chat từ AsyncStorage và Firebase khi component được mount
   useEffect(() => {
     const loadChats = async () => {
       try {
@@ -595,25 +609,43 @@ const Single = () => {
             }
 
             const chatsData = snapshot.val();
+            // Lấy dữ liệu của các cuộc trò chuyện từ snapshot Firebase. `snapshot.val()` trả về toàn bộ dữ liệu dưới dạng một đối tượng.
+
             const chatEntries = Object.entries(chatsData);
+            // Chuyển đối tượng `chatsData` thành một mảng các cặp key-value, trong đó key là `chatId` và value là dữ liệu của cuộc trò chuyện.
 
             const chatPromises = chatEntries.map(async ([chatId, chat]) => {
-              if (!chat.users || !chat.users[currentUserId]) return null;
+              // Duyệt qua từng cặp `chatId` và dữ liệu của cuộc trò chuyện `chat`, tạo ra một danh sách các promise xử lý bất đồng bộ cho từng cuộc trò chuyện.
 
-              const otherUserId = Object.keys(chat.users).find(
-                uid => uid !== currentUserId,
-              );
+              if (!chat.users || !chat.users[currentUserId]) return null;
+              // Kiểm tra xem cuộc trò chuyện có danh sách người dùng hay không và người dùng hiện tại có tham gia cuộc trò chuyện không. Nếu không, bỏ qua cuộc trò chuyện này.
+
+              const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
+              // Lấy ID của người dùng còn lại trong cuộc trò chuyện (người mà bạn đang chat) bằng cách lọc ra userId khác với `currentUserId`.
+
               if (!otherUserId) return null;
+              // Nếu không tìm thấy `otherUserId`, bỏ qua cuộc trò chuyện này.
 
               const secretKey = generateSecretKey(otherUserId, currentUserId);
+              // Tạo secretKey cho cuộc trò chuyện dựa trên ID của người dùng khác và ID của người dùng hiện tại, dùng để mã hóa và giải mã tin nhắn.
+
               const userRef = database().ref(`users/${otherUserId}`);
+              // Tạo reference tới thông tin người dùng còn lại trong cuộc trò chuyện (otherUserId) trong cơ sở dữ liệu Firebase.
 
               const userSnapshot = await userRef.once('value');
+              // Lấy dữ liệu của người dùng khác từ Firebase chỉ một lần (không theo dõi thời gian thực).
+
               if (!userSnapshot.exists()) return null;
+              // Nếu dữ liệu người dùng không tồn tại, bỏ qua cuộc trò chuyện này.
 
               const userInfo = userSnapshot.val();
+              // Lấy thông tin chi tiết của người dùng khác từ snapshot.
+
               const decryptedName = safeDecrypt(userInfo?.name);
+              // Giải mã tên của người dùng khác (nếu có) bằng cách sử dụng hàm `safeDecrypt`.
+
               const decryptedImage = safeDecrypt(userInfo?.Image);
+              // Giải mã ảnh đại diện của người dùng khác (nếu có) bằng cách sử dụng hàm `safeDecrypt`.
 
               let lastMessage = '';
               let lastMessageTime = '';
@@ -621,30 +653,47 @@ const Single = () => {
               let unreadCount = 0;
               let lastMessageId = null;
               let isSeen = true;
+              // Khởi tạo các biến để lưu trữ thông tin về tin nhắn cuối cùng, thời gian của tin nhắn, số lượng tin nhắn chưa đọc và trạng thái đã xem của tin nhắn.
 
               const messagesRef = database().ref(`chats/${chatId}/messages`);
+              // Tạo reference đến danh sách tin nhắn của cuộc trò chuyện (chatId) trong cơ sở dữ liệu Firebase.
+
               const messagesSnapshot = await messagesRef.once('value');
+              // Lấy dữ liệu của tất cả các tin nhắn trong cuộc trò chuyện từ Firebase chỉ một lần.
 
               if (messagesSnapshot.exists()) {
+                // Kiểm tra xem có tin nhắn nào trong cuộc trò chuyện này không.
+
                 const messagesData = messagesSnapshot.val();
+                // Lấy dữ liệu của các tin nhắn từ snapshot.
+
                 const sortedMessages = Object.entries(messagesData)
                   .map(([msgId, msg]) => ({ msgId, ...msg }))
+                  // Chuyển dữ liệu tin nhắn từ object thành mảng các đối tượng, mỗi đối tượng bao gồm `msgId` (ID của tin nhắn) và dữ liệu tin nhắn tương ứng.
+
                   .sort((a, b) => b.timestamp - a.timestamp);
+                // Sắp xếp các tin nhắn theo thứ tự giảm dần dựa trên timestamp (thời gian gửi tin nhắn).
 
                 if (sortedMessages.length > 0) {
+                  // Nếu có ít nhất một tin nhắn trong cuộc trò chuyện.
+
                   const latestMessage = sortedMessages[0];
+                  // Lấy tin nhắn mới nhất (tin nhắn đầu tiên sau khi sắp xếp).
+
                   lastMessageId = latestMessage.msgId;
-                  lastMessage =
-                    decryptMessage(latestMessage.text, secretKey) ||
-                    'Tin nhắn bị mã hóa';
-                  lastMessageTime = new Date(
-                    latestMessage.timestamp,
-                  ).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
+                  // Lưu lại ID của tin nhắn cuối cùng.
+
+                  lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
+                  // Giải mã nội dung tin nhắn cuối cùng bằng cách sử dụng khóa bí mật (secretKey), nếu không giải mã được thì hiển thị thông báo "Tin nhắn bị mã hóa".
+
+                  lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  // Chuyển đổi timestamp của tin nhắn cuối cùng thành thời gian định dạng giờ và phút.
+
                   lastMessageTimestamp = latestMessage.timestamp;
+                  // Lưu lại timestamp của tin nhắn cuối cùng.
+
                   isSeen = latestMessage?.seen?.[currentUserId] || false;
+                  // Kiểm tra xem tin nhắn cuối cùng đã được người dùng hiện tại đọc chưa, dựa trên thông tin "seen" của tin nhắn.
 
                   unreadCount = isSeen
                     ? 0
@@ -653,6 +702,7 @@ const Single = () => {
                         msg.senderId !== currentUserId &&
                         !msg.seen?.[currentUserId],
                     ).length;
+                  // Đếm số lượng tin nhắn chưa đọc, chỉ tính các tin nhắn được gửi bởi người dùng khác và chưa được người dùng hiện tại xem.
                 }
               }
 
@@ -668,12 +718,19 @@ const Single = () => {
                 lastMessageId,
                 isSeen,
               };
+              // Trả về đối tượng chứa thông tin cuộc trò chuyện: ID phòng chat, ID người dùng khác, tên, ảnh, tin nhắn cuối cùng, thời gian gửi tin nhắn, số tin nhắn chưa đọc, ID tin nhắn cuối cùng, và trạng thái đã xem.
             });
 
             const resolvedChats = await Promise.all(chatPromises);
+            // Thực thi tất cả các promise lấy thông tin cuộc trò chuyện và đợi tất cả chúng hoàn thành, kết quả là một mảng các cuộc trò chuyện đã được xử lý.
+
             let filteredChats = resolvedChats
               .filter(Boolean)
+              // Lọc bỏ những cuộc trò chuyện không hợp lệ (những giá trị null).
+
               .sort((a, b) => b.timestamp - a.timestamp);
+            // Sắp xếp các cuộc trò chuyện theo thứ tự thời gian, cuộc trò chuyện mới nhất sẽ ở trên cùng.
+
 
             if (filteredChats.length === 0) {
               console.log('🔥 Firebase mất dữ liệu, giữ lại danh sách cũ.');
@@ -758,39 +815,65 @@ const Single = () => {
     }
   };
 
-  const sendImageMessage = async imageUrl => {
+
+  const sendImageMessage = async (imageUrl) => {
+    if (!imageUrl || isSending) return; // Ngăn gửi nếu đang xử lý gửi ảnh
+    setIsSending(true);
+
     try {
-      const chatRef = database().ref(`/chats/${chatId}/messages`).push();
+      const chatRef = database().ref(`/chats/${chatId}/messages`).push(); 
+      // Tạo một reference mới đến danh sách tin nhắn của cuộc trò chuyện với `chatId` trong Firebase. Hàm `push()` sẽ tạo một ID ngẫu nhiên cho tin nhắn mới này.
+    
       const messageData = {
-        senderId: myId,
-        imageUrl: imageUrl, // Lưu ảnh vào tin nhắn
-        timestamp: Date.now(),
-        seen: { [myId]: true, [userId]: false }, // 🔥 Mình đã seen, đối phương chưa
+        senderId: myId, 
+        // Lưu ID của người gửi (người dùng hiện tại).
+        
+        imageUrl, 
+        // URL của ảnh được gửi, đã được tải lên trước đó (ví dụ: lên Cloudinary).
+        
+        timestamp: Date.now(), 
+        // Lấy timestamp hiện tại (thời gian gửi tin nhắn) bằng hàm `Date.now()` để lưu vào tin nhắn.
+        
+        seen: { [myId]: true, [userId]: false }, 
+        // Trạng thái `seen` (đã đọc) của tin nhắn. Người gửi (`myId`) đã xem tin nhắn, nhưng người nhận (`userId`) chưa xem (false).
       };
-
-      await chatRef.set(messageData);
-      console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
-
-      // 🔥 Lưu tin nhắn ảnh vào AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      const updatedMessages = [
-        ...oldMessages,
-        { id: chatRef.key, ...messageData },
-      ];
-
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(updatedMessages),
-      );
-
-      // Cập nhật UI ngay lập tức
-      setMessages(updatedMessages);
+    
+      await chatRef.set(messageData); 
+      // Lưu tin nhắn (bao gồm dữ liệu hình ảnh và thông tin khác) vào Firebase tại vị trí `chatRef`.
+    
+      console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl); 
+      // In ra console để xác nhận rằng ảnh đã được gửi thành công vào Firebase.
+    
+      // Kiểm tra tin nhắn trước khi lưu vào AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`); 
+      // Lấy danh sách tin nhắn đã lưu trước đó trong AsyncStorage của thiết bị với `chatId`.
+    
+      const oldMessages = storedMessages ? JSON.parse(storedMessages) : []; 
+      // Nếu có tin nhắn được lưu trữ trước đó trong AsyncStorage, chuyển đổi chúng từ dạng chuỗi JSON sang mảng. Nếu không có, trả về mảng rỗng.
+    
+      if (!oldMessages.some(msg => msg.id === chatRef.key)) { 
+        // Kiểm tra xem tin nhắn hiện tại đã tồn tại trong danh sách cũ hay chưa bằng cách so sánh `msg.id` với ID của tin nhắn vừa tạo (`chatRef.key`).
+        // Nếu chưa tồn tại, tiếp tục thêm vào mảng.
+    
+        const updatedMessages = [...oldMessages, { id: chatRef.key, ...messageData }]; 
+        // Thêm tin nhắn mới vào mảng `oldMessages`, bao gồm cả `id` (ID của tin nhắn) và dữ liệu `messageData`.
+    
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages)); 
+        // Lưu lại danh sách tin nhắn mới cập nhật vào AsyncStorage dưới dạng chuỗi JSON.
+    
+        setMessages(updatedMessages); 
+        // Cập nhật state `messages` với danh sách tin nhắn mới để giao diện được làm mới và hiển thị tin nhắn ngay lập tức.
+      }
     } catch (error) {
-      console.error('❌ Lỗi khi gửi ảnh:', error);
+      console.error('❌ Lỗi khi gửi ảnh:', error); 
+      // Bắt lỗi nếu quá trình gửi ảnh hoặc lưu tin nhắn gặp vấn đề, và in ra lỗi đó.
+    } finally {
+      setTimeout(() => setIsSending(false), 1000); 
+      // Đặt trạng thái `isSending` về `false` sau 1 giây để cho phép gửi tin nhắn tiếp theo. Điều này ngăn chặn spam tin nhắn.
     }
+    
   };
+
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -1032,14 +1115,15 @@ const Single = () => {
 
           <TouchableOpacity
             onPress={sendMessage}
-            disabled={!text.trim() || countChat === 0}
-            style={[styles.sendButton, countChat === 0 && { opacity: 0.5 }]}>
+            disabled={!text.trim() || countChat === 0 || isSending}
+            style={[styles.sendButton, (countChat === 0 || isSending) && { opacity: 0.5 }]}>
             <Icon
               name="send"
               size={24}
-              color={!text.trim() || countChat === 0 ? '#aaa' : '#007bff'}
+              color={!text.trim() || countChat === 0 || isSending ? '#aaa' : '#007bff'}
             />
           </TouchableOpacity>
+
         </View>
       </View>
     </TouchableWithoutFeedback>
