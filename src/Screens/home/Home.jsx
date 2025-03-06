@@ -135,7 +135,7 @@ const Home = ({ navigation }) => {
         });
 
         const resolvedChats = await Promise.all(chatPromises);
-        let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
+        // let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
 
         await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
         setChatList(filteredChats);

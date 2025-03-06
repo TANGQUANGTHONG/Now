@@ -132,9 +132,9 @@ import {
           <Text style={styles.headerTitle}>Gemini AI Chat</Text>
         </View>
   
-        <KeyboardAvoidingView
+        {/* <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}>
+          style={styles.container}> */}
           <FlatList
             ref={flatListRef}
             data={messages}
@@ -178,7 +178,7 @@ import {
             </TouchableOpacity>
             {loading && <ActivityIndicator size="small" color="black" />}
           </View>
-        </KeyboardAvoidingView>
+        {/* </KeyboardAvoidingView> */}
       </SafeAreaView>
     );
   };
