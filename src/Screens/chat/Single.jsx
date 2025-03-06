@@ -387,28 +387,34 @@ const Single = () => {
       setTimers(prevTimers => {
         const newTimers = {};
         messages.forEach(async msg => {
-          // Chuyển đổi thành hàm async trong forEach
           if (msg.selfDestruct) {
-            const timeLeft = Math.max(
-              0,
-              Math.floor(
-                (msg.timestamp + msg.selfDestructTime * 1000 - Date.now()) /
-                1000,
-              ),
-            );
-            newTimers[msg.id] = timeLeft;
-
-            if (timeLeft === 0) {
-              await deleteMessage(msg.id); // Gọi hàm async xóa tin nhắn
+            // 🔹 Kiểm tra nếu cả 2 người đã seen thì mới bắt đầu đếm ngược
+            const hasBothSeen =
+              msg.seen &&
+              Object.values(msg.seen).every(seenStatus => seenStatus === true);
+  
+            if (hasBothSeen) {
+              const timeLeft = Math.max(
+                0,
+                Math.floor(
+                  (msg.timestamp + msg.selfDestructTime * 1000 - Date.now()) / 1000,
+                ),
+              );
+              newTimers[msg.id] = timeLeft;
+  
+              if (timeLeft === 0) {
+                await deleteMessage(msg.id);
+              }
             }
           }
         });
         return newTimers;
       });
     }, 1000);
-
+  
     return () => clearInterval(interval);
   }, [messages]);
+  
 
   //hàm xóa tin nhắn dưới local
   const deleteMessage = async messageId => {

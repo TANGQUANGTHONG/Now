@@ -8,6 +8,7 @@ import {
   View,
   TextInput,
   TouchableOpacity,
+  LogBox,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -36,6 +37,8 @@ const Home = ({ navigation }) => {
   // const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
 
   // console.log("chatlist",secretKey)
+    LogBox.ignoreAllLogs();
+    console.warn = () => { };
 
   useEffect(() => {
     loadChats();
