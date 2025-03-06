@@ -903,10 +903,10 @@ const Single = () => {
       //   { id: chatRef.key, ...messageData },
       // ];
 
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(updatedMessages),
-      );
+      // await AsyncStorage.setItem(
+      //   `messages_${chatId}`,
+      //   JSON.stringify(updatedMessages),
+      // );
 
       // // Cập nhật UI ngay lập tức
       // setMessages(updatedMessages);

@@ -105,7 +105,7 @@ const oStackHome = {
   },
   Gemini: {name: 'Gemini', component: Gemini},
   QRScannerScreen: {name: 'QRScannerScreen', component: QRScannerScreen},
-  QRScannerScreen: {name: 'SearchMessage', component: SearchMessage},
+  SearchMessage: {name: 'SearchMessage', component: SearchMessage},
 };
 
 const StackHome = createNativeStackNavigator();
