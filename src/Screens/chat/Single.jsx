@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useCallback} from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
   useNavigation,
   useFocusEffect,
 } from '@react-navigation/native';
-import {getFirestore} from '@react-native-firebase/firestore';
+import { getFirestore } from '@react-native-firebase/firestore';
 import {
   encryptMessage,
   decryptMessage,
@@ -26,8 +26,8 @@ import {
   encodeChatId,
 } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {oStackHome} from '../../navigations/HomeNavigation';
-import database, {set, onValue, ref} from '@react-native-firebase/database';
+import { oStackHome } from '../../navigations/HomeNavigation';
+import database, { set, onValue, ref } from '@react-native-firebase/database';
 import ActionSheet from 'react-native-actionsheet';
 import {
   getAllChatsAsyncStorage,
@@ -36,8 +36,8 @@ import {
 } from '../../storage/Storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
-import {Animated} from 'react-native';
-import {launchImageLibrary} from 'react-native-image-picker';
+import { Animated } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
@@ -79,11 +79,11 @@ const Single = () => {
   const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
 
   const timeOptions = [
-    {label: '5 giây', value: 5},
-    {label: '10 giây', value: 10},
-    {label: '1 phút', value: 60},
-    {label: '5 phút', value: 300},
-    {label: 'Tắt tự hủy', value: null},
+    { label: '5 giây', value: 5 },
+    { label: '10 giây', value: 10 },
+    { label: '1 phút', value: 60 },
+    { label: '5 phút', value: 300 },
+    { label: 'Tắt tự hủy', value: null },
   ];
 
   //ghim tin nhan
@@ -95,7 +95,7 @@ const Single = () => {
 
       // Cập nhật trạng thái ghim của tin nhắn
       messages = messages.map(msg =>
-        msg.id === messageId ? {...msg, isPinned: true} : msg,
+        msg.id === messageId ? { ...msg, isPinned: true } : msg,
       );
 
       // Lưu lại vào AsyncStorage
@@ -119,7 +119,7 @@ const Single = () => {
 
       // Cập nhật trạng thái isPinned thành false cho đúng tin nhắn
       messages = messages.map(msg =>
-        msg.id === messageId ? {...msg, isPinned: false} : msg,
+        msg.id === messageId ? { ...msg, isPinned: false } : msg,
       );
 
       // Lưu lại vào AsyncStorage
@@ -150,7 +150,7 @@ const Single = () => {
     setIsPinModalVisible(true); // Mở modals
   };
 
-  const renderPinnedMessage = ({item}) => {
+  const renderPinnedMessage = ({ item }) => {
     return (
       <TouchableOpacity onPress={() => handleUnpinRequest(item)}>
         <View style={styles.pinnedMessageContainer}>
@@ -191,7 +191,7 @@ const Single = () => {
 
   // LogBox.ignoreLogs(['Animated: `useNativeDriver` was not specified']);
   LogBox.ignoreAllLogs();
-  console.warn = () => {};
+  console.warn = () => { };
   // console.log("secretKey",secretKey)
   // console.log("userID",userId)
   // 🔹 Lấy tin nhắn realtime
@@ -334,7 +334,7 @@ const Single = () => {
         if (shouldAutoScroll && listRef.current) {
           setTimeout(() => {
             if (listRef.current) {
-              listRef.current.scrollToEnd({animated: true});
+              listRef.current.scrollToEnd({ animated: true });
             }
           }, 300);
         }
@@ -393,7 +393,7 @@ const Single = () => {
               0,
               Math.floor(
                 (msg.timestamp + msg.selfDestructTime * 1000 - Date.now()) /
-                  1000,
+                1000,
               ),
             );
             newTimers[msg.id] = timeLeft;
@@ -531,6 +531,7 @@ const Single = () => {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
 
+      
       // Lấy dữ liệu người dùng và kiểm tra nếu cuộc trò chuyện đã tồn tại
       const [userSnapshot, chatSnapshot] = await Promise.all([
         userRef.once('value'),
@@ -541,7 +542,7 @@ const Single = () => {
         return Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
       }
 
-      let {countChat = 100} = userSnapshot.val();
+      let { countChat = 100 } = userSnapshot.val();
 
       // Tạo timestamp chung để đảm bảo đồng bộ thời gian giữa các thiết bị
       const timestampRef = database().ref('/timestamp');
@@ -550,7 +551,7 @@ const Single = () => {
 
       // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
       if (!chatSnapshot.exists()) {
-        await chatRef.set({users: {[userId]: true, [myId]: true}});
+        await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
 
       // Mã hóa tin nhắn trước khi gửi
@@ -562,13 +563,13 @@ const Single = () => {
         timestamp: currentTimestamp,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-        seen: {[userId]: false, [myId]: true},
+        seen: { [userId]: false, [myId]: true },
       };
 
       // Gửi tin nhắn lên Firebase
       await messageRef.set(messageData);
 
-      await userRef.update({countChat: countChat - 1});
+      await userRef.update({ countChat: countChat - 1 });
       setcountChat(countChat - 1);
       setText(''); // Xóa nội dung nhập vào sau khi gửi
 
@@ -578,7 +579,7 @@ const Single = () => {
 
       const updatedMessages = [
         ...oldMessages,
-        {id: messageRef.key, ...messageData},
+        { id: messageRef.key, ...messageData },
       ];
 
       await AsyncStorage.setItem(
@@ -595,8 +596,8 @@ const Single = () => {
   // 🔹 Xác nhận xóa tin nhắn
   const confirmDeleteMessage = messageId => {
     Alert.alert('Xóa tin nhắn', 'Bạn có chắc muốn xóa tin nhắn này?', [
-      {text: 'Hủy', style: 'cancel'},
-      {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Xóa', onPress: () => deleteMessageForBoth(messageId) },
     ]);
   };
 
@@ -609,7 +610,7 @@ const Single = () => {
           userId: myId,
           isTyping: isTyping,
         },
-        users: {[userId]: true, [myId]: true},
+        users: { [userId]: true, [myId]: true },
       });
   };
 
@@ -721,7 +722,7 @@ const Single = () => {
                 // Lấy dữ liệu của các tin nhắn từ snapshot.
 
                 const sortedMessages = Object.entries(messagesData)
-                  .map(([msgId, msg]) => ({msgId, ...msg}))
+                  .map(([msgId, msg]) => ({ msgId, ...msg }))
                   .sort((a, b) => b.timestamp - a.timestamp);
                 // Sắp xếp các tin nhắn theo thứ tự giảm dần dựa trên timestamp (thời gian gửi tin nhắn).
 
@@ -756,10 +757,10 @@ const Single = () => {
                   unreadCount = isSeen
                     ? 0
                     : sortedMessages.filter(
-                        msg =>
-                          msg.senderId !== currentUserId &&
-                          !msg.seen?.[currentUserId],
-                      ).length;
+                      msg =>
+                        msg.senderId !== currentUserId &&
+                        !msg.seen?.[currentUserId],
+                    ).length;
                 }
               }
 
@@ -883,7 +884,7 @@ const Single = () => {
         senderId: myId,
         imageUrl: imageUrl,
         timestamp: timestamp,
-        seen: {[myId]: true, [userId]: false},
+        seen: { [myId]: true, [userId]: false },
         selfDestruct: isSelfDestruct, // Áp dụng tự hủy nếu bật
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
       };
@@ -895,18 +896,24 @@ const Single = () => {
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
-      const updatedMessages = [
-        ...oldMessages,
-        {id: chatRef.key, ...messageData},
-      ];
+
+      //fix lai x2 anh
+      // const updatedMessages = [
+      //   ...oldMessages,
+      //   { id: chatRef.key, ...messageData },
+      // ];
 
       await AsyncStorage.setItem(
         `messages_${chatId}`,
         JSON.stringify(updatedMessages),
       );
 
-      // Cập nhật UI ngay lập tức
-      setMessages(updatedMessages);
+      // // Cập nhật UI ngay lập tức
+      // setMessages(updatedMessages);
+      await chatRef.set(messageData);
+      setIsSending(false)
+
+      //
     } catch (error) {
       console.error('❌ Lỗi khi gửi ảnh:', error);
     } finally {
@@ -926,7 +933,7 @@ const Single = () => {
             </TouchableOpacity>
 
             <View style={styles.userInfo}>
-              <Image source={{uri: img}} style={styles.headerAvatar} />
+              <Image source={{ uri: img }} style={styles.headerAvatar} />
               <View>
                 <Text style={styles.headerUsername}>{username}</Text>
                 <View style={styles.statusContainer}>
@@ -959,7 +966,7 @@ const Single = () => {
             item.id ? `${item.id}-${index}` : `fallback-${index}`
           }
           // inverted={true} // Giúp tin nhắn mới nhất luôn hiển thị ở dưới cùng
-          renderItem={({item}) => {
+          renderItem={({ item }) => {
             const isSentByMe = item.senderId === myId;
             const isSelfDestruct = item.selfDestruct;
             const selfDestructTime = item.selfDestructTime;
@@ -972,90 +979,90 @@ const Single = () => {
               : null;
 
             return (
-              <View style={{flexDirection: 'column'}}>
-              <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
+              <View style={{ flexDirection: 'column' }}>
+                <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
                   {/* Hiển thị Avatar nếu là tin nhắn của người khác */}
                   {!isSentByMe && (
-                      <Image source={{uri: img}} style={styles.avatar} />
+                    <Image source={{ uri: img }} style={styles.avatar} />
                   )}
-          
+
                   <TouchableOpacity
-                      onPress={() => handlePinMessage(item)}
-                      onLongPress={() => confirmDeleteMessage(item.id)}
-                      style={[
-                          isSentByMe
-                              ? styles.sentContainer
-                              : styles.receivedContainer,
-                          isSelfDestruct && styles.selfDestructMessage,
-                      ]}>
-                      {/* Hiển thị tên người gửi nếu là tin nhắn của người khác */}
-                      {!isSentByMe && (
-                          <Text style={styles.usernameText}>{username}</Text>
-                      )}
-          
-                      {/* Nếu tin nhắn là ảnh */}
-                      {item.imageUrl ? (
-                          isSelfDestruct ? ( // Chỉ đếm ngược nếu ảnh có chế độ tự hủy
-                              timeLeft > 0 ? (
-                                  <View>
-                                      <Image
-                                          source={{uri: item.imageUrl}}
-                                          style={styles.imageMessage}
-                                      />
-                                      <Text style={styles.selfDestructTimer}>
-                                          🕒 {timeLeft}s
-                                      </Text>
-                                  </View>
-                              ) : (
-                                  <Text style={styles.deletedText}>🔒 Ảnh đã bị xóa</Text>
-                              )
-                          ) : (
-                              <Image
-                                  source={{uri: item.imageUrl}}
-                                  style={styles.imageMessage}
-                              />
-                          )
-                      ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản
-                      isSelfDestruct ? (
-                          timeLeft > 0 ? (
-                              <View>
-                                  <Text style={styles.TextselfDestructTimer}>
-                                      {item.text}
-                                  </Text>
-                                  <Text style={styles.selfDestructTimer}>
-                                      🕒 {timeLeft}s
-                                  </Text>
-                              </View>
-                          ) : (
-                              <Text style={styles.deletedText}>🔒 Tin nhắn đã bị xóa</Text>
-                          )
+                    onPress={() => handlePinMessage(item)}
+                    onLongPress={() => confirmDeleteMessage(item.id)}
+                    style={[
+                      isSentByMe
+                        ? styles.sentContainer
+                        : styles.receivedContainer,
+                      isSelfDestruct && styles.selfDestructMessage,
+                    ]}>
+                    {/* Hiển thị tên người gửi nếu là tin nhắn của người khác */}
+                    {!isSentByMe && (
+                      <Text style={styles.usernameText}>{username}</Text>
+                    )}
+
+                    {/* Nếu tin nhắn là ảnh */}
+                    {item.imageUrl ? (
+                      isSelfDestruct ? ( // Chỉ đếm ngược nếu ảnh có chế độ tự hủy
+                        timeLeft > 0 ? (
+                          <View>
+                            <Image
+                              source={{ uri: item.imageUrl }}
+                              style={styles.imageMessage}
+                            />
+                            <Text style={styles.selfDestructTimer}>
+                              🕒 {timeLeft}s
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.deletedText}>🔒 Ảnh đã bị xóa</Text>
+                        )
                       ) : (
-                          <Text
-                              style={
-                                  isSentByMe
-                                      ? styles.SendmessageText
-                                      : styles.ReceivedmessageText
-                              }>
+                        <Image
+                          source={{ uri: item.imageUrl }}
+                          style={styles.imageMessage}
+                        />
+                      )
+                    ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản
+                      isSelfDestruct ? (
+                        timeLeft > 0 ? (
+                          <View>
+                            <Text style={styles.TextselfDestructTimer}>
                               {item.text}
-                          </Text>
-                      )}
-          
-                      {/* Hiển thị thời gian gửi tin nhắn */}
-                      <Text
+                            </Text>
+                            <Text style={styles.selfDestructTimer}>
+                              🕒 {timeLeft}s
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.deletedText}>🔒 Tin nhắn đã bị xóa</Text>
+                        )
+                      ) : (
+                        <Text
                           style={
-                              isSentByMe
-                                  ? styles.Sendtimestamp
-                                  : styles.Revecivedtimestamp
+                            isSentByMe
+                              ? styles.SendmessageText
+                              : styles.ReceivedmessageText
                           }>
-                          {new Date(timestamp).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                          })}
-                      </Text>
+                          {item.text}
+                        </Text>
+                      )}
+
+                    {/* Hiển thị thời gian gửi tin nhắn */}
+                    <Text
+                      style={
+                        isSentByMe
+                          ? styles.Sendtimestamp
+                          : styles.Revecivedtimestamp
+                      }>
+                      {new Date(timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
                   </TouchableOpacity>
+                </View>
               </View>
-          </View>
-          
+
             );
           }}
         />
@@ -1063,7 +1070,7 @@ const Single = () => {
         <FlatList
           data={user}
           keyExtractor={item => item.id} // Đảm bảo ID là string
-          renderItem={({item}) => <Text>{item.text}</Text>}
+          renderItem={({ item }) => <Text>{item.text}</Text>}
         />
 
         {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
@@ -1172,7 +1179,7 @@ const Single = () => {
           <TouchableOpacity
             onPress={sendMessage}
             disabled={!text.trim() || countChat === 0}
-            style={[styles.sendButton, countChat === 0 && {opacity: 0.5}]}>
+            style={[styles.sendButton, countChat === 0 && { opacity: 0.5 }]}>
             <Icon
               name="send"
               size={24}
@@ -1207,7 +1214,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
   },
-  container: {flex: 1, padding: 0, backgroundColor: '#121212'},
+  container: { flex: 1, padding: 0, backgroundColor: '#121212' },
   username: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -1255,9 +1262,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  SendmessageText: {fontSize: 16, color: '#000000'},
-  ReceivedmessageText: {fontSize: 16, color: '#0F1828'},
-  deletedText: {fontSize: 16, color: '#999', fontStyle: 'italic'},
+  SendmessageText: { fontSize: 16, color: '#000000' },
+  ReceivedmessageText: { fontSize: 16, color: '#0F1828' },
+  deletedText: { fontSize: 16, color: '#999', fontStyle: 'italic' },
   Sendtimestamp: {
     fontSize: 12,
     color: '#000000',
