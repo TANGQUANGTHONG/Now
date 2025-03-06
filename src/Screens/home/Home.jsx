@@ -135,8 +135,7 @@ const Home = ({ navigation }) => {
         });
 
         const resolvedChats = await Promise.all(chatPromises);
-        // let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
-
+        let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
         await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
         setChatList(filteredChats);
       });
@@ -179,6 +178,33 @@ const Home = ({ navigation }) => {
     }
   };
 
+
+  const updateLocalChatList = async (chatId, newMessage) => {
+    try {
+      const storedChats = await AsyncStorage.getItem('chatList');
+      if (!storedChats) return;
+
+      let chatList = JSON.parse(storedChats);
+      let updatedChats = chatList.map(chat => {
+        if (chat.chatId === chatId) {
+          return { ...chat, text: newMessage || "", time: "" };
+        }
+        return chat;
+      });
+
+      await AsyncStorage.setItem('chatList', JSON.stringify(updatedChats));
+      setChatList(updatedChats); // Cập nhật UI
+    } catch (error) {
+      console.error("❌ Lỗi cập nhật chatList:", error);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadChats(); // Gọi lại hàm loadChats khi quay lại Home
+    }, [])
+  );
+  
   // Giải mã tin nhắn
   const safeDecrypt = (encryptedText, secretKey) => {
     try {
@@ -345,7 +371,7 @@ const Home = ({ navigation }) => {
           )}
           keyExtractor={item => item.chatId}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 150}}
+          contentContainerStyle={{ paddingBottom: 150 }}
         />
       </View>
     </View>
