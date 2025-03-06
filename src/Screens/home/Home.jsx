@@ -48,69 +48,72 @@ const Home = ({ navigation }) => {
     try {
       const storedChats = await AsyncStorage.getItem('chatList');
       let chatListFromStorage = storedChats ? JSON.parse(storedChats) : [];
-
+  
+      // Sắp xếp danh sách chat theo timestamp khi lấy từ local
+      chatListFromStorage.sort((a, b) => b.timestamp - a.timestamp);
+  
       const currentUserId = auth.currentUser?.uid;
       if (!currentUserId) return;
-
+  
       const chatRef = ref(db, 'chats');
-
+  
       onValue(chatRef, async snapshot => {
         if (!snapshot.exists()) {
-          console.log('🔥 Không có tin nhắn mới trên Firebase, hiển thị từ AsyncStorage.');
-          setChatList(chatListFromStorage); // Fallback về dữ liệu cũ
+          console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
+          setChatList(chatListFromStorage); // Đặt lại danh sách đã sắp xếp
           return;
         }
-
+  
         const chatsData = snapshot.val();
         const chatEntries = Object.entries(chatsData);
-
+  
         const chatPromises = chatEntries.map(async ([chatId, chat]) => {
           if (!chat.users || !chat.users[currentUserId]) return null;
-
+  
           const otherUserId = Object.keys(chat.users).find(uid => uid !== currentUserId);
           if (!otherUserId) return null;
-
+  
           const secretKey = generateSecretKey(otherUserId, currentUserId);
           const userRef = ref(db, `users/${otherUserId}`);
           const userSnapshot = await get(userRef);
           if (!userSnapshot.exists()) return null;
-
+  
           const userInfo = userSnapshot.val();
           const decryptedName = safeDecrypt(userInfo?.name);
           const decryptedImage = safeDecrypt(userInfo?.Image);
-
+  
           let lastMessage = '';
           let lastMessageTime = '';
           let lastMessageTimestamp = 0;
           let unreadCount = 0;
           let lastMessageId = null;
           let isSeen = true;
-
+  
           const messagesRef = ref(db, `chats/${chatId}/messages`);
           const messagesSnapshot = await get(messagesRef);
-
+  
           if (messagesSnapshot.exists()) {
             const messagesData = messagesSnapshot.val();
             const sortedMessages = Object.entries(messagesData)
               .map(([msgId, msg]) => ({ msgId, ...msg }))
               .sort((a, b) => b.timestamp - a.timestamp);
-
+  
             if (sortedMessages.length > 0) {
               const latestMessage = sortedMessages[0];
               lastMessageId = latestMessage.msgId;
               if (latestMessage.imageUrl) {
-                lastMessage = 'Có ảnh mới'; // Nếu là ảnh, hiển thị thông báo
+                lastMessage = 'Có ảnh mới';
               } else {
                 lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
               }
-
+  
               lastMessageTime = new Date(latestMessage.timestamp).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
               });
               lastMessageTimestamp = latestMessage.timestamp;
               isSeen = latestMessage?.seen?.[currentUserId] || false;
-
+  
               unreadCount = isSeen ? 0 : sortedMessages.filter(
                 msg => msg.senderId !== currentUserId && !msg.seen?.[currentUserId]
               ).length;
@@ -120,9 +123,10 @@ const Home = ({ navigation }) => {
             const localMessage = await getLatestMessageFromLocal(chatId);
             lastMessage = localMessage.text;
             lastMessageTime = localMessage.time;
+            lastMessageTimestamp = localMessage.timestamp; // Thêm timestamp từ local
             isSeen = localMessage.isSeen;
           }
-
+  
           return {
             chatId,
             id: otherUserId,
@@ -130,15 +134,15 @@ const Home = ({ navigation }) => {
             img: decryptedImage || 'https://example.com/default-avatar.png',
             text: lastMessage,
             time: lastMessageTime,
-            timestamp: lastMessageTimestamp,
+            timestamp: lastMessageTimestamp, // Lưu timestamp
             unreadCount,
             lastMessageId,
             isSeen,
           };
         });
-
+  
         const resolvedChats = await Promise.all(chatPromises);
-        let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
+        let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp); // Sắp xếp theo thời gian
         await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
         setChatList(filteredChats);
       });
@@ -146,40 +150,43 @@ const Home = ({ navigation }) => {
       console.error('❌ Lỗi khi lấy dữ liệu:', error);
     }
   };
+  
 
   //lấy tin mới nhất từ local 
   const getLatestMessageFromLocal = async (chatId) => {
     try {
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-
+  
       if (!storedMessages) {
         console.log(`📭 Không có tin nhắn nào trong local cho chatId: ${chatId}`);
-        return { text: "", time: "", isSeen: false };
+        return { text: "", time: "", timestamp: 0, isSeen: false };
       }
-
+  
       const messages = JSON.parse(storedMessages);
-
+  
       if (messages.length === 0) {
         console.log(`📭 Danh sách tin nhắn rỗng cho chatId: ${chatId}`);
-        return { text: "", time: "", isSeen: false };
+        return { text: "", time: "", timestamp: 0, isSeen: false };
       }
-
+  
       // Sắp xếp tin nhắn theo timestamp giảm dần để lấy tin nhắn mới nhất
       const latestMessage = messages.sort((a, b) => b.timestamp - a.timestamp)[0];
-      console.log('latestMessage', latestMessage.text)
+      
       return {
         text: latestMessage.text || "",
         time: new Date(latestMessage.timestamp).toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
         }),
-        isSeen: latestMessage.seen?.[myId] || false, // Kiểm tra trạng thái đã đọc
+        timestamp: latestMessage.timestamp, // Thêm timestamp để sắp xếp
+        isSeen: latestMessage.seen?.[myId] || false,
       };
     } catch (error) {
       console.error("❌ Lỗi khi lấy tin nhắn mới nhất từ local:", error);
-      return { text: "", time: "", isSeen: false };
+      return { text: "", time: "", timestamp: 0, isSeen: false };
     }
   };
+  
 
 
   const updateLocalChatList = async (chatId, newMessage) => {
