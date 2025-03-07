@@ -116,7 +116,6 @@ const Single = () => {
 };
 
 
-// Cập nhật hàm thu hồi tin nhắn_cảnh
 const recallMessageForBoth = async (messageId) => {
   try {
     const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
@@ -129,7 +128,7 @@ const recallMessageForBoth = async (messageId) => {
       await messageRef.remove();
     }
 
-    // 🔥 Đánh dấu tin nhắn đã bị thu hồi để thiết bị bên kia cũng xóa
+    // 🔥 Đánh dấu tin nhắn đã bị thu hồi
     await recallRef.set({
       recalled: true,
       timestamp: Date.now(),
@@ -145,11 +144,19 @@ const recallMessageForBoth = async (messageId) => {
     // 🔥 Cập nhật UI ngay lập tức
     setMessages(messages);
 
-    console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi và xóa khỏi cả Firebase & AsyncStorage.`);
+    console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi.`);
+
+    // 🚀 Xóa tin nhắn khỏi `/recalledMessages` sau 5 giây để đảm bảo đồng bộ trên cả hai máy
+    setTimeout(async () => {
+      await recallRef.remove();
+      console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`);
+    }, 5000);
+    
   } catch (error) {
     console.error("❌ Lỗi khi thu hồi tin nhắn:", error);
   }
 };
+
 
   //Lắng nghe Firebase để cập nhật UI khi tin nhắn bị thu hồi
   useEffect(() => {
@@ -170,6 +177,16 @@ const recallMessageForBoth = async (messageId) => {
   
         // 🔥 Cập nhật UI ngay lập tức
         setMessages(updatedMessages);
+  
+        // 🚀 Xóa dữ liệu trong `/recalledMessages` sau khi xử lý xong
+        Object.keys(recalledMessages).forEach(async (messageId) => {
+          const recallMsgRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
+          setTimeout(async () => {
+            await recallMsgRef.remove();
+            console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`);
+          }, 30000);
+        });
+  
       } catch (error) {
         console.error("❌ Lỗi khi xử lý tin nhắn thu hồi:", error);
       }
@@ -181,8 +198,13 @@ const recallMessageForBoth = async (messageId) => {
   }, [chatId]);
   
   
+  
 
   const handleLongPress = (message) => {
+     // Kiểm tra nếu người dùng hiện tại có phải là người gửi tin nhắn hay không
+  if (message.senderId !== myId) {
+    return;
+  }
     setSelectedMess(message); // Lưu tin nhắn đang chọn
     setModal(true); // Hiển thị Modal
   };
@@ -1272,24 +1294,24 @@ const recallMessageForBoth = async (messageId) => {
 
       {/* Xóa tin nhắn từ Local */}
       <TouchableOpacity
-        style={styles.modalOption}
+        style={[styles.modalOption]}
         onPress={() => {
           deleteMessageLocally(selectedMess.id);
           setModal(false); // Đóng Modal
         }}
       >
-        <Text style={styles.modalText}>Xóa chỉ mình tôi</Text>
+        <Text style={[styles.modalText, { color: "black" }]}>Xóa chỉ mình tôi</Text>
       </TouchableOpacity>
 
       {/* Thu hồi tin nhắn trên cả hai thiết bị */}
       <TouchableOpacity
-        style={[styles.modalOption, { backgroundColor: "red" }]}
+        style={[styles.modalOption]}
         onPress={() => {
           recallMessageForBoth(selectedMess.id);
           setModal(false); // Đóng Modal
         }}
       >
-        <Text style={[styles.modalText, { color: "white" }]}>Thu hồi tin nhắn</Text>
+        <Text style={[styles.modalText, { color: "black" }]}>Thu hồi tin nhắn</Text>
       </TouchableOpacity>
 
       {/* Nút đóng */}
@@ -1297,7 +1319,7 @@ const recallMessageForBoth = async (messageId) => {
         style={styles.modalCancel}
         onPress={() => setModal(false)}
       >
-        <Text style={styles.modalText}>Hủy</Text>
+        <Text style={[styles.modalText,{color:'red'}]}>Hủy</Text>
       </TouchableOpacity>
     </View>
   </View>
