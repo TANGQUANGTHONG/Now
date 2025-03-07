@@ -1294,24 +1294,24 @@ const recallMessageForBoth = async (messageId) => {
 
       {/* Xóa tin nhắn từ Local */}
       <TouchableOpacity
-        style={[styles.modalOption, { backgroundColor: "blue" }]}
+        style={[styles.modalOption]}
         onPress={() => {
           deleteMessageLocally(selectedMess.id);
           setModal(false); // Đóng Modal
         }}
       >
-        <Text style={[styles.modalText, { color: "white" }]}>Xóa tin nhắn từ Local</Text>
+        <Text style={[styles.modalText, { color: "black" }]}>Xóa chỉ mình tôi</Text>
       </TouchableOpacity>
 
       {/* Thu hồi tin nhắn trên cả hai thiết bị */}
       <TouchableOpacity
-        style={[styles.modalOption, { backgroundColor: "red" }]}
+        style={[styles.modalOption]}
         onPress={() => {
           recallMessageForBoth(selectedMess.id);
           setModal(false); // Đóng Modal
         }}
       >
-        <Text style={[styles.modalText, { color: "white" }]}>Thu hồi tin nhắn</Text>
+        <Text style={[styles.modalText, { color: "black" }]}>Thu hồi tin nhắn</Text>
       </TouchableOpacity>
 
       {/* Nút đóng */}
@@ -1319,7 +1319,7 @@ const recallMessageForBoth = async (messageId) => {
         style={styles.modalCancel}
         onPress={() => setModal(false)}
       >
-        <Text style={styles.modalText}>Hủy</Text>
+        <Text style={[styles.modalText,{color:'red'}]}>Hủy</Text>
       </TouchableOpacity>
     </View>
   </View>
