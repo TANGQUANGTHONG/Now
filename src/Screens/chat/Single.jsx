@@ -75,6 +75,10 @@ const Single = () => {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSending, setIsSending] = useState(false);
 
+  const [modal, setModal] = useState(false);
+  const [selectedMess, setSelectedMess] = useState(null);
+  
+
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
   const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
 
@@ -85,6 +89,103 @@ const Single = () => {
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
+
+ //xóa tin nhắn ở local
+ const deleteMessageLocally = async (messageId) => {
+  try {
+    // Xóa tin nhắn trong Firebase
+    await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
+
+    // Lấy tin nhắn từ AsyncStorage
+    const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+    let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+    // Lọc bỏ tin nhắn đã bị xóa
+    messages = messages.filter(msg => msg.id !== messageId);
+
+    // Lưu lại danh sách tin nhắn mới vào AsyncStorage
+    await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
+
+    // Cập nhật state để UI phản hồi ngay lập tức
+    setMessages(messages);
+
+    console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase và AsyncStorage.`);
+  } catch (error) {
+    console.error('❌ Lỗi khi xóa tin nhắn:', error);
+  }
+};
+
+
+// Cập nhật hàm thu hồi tin nhắn_cảnh
+const recallMessageForBoth = async (messageId) => {
+  try {
+    const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
+    const recallRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
+
+    // 🔍 Kiểm tra xem tin nhắn còn trong Firebase không
+    const snapshot = await messageRef.once('value');
+    if (snapshot.exists()) {
+      // 🔥 Nếu tin nhắn vẫn còn, xóa ngay lập tức!
+      await messageRef.remove();
+    }
+
+    // 🔥 Đánh dấu tin nhắn đã bị thu hồi để thiết bị bên kia cũng xóa
+    await recallRef.set({
+      recalled: true,
+      timestamp: Date.now(),
+    });
+
+    // 📌 Xóa tin nhắn trong AsyncStorage
+    const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+    let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+    messages = messages.filter(msg => msg.id !== messageId);
+    await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
+
+    // 🔥 Cập nhật UI ngay lập tức
+    setMessages(messages);
+
+    console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi và xóa khỏi cả Firebase & AsyncStorage.`);
+  } catch (error) {
+    console.error("❌ Lỗi khi thu hồi tin nhắn:", error);
+  }
+};
+
+  //Lắng nghe Firebase để cập nhật UI khi tin nhắn bị thu hồi
+  useEffect(() => {
+    const recallRef = database().ref(`/chats/${chatId}/recalledMessages`);
+  
+    const onMessageRecalled = async (snapshot) => {
+      if (!snapshot.exists()) return;
+  
+      try {
+        const recalledMessages = snapshot.val();
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        let localMessages = storedMessages ? JSON.parse(storedMessages) : [];
+  
+        // 🔥 Xóa tin nhắn bị thu hồi khỏi local
+        const updatedMessages = localMessages.filter(msg => !recalledMessages[msg.id]);
+  
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+  
+        // 🔥 Cập nhật UI ngay lập tức
+        setMessages(updatedMessages);
+      } catch (error) {
+        console.error("❌ Lỗi khi xử lý tin nhắn thu hồi:", error);
+      }
+    };
+  
+    recallRef.on('value', onMessageRecalled);
+  
+    return () => recallRef.off('value', onMessageRecalled);
+  }, [chatId]);
+  
+  
+
+  const handleLongPress = (message) => {
+    setSelectedMess(message); // Lưu tin nhắn đang chọn
+    setModal(true); // Hiển thị Modal
+  };
 
   //ghim tin nhan
   const pinMessage = async messageId => {
@@ -982,7 +1083,7 @@ const Single = () => {
 
                   <TouchableOpacity
                     onPress={() => handlePinMessage(item)}
-                    onLongPress={() => confirmDeleteMessage(item.id)}
+                    onLongPress={() => handleLongPress(item)}
                     style={[
                       isSentByMe
                         ? styles.sentContainer
@@ -1159,6 +1260,48 @@ const Single = () => {
               </View>
             </View>
           </Modal>
+          <Modal
+  animationType="slide"
+  transparent={true}
+  visible={modal}
+  onRequestClose={() => setModal(false)} // Đóng Modal khi bấm ngoài
+>
+  <View style={styles.modalContainer}>
+    <View style={styles.modalContent}>
+      <Text style={styles.modalTitle}>Tùy chọn tin nhắn</Text>
+
+      {/* Xóa tin nhắn từ Local */}
+      <TouchableOpacity
+        style={styles.modalOption}
+        onPress={() => {
+          deleteMessageLocally(selectedMess.id);
+          setModal(false); // Đóng Modal
+        }}
+      >
+        <Text style={styles.modalText}>Xóa tin nhắn từ Local</Text>
+      </TouchableOpacity>
+
+      {/* Thu hồi tin nhắn trên cả hai thiết bị */}
+      <TouchableOpacity
+        style={[styles.modalOption, { backgroundColor: "red" }]}
+        onPress={() => {
+          recallMessageForBoth(selectedMess.id);
+          setModal(false); // Đóng Modal
+        }}
+      >
+        <Text style={[styles.modalText, { color: "white" }]}>Thu hồi tin nhắn</Text>
+      </TouchableOpacity>
+
+      {/* Nút đóng */}
+      <TouchableOpacity
+        style={styles.modalCancel}
+        onPress={() => setModal(false)}
+      >
+        <Text style={styles.modalText}>Hủy</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
 
           <View style={styles.inputWrapper}>
             <TextInput
