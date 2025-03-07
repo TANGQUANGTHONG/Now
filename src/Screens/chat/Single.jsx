@@ -1278,7 +1278,7 @@ const recallMessageForBoth = async (messageId) => {
           setModal(false); // Đóng Modal
         }}
       >
-        <Text style={styles.modalText}>Xóa tin nhắn từ Local</Text>
+        <Text style={styles.modalText}>Xóa chỉ mình tôi</Text>
       </TouchableOpacity>
 
       {/* Thu hồi tin nhắn trên cả hai thiết bị */}
