@@ -183,6 +183,11 @@ const recallMessageForBoth = async (messageId) => {
   
 
   const handleLongPress = (message) => {
+// Kiểm tra nếu người dùng hiện tại có phải là người gửi tin nhắn hay không
+if (message.senderId !== myId) {
+  return;
+}
+
     setSelectedMess(message); // Lưu tin nhắn đang chọn
     setModal(true); // Hiển thị Modal
   };
