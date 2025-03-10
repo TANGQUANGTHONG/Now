@@ -368,30 +368,29 @@ useEffect(() => {
 
 // Hàm tính toán và hiển thị trạng thái hoạt động của người dùng dựa trên thời gian lastActive
 const getStatusText = () => {
-  // Nếu không có giá trị lastActive (ví dụ: vừa mới đăng nhập), hiển thị "Đang hoạt động"
+  // Nếu không có giá trị lastActive, hiển thị "Đang hoạt động"
   if (!lastActive) return 'Đang hoạt động';
 
-  // Lấy thời gian hiện tại (theo đơn vị milliseconds)
   const now = Date.now();
-
-  // Tính sự chênh lệch giữa thời gian hiện tại và thời gian lastActive
   const diff = now - lastActive;
 
-  // Nếu thời gian chênh lệch dưới 10 giây, hiển thị "Đang hoạt động"
-  if (diff < 10000) return 'Đang hoạt động';
-
-  // Nếu thời gian chênh lệch từ 10 giây đến 1 phút, hiển thị "Vừa mới truy cập"
-  if (diff < 60000) return 'Vừa mới truy cập';
-
-  // Nếu thời gian chênh lệch từ 1 phút đến 1 giờ, hiển thị số phút trước đó người dùng đã hoạt động
+  // Nếu dưới 1 phút, hiển thị "Đang hoạt động"
+  if (diff < 60000) return 'Đang hoạt động';
+  
+  // Nếu dưới 1 giờ, hiển thị số phút trước đó
   if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
 
-  // Nếu thời gian chênh lệch từ 1 giờ đến 24 giờ, hiển thị số giờ trước đó người dùng đã hoạt động
+  // Nếu dưới 24 giờ, hiển thị số giờ trước đó
   if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
 
-  // Nếu thời gian chênh lệch lớn hơn 24 giờ, hiển thị số ngày trước đó người dùng đã hoạt động
-  return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+  // Nếu dưới 7 ngày, hiển thị số ngày trước đó
+  if (diff < 604800000) return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+
+  // Nếu hơn 7 ngày, hiển thị ngày tháng hoạt động
+  const lastActiveDate = new Date(lastActive);
+  return `Hoạt động vào ngày ${lastActiveDate.getDate()}/${lastActiveDate.getMonth() + 1}`;
 };
+
 
 
   // lấy dữ liệu từ firebase về để show lên
