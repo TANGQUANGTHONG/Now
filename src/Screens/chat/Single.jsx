@@ -374,9 +374,9 @@ const getStatusText = () => {
   const now = Date.now();
   const diff = now - lastActive;
 
-  // Nếu dưới 1 phút, hiển thị "Đang hoạt động"
-  if (diff < 60000) return 'Đang hoạt động';
-  
+  // Nếu dưới 1 phút, hiển thị "Vừa truy cập"
+    if (diff < 60000) return 'Đang hoạt động';
+
   // Nếu dưới 1 giờ, hiển thị số phút trước đó
   if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
 

@@ -86,6 +86,8 @@ const Setting = ({navigation}) => {
 
   const logOut = async () => {
     try {
+      const userRef = database().ref(`/users/${auth().currentUser.uid}/status`);
+      userRef.set('offline');
       await GoogleSignin.signOut();
       await auth().signOut();
       removeCurrentUserFromStorage();
