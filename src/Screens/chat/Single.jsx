@@ -14,7 +14,7 @@ import {
   Modal,
   Platform,
   PermissionsAndroid,
-  NativeModules, 
+  NativeModules,
 } from 'react-native';
 import {
   useRoute,
@@ -86,7 +86,7 @@ const Single = () => {
   const [modal, setModal] = useState(false);
   const [selectedMess, setSelectedMess] = useState(null);
 
-  const { RNMediaScanner } = NativeModules;
+  const {RNMediaScanner} = NativeModules;
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
   const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
@@ -234,53 +234,66 @@ const Single = () => {
     setModal(true); // Hiển thị Modal
   };
 
-  //ghim tin nhan
-  const pinMessage = async messageId => {
+  const pinMessage = async (messageId, text, timestamp) => {
     try {
-      // Lấy tin nhắn trong AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`); // Lấy tin nhắn từ AsyncStorage
-      let messages = storedMessages ? JSON.parse(storedMessages) : []; // Nếu có dữ liệu thì parse sang JSON, nếu không thì mảng rỗng
-
-      // Cập nhật trạng thái ghim của tin nhắn
-      messages = messages.map(msg =>
-        msg.id === messageId ? {...msg, isPinned: true} : msg,
-      );
-
-      // Lưu lại vào AsyncStorage
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(messages),
-      );
-
-      // Cập nhật state để UI phản ứng ngay lập tức
-      setMessages(messages); // Cập nhật state để giao diện phản ứng ngay lập tức
-    } catch (error) {
-      console.error('❌ Lỗi khi ghim tin nhắn:', error); // Bắt lỗi nếu có vấn đề trong quá trình ghim tin nhắn
-    }
-  };
-
-  const unpinMessage = async messageId => {
-    try {
-      // Lấy tin nhắn trong AsyncStorage
+      const pinnedRef = database().ref(`/chats/${chatId}/pinnedMessages`);
+  
+      // Lấy danh sách tin nhắn đã ghim từ Firebase
+      const snapshot = await pinnedRef.once('value');
+      let pinnedMessages = snapshot.val() || [];
+  
+      // Kiểm tra xem tin nhắn đã được ghim chưa, nếu chưa thì thêm vào
+      if (!pinnedMessages.some(msg => msg.messageId === messageId)) {
+        pinnedMessages.push({ messageId, text, timestamp });
+        await pinnedRef.set(pinnedMessages);
+      }
+  
+      // Lấy tin nhắn từ AsyncStorage
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       let messages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      // Cập nhật trạng thái isPinned thành false cho đúng tin nhắn
+  
+      // Cập nhật trạng thái ghim trong AsyncStorage
       messages = messages.map(msg =>
-        msg.id === messageId ? {...msg, isPinned: false} : msg,
+        msg.id === messageId ? { ...msg, isPinned: true } : msg
       );
-
-      // Lưu lại vào AsyncStorage
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(messages),
+      await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
+  
+      console.log(`📌 Tin nhắn ${messageId} đã được ghim.`);
+      setMessages(messages); // Cập nhật UI ngay
+    } catch (error) {
+      console.error('❌ Lỗi khi ghim tin nhắn:', error);
+    }
+  };
+  
+  const unpinMessage = async messageId => {
+    try {
+      const pinnedRef = database().ref(`/chats/${chatId}/pinnedMessages`);
+  
+      // Lấy danh sách tin nhắn đã ghim từ Firebase
+      const snapshot = await pinnedRef.once('value');
+      let pinnedMessages = snapshot.val() || [];
+  
+      // Xóa tin nhắn cụ thể khỏi danh sách ghim
+      pinnedMessages = pinnedMessages.filter(msg => msg.messageId !== messageId);
+      await pinnedRef.set(pinnedMessages.length > 0 ? pinnedMessages : null);
+  
+      // Lấy tin nhắn từ AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
+  
+      // Cập nhật trạng thái bỏ ghim trong AsyncStorage
+      messages = messages.map(msg =>
+        msg.id === messageId ? { ...msg, isPinned: false } : msg
       );
-
-      setMessages(messages); // Cập nhật state để UI phản hồi ngay lập tức
+      await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
+  
+      console.log(`📌 Tin nhắn ${messageId} đã được bỏ ghim.`);
+      setMessages(messages); // Cập nhật UI ngay
     } catch (error) {
       console.error('❌ Lỗi khi bỏ ghim tin nhắn:', error);
     }
   };
+  
 
   const handlePinMessage = message => {
     if (message.isPinned) {
@@ -298,19 +311,6 @@ const Single = () => {
     setIsPinModalVisible(true); // Mở modals
   };
 
-  const renderPinnedMessage = ({item}) => {
-    return (
-      <TouchableOpacity onPress={() => handleUnpinRequest(item)}>
-        <View style={styles.pinnedMessageContainer}>
-          <Text style={styles.pinnedMessageText}>{item.text}</Text>
-          <Text style={styles.pinnedMessageTime}>
-            {new Date(item.timestamp).toLocaleTimeString()}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   const renderPinnedMessages = () => {
     const pinnedMessages = messages.filter(msg => msg.isPinned);
 
@@ -318,10 +318,64 @@ const Single = () => {
       <FlatList
         data={pinnedMessages}
         keyExtractor={item => item.id}
-        renderItem={renderPinnedMessage}
+        renderItem={({item}) => (
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedMessage(item); // Lưu tin nhắn đang chọn
+              setIsPinModalVisible(true); // Mở modal xác nhận gỡ ghim
+            }}
+            style={styles.pinnedMessageContainer}>
+            <Text style={styles.pinnedMessageText}>{item.text}</Text>
+            <Text style={styles.pinnedMessageTime}>
+              {new Date(item.timestamp).toLocaleTimeString()}
+            </Text>
+          </TouchableOpacity>
+        )}
       />
     );
   };
+
+  useEffect(() => {
+    const pinnedRef = database().ref(`/chats/${chatId}/pinnedMessages`);
+
+    const onPinnedChange = async snapshot => {
+      if (!snapshot.exists()) {
+        // Nếu không có tin nhắn ghim, cập nhật AsyncStorage
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+        messages = messages.map(msg => ({...msg, isPinned: false}));
+
+        await AsyncStorage.setItem(
+          `messages_${chatId}`,
+          JSON.stringify(messages),
+        );
+        setMessages(messages);
+        return;
+      }
+
+      const pinnedData = snapshot.val();
+      const {messageId} = pinnedData;
+
+      // Lấy tin nhắn từ AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      // Cập nhật trạng thái ghim
+      messages = messages.map(msg =>
+        msg.id === messageId ? {...msg, isPinned: true} : msg,
+      );
+
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(messages),
+      );
+      setMessages(messages);
+    };
+
+    pinnedRef.on('value', onPinnedChange);
+    return () => pinnedRef.off('value', onPinnedChange);
+  }, [chatId]);
 
   useEffect(() => {
     const loadMessagesFromStorage = async () => {
@@ -1063,7 +1117,6 @@ const Single = () => {
     }
   };
 
-
   const requestStoragePermission = async () => {
     if (Platform.OS === 'android') {
       try {
@@ -1077,7 +1130,7 @@ const Single = () => {
               buttonNeutral: 'Hỏi lại sau',
               buttonNegative: 'Hủy',
               buttonPositive: 'Cho phép',
-            }
+            },
           );
           return granted === PermissionsAndroid.RESULTS.GRANTED;
         } else if (Platform.Version >= 29) {
@@ -1090,7 +1143,7 @@ const Single = () => {
               buttonNeutral: 'Hỏi lại sau',
               buttonNegative: 'Hủy',
               buttonPositive: 'Cho phép',
-            }
+            },
           );
           return granted === PermissionsAndroid.RESULTS.GRANTED;
         } else {
@@ -1113,8 +1166,8 @@ const Single = () => {
     }
     return true; // iOS không cần quyền
   };
-  
-  const downloadImage = async (imageUrl) => {
+
+  const downloadImage = async imageUrl => {
     try {
       const hasPermission = await requestStoragePermission();
       if (!hasPermission) {
@@ -1127,18 +1180,17 @@ const Single = () => {
         Platform.OS === 'android'
           ? `${RNFS.DownloadDirectoryPath}/${fileName}` // ✅ Sửa lại dấu backtick
           : `${RNFS.DocumentDirectoryPath}/${fileName}`; // ✅ Sửa lại dấu backtick
-      
+
       const download = RNFS.downloadFile({
         fromUrl: imageUrl,
         toFile: downloadPath,
       });
-      
-  
+
       await download.promise;
-  
+
       // 🔄 Gọi hàm làm mới thư viện ảnh
       await refreshGallery(downloadPath);
-  
+
       Alert.alert('Thành công', 'Ảnh đã tải về thư viện!');
       console.log('📂 Ảnh đang được lưu vào:', downloadPath);
     } catch (error) {
@@ -1146,21 +1198,20 @@ const Single = () => {
       console.error('❌ Lỗi khi tải ảnh:', error);
     }
   };
-  
-//f5 lại cho có ảnh trong thư viện
-const refreshGallery = async (filePath) => {
-  if (Platform.OS === 'android' && RNMediaScanner) {
-    try {
-      await RNMediaScanner.scanFile(filePath);
-      console.log('✅ Thư viện đã cập nhật:', filePath);
-    } catch (err) {
-      console.warn('⚠️ Lỗi cập nhật thư viện:', err);
+
+  //f5 lại cho có ảnh trong thư viện
+  const refreshGallery = async filePath => {
+    if (Platform.OS === 'android' && RNMediaScanner) {
+      try {
+        await RNMediaScanner.scanFile(filePath);
+        console.log('✅ Thư viện đã cập nhật:', filePath);
+      } catch (err) {
+        console.warn('⚠️ Lỗi cập nhật thư viện:', err);
+      }
+    } else {
+      console.warn('⚠️ RNMediaScanner không khả dụng trên nền tảng này.');
     }
-  } else {
-    console.warn('⚠️ RNMediaScanner không khả dụng trên nền tảng này.');
-  }
-};
-  
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
