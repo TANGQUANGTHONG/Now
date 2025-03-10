@@ -12,6 +12,9 @@ import {
   Keyboard,
   LogBox,
   Modal,
+  Platform,
+  PermissionsAndroid,
+  NativeModules, 
 } from 'react-native';
 import {
   useRoute,
@@ -38,6 +41,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
 import {Animated} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
+import Clipboard from '@react-native-clipboard/clipboard';
+import RNFS from 'react-native-fs';
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 const Single = () => {
@@ -63,8 +68,11 @@ const Single = () => {
   const [countChat, setcountChat] = useState(); // Số lượt tin nhắn người dùng còn có thể gửi
   const [resetCountdown, setResetCountdown] = useState(null);
   const [timers, setTimers] = useState({});
+  setSelectedImage;
   const [user, setUser] = useState([]);
   const listRef = useRef(null); // Tham chiếu đến danh sách tin nhắn để thực hiện các hành động như cuộn tự động
+  const [isImageModalVisible, setIsImageModalVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [messagene, setMessageNe] = useState([]);
@@ -77,7 +85,8 @@ const Single = () => {
 
   const [modal, setModal] = useState(false);
   const [selectedMess, setSelectedMess] = useState(null);
-  
+
+  const { RNMediaScanner } = NativeModules;
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
   const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
@@ -90,121 +99,137 @@ const Single = () => {
     {label: 'Tắt tự hủy', value: null},
   ];
 
- //xóa tin nhắn ở local
- const deleteMessageLocally = async (messageId) => {
-  try {
-    // Xóa tin nhắn trong Firebase
-    await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
+  //xóa tin nhắn ở local
+  const deleteMessageLocally = async messageId => {
+    try {
+      // Xóa tin nhắn trong Firebase
+      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
 
-    // Lấy tin nhắn từ AsyncStorage
-    const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-    let messages = storedMessages ? JSON.parse(storedMessages) : [];
+      // Lấy tin nhắn từ AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
 
-    // Lọc bỏ tin nhắn đã bị xóa
-    messages = messages.filter(msg => msg.id !== messageId);
+      // Lọc bỏ tin nhắn đã bị xóa
+      messages = messages.filter(msg => msg.id !== messageId);
 
-    // Lưu lại danh sách tin nhắn mới vào AsyncStorage
-    await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
+      // Lưu lại danh sách tin nhắn mới vào AsyncStorage
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(messages),
+      );
 
-    // Cập nhật state để UI phản hồi ngay lập tức
-    setMessages(messages);
+      // Cập nhật state để UI phản hồi ngay lập tức
+      setMessages(messages);
 
-    console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase và AsyncStorage.`);
-  } catch (error) {
-    console.error('❌ Lỗi khi xóa tin nhắn:', error);
-  }
-};
-
-
-const recallMessageForBoth = async (messageId) => {
-  try {
-    const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
-    const recallRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
-
-    // 🔍 Kiểm tra xem tin nhắn còn trong Firebase không
-    const snapshot = await messageRef.once('value');
-    if (snapshot.exists()) {
-      // 🔥 Nếu tin nhắn vẫn còn, xóa ngay lập tức!
-      await messageRef.remove();
+      console.log(
+        `🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase và AsyncStorage.`,
+      );
+    } catch (error) {
+      console.error('❌ Lỗi khi xóa tin nhắn:', error);
     }
+  };
 
-    // 🔥 Đánh dấu tin nhắn đã bị thu hồi
-    await recallRef.set({
-      recalled: true,
-      timestamp: Date.now(),
-    });
+  const recallMessageForBoth = async messageId => {
+    try {
+      const messageRef = database().ref(
+        `/chats/${chatId}/messages/${messageId}`,
+      );
+      const recallRef = database().ref(
+        `/chats/${chatId}/recalledMessages/${messageId}`,
+      );
 
-    // 📌 Xóa tin nhắn trong AsyncStorage
-    const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-    let messages = storedMessages ? JSON.parse(storedMessages) : [];
+      // 🔍 Kiểm tra xem tin nhắn còn trong Firebase không
+      const snapshot = await messageRef.once('value');
+      if (snapshot.exists()) {
+        // 🔥 Nếu tin nhắn vẫn còn, xóa ngay lập tức!
+        await messageRef.remove();
+      }
 
-    messages = messages.filter(msg => msg.id !== messageId);
-    await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
+      // 🔥 Đánh dấu tin nhắn đã bị thu hồi
+      await recallRef.set({
+        recalled: true,
+        timestamp: Date.now(),
+      });
 
-    // 🔥 Cập nhật UI ngay lập tức
-    setMessages(messages);
+      // 📌 Xóa tin nhắn trong AsyncStorage
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let messages = storedMessages ? JSON.parse(storedMessages) : [];
 
-    console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi.`);
+      messages = messages.filter(msg => msg.id !== messageId);
+      await AsyncStorage.setItem(
+        `messages_${chatId}`,
+        JSON.stringify(messages),
+      );
 
-    // 🚀 Xóa tin nhắn khỏi `/recalledMessages` sau 5 giây để đảm bảo đồng bộ trên cả hai máy
-    setTimeout(async () => {
-      await recallRef.remove();
-      console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`);
-    }, 5000);
-    
-  } catch (error) {
-    console.error("❌ Lỗi khi thu hồi tin nhắn:", error);
-  }
-};
+      // 🔥 Cập nhật UI ngay lập tức
+      setMessages(messages);
 
+      console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi.`);
+
+      // 🚀 Xóa tin nhắn khỏi `/recalledMessages` sau 5 giây để đảm bảo đồng bộ trên cả hai máy
+      setTimeout(async () => {
+        await recallRef.remove();
+        console.log(
+          `🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`,
+        );
+      }, 5000);
+    } catch (error) {
+      console.error('❌ Lỗi khi thu hồi tin nhắn:', error);
+    }
+  };
 
   //Lắng nghe Firebase để cập nhật UI khi tin nhắn bị thu hồi
   useEffect(() => {
     const recallRef = database().ref(`/chats/${chatId}/recalledMessages`);
-  
-    const onMessageRecalled = async (snapshot) => {
+
+    const onMessageRecalled = async snapshot => {
       if (!snapshot.exists()) return;
-  
+
       try {
         const recalledMessages = snapshot.val();
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         let localMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
+
         // 🔥 Xóa tin nhắn bị thu hồi khỏi local
-        const updatedMessages = localMessages.filter(msg => !recalledMessages[msg.id]);
-  
-        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-  
+        const updatedMessages = localMessages.filter(
+          msg => !recalledMessages[msg.id],
+        );
+
+        await AsyncStorage.setItem(
+          `messages_${chatId}`,
+          JSON.stringify(updatedMessages),
+        );
+
         // 🔥 Cập nhật UI ngay lập tức
         setMessages(updatedMessages);
-  
+
         // 🚀 Xóa dữ liệu trong `/recalledMessages` sau khi xử lý xong
-        Object.keys(recalledMessages).forEach(async (messageId) => {
-          const recallMsgRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
+        Object.keys(recalledMessages).forEach(async messageId => {
+          const recallMsgRef = database().ref(
+            `/chats/${chatId}/recalledMessages/${messageId}`,
+          );
           setTimeout(async () => {
             await recallMsgRef.remove();
-            console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`);
+            console.log(
+              `🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`,
+            );
           }, 30000);
         });
-  
       } catch (error) {
-        console.error("❌ Lỗi khi xử lý tin nhắn thu hồi:", error);
+        console.error('❌ Lỗi khi xử lý tin nhắn thu hồi:', error);
       }
     };
-  
+
     recallRef.on('value', onMessageRecalled);
-  
+
     return () => recallRef.off('value', onMessageRecalled);
   }, [chatId]);
-  
-  
-  
 
-  const handleLongPress = (message) => {
-     // Kiểm tra nếu người dùng hiện tại có phải là người gửi tin nhắn hay không
-  if (message.senderId !== myId) {
-    return;
-  }
+  const handleLongPress = message => {
+    // Kiểm tra nếu người dùng hiện tại có phải là người gửi tin nhắn hay không
+    // if (message.senderId !== myId) {
+    //   return;
+    // }
     setSelectedMess(message); // Lưu tin nhắn đang chọn
     setModal(true); // Hiển thị Modal
   };
@@ -1038,6 +1063,105 @@ const recallMessageForBoth = async (messageId) => {
     }
   };
 
+
+  const requestStoragePermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        if (Platform.Version >= 33) {
+          // Android 13+ (API 33+): Dùng quyền READ_MEDIA_IMAGES
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+            {
+              title: 'Quyền truy cập ảnh',
+              message: 'Ứng dụng cần quyền để lưu ảnh về thiết bị.',
+              buttonNeutral: 'Hỏi lại sau',
+              buttonNegative: 'Hủy',
+              buttonPositive: 'Cho phép',
+            }
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        } else if (Platform.Version >= 29) {
+          // Android 10+ (API 29+): Dùng Scoped Storage
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+            {
+              title: 'Quyền lưu trữ ảnh',
+              message: 'Ứng dụng cần quyền để tải ảnh về thiết bị.',
+              buttonNeutral: 'Hỏi lại sau',
+              buttonNegative: 'Hủy',
+              buttonPositive: 'Cho phép',
+            }
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        } else {
+          // Android 9 trở xuống
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+          ]);
+          return (
+            granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] ===
+              PermissionsAndroid.RESULTS.GRANTED &&
+            granted[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] ===
+              PermissionsAndroid.RESULTS.GRANTED
+          );
+        }
+      } catch (err) {
+        console.warn('Lỗi khi xin quyền:', err);
+        return false;
+      }
+    }
+    return true; // iOS không cần quyền
+  };
+  
+  const downloadImage = async (imageUrl) => {
+    try {
+      const hasPermission = await requestStoragePermission();
+      if (!hasPermission) {
+        Alert.alert('Lỗi', 'Bạn cần cấp quyền để tải ảnh.');
+        return;
+      }
+      // Lấy tên file từ URL
+      const fileName = imageUrl.split('/').pop();
+      const downloadPath =
+        Platform.OS === 'android'
+          ? `${RNFS.DownloadDirectoryPath}/${fileName}` // ✅ Sửa lại dấu backtick
+          : `${RNFS.DocumentDirectoryPath}/${fileName}`; // ✅ Sửa lại dấu backtick
+      
+      const download = RNFS.downloadFile({
+        fromUrl: imageUrl,
+        toFile: downloadPath,
+      });
+      
+  
+      await download.promise;
+  
+      // 🔄 Gọi hàm làm mới thư viện ảnh
+      await refreshGallery(downloadPath);
+  
+      Alert.alert('Thành công', 'Ảnh đã tải về thư viện!');
+      console.log('📂 Ảnh đang được lưu vào:', downloadPath);
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể tải ảnh.');
+      console.error('❌ Lỗi khi tải ảnh:', error);
+    }
+  };
+  
+//f5 lại cho có ảnh trong thư viện
+const refreshGallery = async (filePath) => {
+  if (Platform.OS === 'android' && RNMediaScanner) {
+    try {
+      await RNMediaScanner.scanFile(filePath);
+      console.log('✅ Thư viện đã cập nhật:', filePath);
+    } catch (err) {
+      console.warn('⚠️ Lỗi cập nhật thư viện:', err);
+    }
+  } else {
+    console.warn('⚠️ RNMediaScanner không khả dụng trên nền tảng này.');
+  }
+};
+  
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
@@ -1122,10 +1246,17 @@ const recallMessageForBoth = async (messageId) => {
                       isSelfDestruct ? ( // Chỉ đếm ngược nếu ảnh có chế độ tự hủy
                         timeLeft > 0 ? (
                           <View>
-                            <Image
-                              source={{uri: item.imageUrl}}
-                              style={styles.imageMessage}
-                            />
+                            <TouchableOpacity
+                              onPress={() => {
+                                setSelectedImage(item.imageUrl);
+                                setIsImageModalVisible(true);
+                              }}>
+                              <Image
+                                source={{uri: item.imageUrl}}
+                                style={styles.imageMessage}
+                              />
+                            </TouchableOpacity>
+
                             <Text style={styles.selfDestructTimer}>
                               🕒 {timeLeft}s
                             </Text>
@@ -1136,10 +1267,16 @@ const recallMessageForBoth = async (messageId) => {
                           </Text>
                         )
                       ) : (
-                        <Image
-                          source={{uri: item.imageUrl}}
-                          style={styles.imageMessage}
-                        />
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedImage(item.imageUrl);
+                            setIsImageModalVisible(true);
+                          }}>
+                          <Image
+                            source={{uri: item.imageUrl}}
+                            style={styles.imageMessage}
+                          />
+                        </TouchableOpacity>
                       )
                     ) : // Nếu không phải tin nhắn ảnh, hiển thị văn bản
                     isSelfDestruct ? (
@@ -1283,47 +1420,71 @@ const recallMessageForBoth = async (messageId) => {
             </View>
           </Modal>
           <Modal
-  animationType="slide"
-  transparent={true}
-  visible={modal}
-  onRequestClose={() => setModal(false)} // Đóng Modal khi bấm ngoài
->
-  <View style={styles.modalContainer}>
-    <View style={styles.modalContent}>
-      <Text style={styles.modalTitle}>Tùy chọn tin nhắn</Text>
+            animationType="slide"
+            transparent={true}
+            visible={modal}
+            onRequestClose={() => setModal(false)}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Tùy chọn tin nhắn</Text>
 
-      {/* Xóa tin nhắn từ Local */}
-      <TouchableOpacity
-        style={[styles.modalOption]}
-        onPress={() => {
-          deleteMessageLocally(selectedMess.id);
-          setModal(false); // Đóng Modal
-        }}
-      >
-        <Text style={[styles.modalText, { color: "black" }]}>Xóa chỉ mình tôi</Text>
-      </TouchableOpacity>
+                {/* Nếu tin nhắn là văn bản, hiển thị nút "Sao chép nội dung" */}
+                {selectedMess?.text && (
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => {
+                      Clipboard.setString(selectedMess.text);
+                      Alert.alert(
+                        'Đã sao chép',
+                        'Nội dung tin nhắn đã được sao chép.',
+                      );
+                      setModal(false);
+                    }}>
+                    <Text style={styles.modalText}> Sao chép</Text>
+                  </TouchableOpacity>
+                )}
 
-      {/* Thu hồi tin nhắn trên cả hai thiết bị */}
-      <TouchableOpacity
-        style={[styles.modalOption]}
-        onPress={() => {
-          recallMessageForBoth(selectedMess.id);
-          setModal(false); // Đóng Modal
-        }}
-      >
-        <Text style={[styles.modalText, { color: "black" }]}>Thu hồi tin nhắn</Text>
-      </TouchableOpacity>
+                {/* Nếu là ảnh, thêm nút "Tải ảnh về" */}
+                {selectedMess?.imageUrl && (
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => {
+                      downloadImage(selectedMess.imageUrl);
+                      setModal(false);
+                    }}>
+                    <Text style={styles.modalText}> Tải ảnh</Text>
+                  </TouchableOpacity>
+                )}
 
-      {/* Nút đóng */}
-      <TouchableOpacity
-        style={styles.modalCancel}
-        onPress={() => setModal(false)}
-      >
-        <Text style={[styles.modalText,{color:'red'}]}>Hủy</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+                {/* Xóa tin nhắn chỉ ở local */}
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    deleteMessageLocally(selectedMess.id);
+                    setModal(false);
+                  }}>
+                  <Text style={styles.modalText}> Xóa chỉ mình tôi</Text>
+                </TouchableOpacity>
+
+                {/* Thu hồi tin nhắn trên cả hai thiết bị */}
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    recallMessageForBoth(selectedMess.id);
+                    setModal(false);
+                  }}>
+                  <Text style={styles.modalText}> Thu hồi tin nhắn</Text>
+                </TouchableOpacity>
+
+                {/* Nút Đóng */}
+                <TouchableOpacity
+                  style={styles.modalCancel}
+                  onPress={() => setModal(false)}>
+                  <Text style={[styles.modalText, {color: 'red'}]}>Đóng</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
 
           <View style={styles.inputWrapper}>
             <TextInput
@@ -1353,6 +1514,26 @@ const recallMessageForBoth = async (messageId) => {
             />
           </TouchableOpacity>
         </View>
+        <Modal
+          visible={isImageModalVisible}
+          transparent={true}
+          onRequestClose={() => setIsImageModalVisible(false)}>
+          <TouchableWithoutFeedback
+            onPress={() => setIsImageModalVisible(false)}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: 'black',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+              <Image
+                source={{uri: selectedImage}}
+                style={styles.fullScreenImage}
+              />
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -1623,6 +1804,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     padding: 10,
     backgroundColor: '#e0e0e0',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain', // Hiển thị ảnh mà không bị méo
+    backgroundColor: 'black', // Tạo nền đen để nhìn rõ hơn
   },
 });
 
