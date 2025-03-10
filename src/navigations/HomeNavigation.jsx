@@ -18,6 +18,11 @@ import Profile from '../Screens/Profile_Settings/Profile';
 import Gemini from '../Screens/chat/germiniAI';
 import QRScannerScreen from '../Screens/Profile_Settings/QRScannerScreen';
 import SearchMessage from '../Screens/chat/SearchMessage';
+import GroupChat from '../Screens/chat/groupChat';
+import CreateGroup from '../Screens/chat/CreateGroup';
+import GroupMembers from '../Screens/chat/GroupMembers';
+ 
+
 
 // Danh sách tab
 const oTab = {
@@ -104,8 +109,11 @@ const oStackHome = {
     component: DeleteAccountScreen,
   },
   Gemini: {name: 'Gemini', component: Gemini},
+  GroupChat: {name: 'GroupChat', component: GroupChat},
   QRScannerScreen: {name: 'QRScannerScreen', component: QRScannerScreen},
   SearchMessage: {name: 'SearchMessage', component: SearchMessage},
+  CreateGroup: {name: 'CreateGroup', component: CreateGroup},
+  GroupMembers: {name: 'GroupMembers', component: GroupMembers},
 };
 
 const StackHome = createNativeStackNavigator();
