@@ -119,7 +119,6 @@ const Home = ({ navigation }) => {
               ).length;
             }
           } else {
-            console.log(`📭 Không có tin nhắn trên Firebase cho chatId: ${chatId}, lấy từ local.`);
             const localMessage = await getLatestMessageFromLocal(chatId);
             lastMessage = localMessage.text;
             lastMessageTime = localMessage.time;

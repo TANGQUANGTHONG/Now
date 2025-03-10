@@ -7,7 +7,6 @@ import { encryptMessage, decryptMessage, generateSecretKey } from '../cryption/E
 export const saveCurrentUserAsyncStorage = async () => {
   const user = auth().currentUser;
   if (!user) {
-    console.log('Không có ai đang đăng nhập.');
     return;
   }
 
@@ -27,13 +26,11 @@ export const saveCurrentUserAsyncStorage = async () => {
     const snapshot = await userRef.once('value');
 
     if (!snapshot.exists()) {
-      console.log('Không tìm thấy thông tin user trong database.');
       return;
     }
 
     const userData = snapshot.val();
     if (!userData || Object.keys(userData).length === 0) {
-      console.log('Dữ liệu user không hợp lệ.');
       return;
     }
 
@@ -50,7 +47,6 @@ export const saveCurrentUserAsyncStorage = async () => {
 
     // Ghi đè lên user cũ
     await AsyncStorage.setItem('currentUser', JSON.stringify(newUser));
-    console.log('Lưu user vào AsyncStorage:', newUser);
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu từ Firebase:', error);
   }
@@ -60,7 +56,6 @@ export const getCurrentUserFromStorage = async () => {
   try {
     const userStr = await AsyncStorage.getItem('currentUser');
     if (!userStr) {
-      console.log('Không có user nào trong AsyncStorage.');
       return null;
     }
     const user = JSON.parse(userStr);
@@ -71,7 +66,6 @@ export const getCurrentUserFromStorage = async () => {
        image : decryptMessage(user.image),
        nickname : decryptMessage(user.nickname),
     }
-    console.log('Lấy user của tao từ AsyncStorage:', userdecryptMessage);
     return userdecryptMessage;
   } catch (error) {
     console.error('Lỗi khi lấy user từ AsyncStorage:', error);
@@ -83,7 +77,6 @@ export const getCurrentUserFromStorage = async () => {
 export const removeCurrentUserFromStorage = async () => {
   try {
     await AsyncStorage.removeItem('currentUser');
-    console.log('Xóa user khỏi AsyncStorage.');
   } catch (error) {
     console.error('Lỗi khi xóa user từ AsyncStorage:', error);
   }
@@ -93,7 +86,6 @@ export const removeCurrentUserFromStorage = async () => {
 export const saveChatsAsyncStorage = () => {
   const currentUser = auth().currentUser;
   if (!currentUser) {
-    console.log('Không có ai đang đăng nhập.');
     return;
   }
 
@@ -153,7 +145,6 @@ export const saveChatsAsyncStorage = () => {
           typing: chatData.typing || {isTyping: false, userId: ''},
           users: chatData.users || {},
         };
-        console.log(`Tạo mới chat ${chatId}`);
       }
 
       // Lưu lại danh sách chats vào AsyncStorage
@@ -223,10 +214,6 @@ export const saveChatsAsyncStorage = () => {
       return;
     }
 
-    console.log(
-      `>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>. \n \tThêm mới chat trong asynStorage ${chatId}:`,
-      chatData,
-    );
     // Cập nhật toàn bộ chat (bao gồm typing, users, và messages)
     await updateChatInAsyncStorage(chatId, chatData);
   });
@@ -236,7 +223,7 @@ export const saveChatsAsyncStorage = () => {
 export const saveUserSendAsyncStorage = () => {
   const currentUser = auth().currentUser;
   if (!currentUser) {
-    console.log('Không có ai đang đăng nhập.');
+    // console.log('Không có ai đang đăng nhập.');
     return;
   }
 
@@ -248,7 +235,7 @@ export const saveUserSendAsyncStorage = () => {
     const chatData = snapshot.val();
 
     if (!chatData || !chatData.users) {
-      console.log(`Không có trường "users" trong chatId=${chatId}`);
+      // console.log(`Không có trường "users" trong chatId=${chatId}`);
       return;
     }
 
@@ -257,11 +244,11 @@ export const saveUserSendAsyncStorage = () => {
 
     // Kiểm tra xem chat có liên quan đến user hiện tại không
     if (!userIds.includes(currentUser.uid)) {
-      console.log(`Chat ${chatId} không liên quan đến user ${currentUser.uid}`);
+      // console.log(`Chat ${chatId} không liên quan đến user ${currentUser.uid}`);
       return;
     }
 
-    console.log(`Chat ${chatId} mới được thêm, danh sách users:`, userIds);
+    // console.log(`Chat ${chatId} mới được thêm, danh sách users:`, userIds);
 
     try {
       // Lấy danh sách user đã lưu trong AsyncStorage (key "usersSend")
@@ -281,9 +268,9 @@ export const saveUserSendAsyncStorage = () => {
           const userRef = database().ref(`users/${userId}`);
           const userSnap = await userRef.once('value');
           if (!userSnap.exists()) {
-            console.log(
-              `Không tìm thấy thông tin userId=${userId} trong "users".`,
-            );
+            // console.log(
+            //   `Không tìm thấy thông tin userId=${userId} trong "users".`,
+            // );
             continue;
           }
 
@@ -299,7 +286,7 @@ export const saveUserSendAsyncStorage = () => {
           };
 
           usersArray.push(newUser);
-          console.log(`Đã thêm userId=${userId} vào "usersSend".`);
+          // console.log(`Đã thêm userId=${userId} vào "usersSend".`);
         } catch (err) {
           console.error(`Lỗi khi fetch dữ liệu userId=${userId}:`, err);
         }
@@ -307,10 +294,10 @@ export const saveUserSendAsyncStorage = () => {
 
       // Lưu lại danh sách usersSend vào AsyncStorage
       await AsyncStorage.setItem('usersSend', JSON.stringify(usersArray));
-      console.log(
-        ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>..\n \tCập nhật 'usersSend' thành công:",
-        usersArray,
-      );
+      // console.log(
+      //   ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>..\n \tCập nhật 'usersSend' thành công:",
+      //   usersArray,
+      // );
     } catch (error) {
       console.error(`Lỗi xử lý user mới trong chatId=${chatId}:`, error);
     }
@@ -330,11 +317,11 @@ export const getAllSavedUsersAsyncStorage = async () => {
     }
 
     const parsedUsers = JSON.parse(users);
-    console.log(
-      '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \n \t Danh sách user trong AsyncStorage:',
-      parsedUsers,
-      '\n  ',
-    );
+    // console.log(
+    //   '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \n \t Danh sách user trong AsyncStorage:',
+    //   parsedUsers,
+    //   '\n  ',
+    // );
     return parsedUsers;
   } catch (error) {
     console.error('Lỗi lấy danh sách users từ AsyncStorage:', error);
@@ -361,13 +348,13 @@ export const getAllUsersFromUserSend = async () => {
 export const getAllChatsAsyncStorage = async () => {
   try {
     const chats = await AsyncStorage.getItem('chats');
-    console.log(
-      '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \n \t Danh sách chat trong AsyncStorage:',
-      chats ? JSON.parse(chats) : {},
-    );
+    // console.log(
+    //   '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> \n \t Danh sách chat trong AsyncStorage:',
+    //   chats ? JSON.parse(chats) : {},
+    // );
     return chats ? JSON.parse(chats) : {};
   } catch (error) {
-    console.error('Lỗi lấy danh sách chats từ AsyncStorage:', error);
+     console.error('Lỗi lấy danh sách chats từ AsyncStorage:', error);
     return {};
   }
 };
@@ -384,7 +371,7 @@ export const getUserFromUserSendById = async idUser => {
     // Tìm user có uid trùng với idUser
     const foundUser = usersArray.find(u => u.uid === idUser);
     if (foundUser) {
-      console.log('Đã tìm thấy user:', foundUser);
+      // console.log('Đã tìm thấy user:', foundUser);
       return foundUser;
     } else {
       console.log(`Không tìm thấy user với uid=${idUser} trong usersSend.`);
@@ -414,9 +401,8 @@ export const getChatsByIdUserAsynStorage = async idUser => {
       return acc;
     }, {});
 
-    console.log(`Danh sách chats của user ${idUser}:`, filteredChats);
+    // console.log(`Danh sách chats của user ${idUser}:`, filteredChats);
     const chatArray = Object.entries(filteredChats)
-    console.log("danh sach chat",chatArray[0])
     return chatArray;
     
   } catch (error) {

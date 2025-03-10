@@ -109,7 +109,6 @@ const Single = () => {
     // Cập nhật state để UI phản hồi ngay lập tức
     setMessages(messages);
 
-    console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase và AsyncStorage.`);
   } catch (error) {
     console.error('❌ Lỗi khi xóa tin nhắn:', error);
   }
@@ -121,81 +120,88 @@ const recallMessageForBoth = async (messageId) => {
     const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
     const recallRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
 
-    // 🔍 Kiểm tra xem tin nhắn còn trong Firebase không
+    // 🔍 Kiểm tra tin nhắn còn trong Firebase không
     const snapshot = await messageRef.once('value');
     if (snapshot.exists()) {
-      // 🔥 Nếu tin nhắn vẫn còn, xóa ngay lập tức!
-      await messageRef.remove();
+      await messageRef.remove(); // 🔥 Xóa tin nhắn khỏi Firebase
     }
 
-    // 🔥 Đánh dấu tin nhắn đã bị thu hồi
+    // 🔥 Lưu thông tin thu hồi vào Firebase để đồng bộ khi online
     await recallRef.set({
       recalled: true,
+      senderId: myId,
+      confirmedBy: { [myId]: true },
+      seenBy: {}, // 👀 Theo dõi ai đã thấy tin nhắn bị xóa
       timestamp: Date.now(),
     });
 
-    // 📌 Xóa tin nhắn trong AsyncStorage
+    console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi.`);
+
+    // ✅ Xóa tin nhắn khỏi AsyncStorage (local)
     const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
     let messages = storedMessages ? JSON.parse(storedMessages) : [];
-
     messages = messages.filter(msg => msg.id !== messageId);
     await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
 
-    // 🔥 Cập nhật UI ngay lập tức
-    setMessages(messages);
+    setMessages(messages); // 🔄 Cập nhật UI ngay lập tức
 
-    console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi.`);
-
-    // 🚀 Xóa tin nhắn khỏi `/recalledMessages` sau 5 giây để đảm bảo đồng bộ trên cả hai máy
-    setTimeout(async () => {
-      await recallRef.remove();
-      console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`);
-    }, 5000);
-    
   } catch (error) {
     console.error("❌ Lỗi khi thu hồi tin nhắn:", error);
   }
 };
 
 
-  //Lắng nghe Firebase để cập nhật UI khi tin nhắn bị thu hồi
-  useEffect(() => {
-    const recallRef = database().ref(`/chats/${chatId}/recalledMessages`);
-  
-    const onMessageRecalled = async (snapshot) => {
-      if (!snapshot.exists()) return;
-  
-      try {
-        const recalledMessages = snapshot.val();
-        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-        let localMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
-        // 🔥 Xóa tin nhắn bị thu hồi khỏi local
-        const updatedMessages = localMessages.filter(msg => !recalledMessages[msg.id]);
-  
-        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-  
-        // 🔥 Cập nhật UI ngay lập tức
-        setMessages(updatedMessages);
-  
-        // 🚀 Xóa dữ liệu trong `/recalledMessages` sau khi xử lý xong
-        Object.keys(recalledMessages).forEach(async (messageId) => {
-          const recallMsgRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
-          setTimeout(async () => {
-            await recallMsgRef.remove();
-            console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi /recalledMessages.`);
-          }, 30000);
+
+
+useEffect(() => {
+  const recallRef = database().ref(`/chats/${chatId}/recalledMessages`);
+
+  const onMessageRecalled = async (snapshot) => {
+    if (!snapshot.exists()) return;
+
+    try {
+      const recalledMessages = snapshot.val();
+      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+      let localMessages = storedMessages ? JSON.parse(storedMessages) : [];
+
+      // 🔥 Xóa tin nhắn bị thu hồi khỏi giao diện Local
+      let updatedMessages = localMessages.filter(msg => !recalledMessages[msg.id]);
+      await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+      setMessages(updatedMessages); // 🔄 Cập nhật UI ngay lập tức
+
+      // ✅ Đánh dấu rằng thiết bị này đã thấy tin nhắn thu hồi
+      for (const messageId of Object.keys(recalledMessages)) {
+        const recallMsgRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
+
+        // 🔥 Cập nhật trạng thái `seenBy`
+        await recallMsgRef.child(`seenBy/${myId}`).set(true);
+
+        // 🛑 Kiểm tra nếu cả hai đã xác nhận thu hồi VÀ đã thấy tin nhắn bị xóa
+        recallMsgRef.once('value', async (msgSnapshot) => {
+          if (msgSnapshot.exists()) {
+            const recallData = msgSnapshot.val();
+            const confirmedUsers = recallData.confirmedBy || {};
+            const seenUsers = recallData.seenBy || {};
+
+            if (Object.keys(confirmedUsers).length >= 2 && Object.keys(seenUsers).length >= 2) {
+              await recallMsgRef.remove();
+            }
+          }
         });
-  
-      } catch (error) {
-        console.error("❌ Lỗi khi xử lý tin nhắn thu hồi:", error);
       }
-    };
-  
-    recallRef.on('value', onMessageRecalled);
-  
-    return () => recallRef.off('value', onMessageRecalled);
-  }, [chatId]);
+      
+    } catch (error) {
+      console.error("❌ Lỗi khi xử lý tin nhắn thu hồi:", error);
+    }
+  };
+
+  recallRef.on('value', onMessageRecalled);
+
+  return () => recallRef.off('value', onMessageRecalled);
+}, [chatId]);
+
+
+
   
   
   
@@ -414,7 +420,6 @@ const recallMessageForBoth = async (messageId) => {
           .filter(msg => msg.timestamp) // Lọc tin nhắn hợp lệ
           .sort((a, b) => a.timestamp - b.timestamp); // 🔹 Sắp xếp theo timestamp
 
-        console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
 
         // Lọc tin nhắn không tự hủy
         // const nonSelfDestructMessages = newMessages.filter(
@@ -475,7 +480,6 @@ const recallMessageForBoth = async (messageId) => {
                 userIds.every(userId => seenUsers[userId]);
 
               if (allSeen) {
-                console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
                 setTimeout(async () => {
                   await database()
                     .ref(`/chats/${chatId}/messages/${msg.id}`)
@@ -547,7 +551,6 @@ const recallMessageForBoth = async (messageId) => {
         JSON.stringify(updatedMessages),
       );
 
-      console.log(`🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase & local.`);
 
       // Cập nhật state để UI phản ánh ngay
       setMessages(updatedMessages);
@@ -572,32 +575,7 @@ const recallMessageForBoth = async (messageId) => {
     return () => userRef.off();
   }, [myId, database]); //  Thêm dependency
 
-  const deleteMessageLocallyAndRemotely = async messageId => {
-    try {
-      // Xóa tin nhắn trong Firebase
-      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
 
-      // Lấy tin nhắn từ AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      // Lọc bỏ tin nhắn cần xóa
-      const updatedMessages = oldMessages.filter(msg => msg.id !== messageId);
-
-      // Cập nhật lại AsyncStorage
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(updatedMessages),
-      );
-
-      console.log(
-        `🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase và AsyncStorage.`,
-      );
-      setMessages(updatedMessages); // Cập nhật UI
-    } catch (error) {
-      console.error('❌ Lỗi khi xóa tin nhắn:', error);
-    }
-  };
 
   //xoa ca hai
   const deleteMessageForBoth = async messageId => {
@@ -621,9 +599,7 @@ const recallMessageForBoth = async (messageId) => {
       // 🔥 Cập nhật state để UI phản hồi ngay lập tức
       setMessages(messages);
 
-      console.log(
-        `🗑 Tin nhắn ${messageId} đã bị xóa trên cả Firebase và AsyncStorage.`,
-      );
+
     } catch (error) {
       console.error('❌ Lỗi khi xóa tin nhắn:', error);
     }
@@ -711,13 +687,7 @@ const recallMessageForBoth = async (messageId) => {
     }
   }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime, isSending]);
 
-  // 🔹 Xác nhận xóa tin nhắn
-  const confirmDeleteMessage = messageId => {
-    Alert.alert('Xóa tin nhắn', 'Bạn có chắc muốn xóa tin nhắn này?', [
-      {text: 'Hủy', style: 'cancel'},
-      {text: 'Xóa', onPress: () => deleteMessageForBoth(messageId)},
-    ]);
-  };
+
 
   //Hàm xử lý khi người dùng đang nhập tin nhắn
   const handleTyping = isTyping => {
@@ -771,9 +741,9 @@ const recallMessageForBoth = async (messageId) => {
           .ref('chats')
           .on('value', async snapshot => {
             if (!snapshot.exists()) {
-              console.log(
-                '🔥 Firebase không có dữ liệu, hiển thị từ AsyncStorage.',
-              );
+              // console.log(
+              //   '🔥 Firebase không có dữ liệu, hiển thị từ AsyncStorage.',
+              // );
               setChatList(chatListFromStorage); //  Nếu Firebase mất dữ liệu, giữ dữ liệu cũ
               return;
             }
@@ -908,7 +878,7 @@ const recallMessageForBoth = async (messageId) => {
             // Sắp xếp các cuộc trò chuyện theo thứ tự thời gian, cuộc trò chuyện mới nhất sẽ ở trên cùng.
 
             if (filteredChats.length === 0) {
-              console.log('🔥 Firebase mất dữ liệu, giữ lại danh sách cũ.');
+              // console.log('🔥 Firebase mất dữ liệu, giữ lại danh sách cũ.');
               filteredChats = chatListFromStorage; //  Dùng dữ liệu cũ nếu Firebase mất dữ liệu
             }
 
