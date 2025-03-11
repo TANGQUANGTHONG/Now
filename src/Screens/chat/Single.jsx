@@ -237,33 +237,18 @@ const Single = () => {
   const pinMessage = async (messageId, text, timestamp) => {
     try {
       const pinnedRef = database().ref(`/chats/${chatId}/pinnedMessages`);
-  
-      // Lấy danh sách tin nhắn đã ghim từ Firebase
       const snapshot = await pinnedRef.once('value');
       let pinnedMessages = snapshot.val() || [];
   
-      // Kiểm tra xem tin nhắn đã được ghim chưa, nếu chưa thì thêm vào
       if (!pinnedMessages.some(msg => msg.messageId === messageId)) {
         pinnedMessages.push({ messageId, text, timestamp });
         await pinnedRef.set(pinnedMessages);
       }
-  
-      // Lấy tin nhắn từ AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      let messages = storedMessages ? JSON.parse(storedMessages) : [];
-  
-      // Cập nhật trạng thái ghim trong AsyncStorage
-      messages = messages.map(msg =>
-        msg.id === messageId ? { ...msg, isPinned: true } : msg
-      );
-      await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
-  
-      console.log(`📌 Tin nhắn ${messageId} đã được ghim.`);
-      setMessages(messages); // Cập nhật UI ngay
     } catch (error) {
       console.error('❌ Lỗi khi ghim tin nhắn:', error);
     }
   };
+  
   
   const unpinMessage = async messageId => {
     try {
@@ -337,45 +322,39 @@ const Single = () => {
 
   useEffect(() => {
     const pinnedRef = database().ref(`/chats/${chatId}/pinnedMessages`);
-
+  
     const onPinnedChange = async snapshot => {
       if (!snapshot.exists()) {
-        // Nếu không có tin nhắn ghim, cập nhật AsyncStorage
+        // Nếu không có tin nhắn ghim, xóa trạng thái ghim trong AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         let messages = storedMessages ? JSON.parse(storedMessages) : [];
-
-        messages = messages.map(msg => ({...msg, isPinned: false}));
-
-        await AsyncStorage.setItem(
-          `messages_${chatId}`,
-          JSON.stringify(messages),
-        );
+        messages = messages.map(msg => ({ ...msg, isPinned: false }));
+  
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
         setMessages(messages);
         return;
       }
-
-      const pinnedData = snapshot.val();
-      const {messageId} = pinnedData;
-
-      // Lấy tin nhắn từ AsyncStorage
+  
+      // ✅ Lấy danh sách tất cả tin nhắn đã ghim
+      const pinnedMessages = snapshot.val() || [];
+  
+      // 🔥 Cập nhật trạng thái ghim cho đúng tất cả tin nhắn
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       let messages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      // Cập nhật trạng thái ghim
-      messages = messages.map(msg =>
-        msg.id === messageId ? {...msg, isPinned: true} : msg,
-      );
-
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(messages),
-      );
+  
+      messages = messages.map(msg => ({
+        ...msg,
+        isPinned: pinnedMessages.some(pinned => pinned.messageId === msg.id)
+      }));
+  
+      await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
       setMessages(messages);
     };
-
+  
     pinnedRef.on('value', onPinnedChange);
     return () => pinnedRef.off('value', onPinnedChange);
   }, [chatId]);
+  
 
   useEffect(() => {
     const loadMessagesFromStorage = async () => {
