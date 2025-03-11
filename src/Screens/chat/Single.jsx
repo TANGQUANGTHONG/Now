@@ -78,7 +78,7 @@ const Single = () => {
   const [messagene, setMessageNe] = useState([]);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
   const [lastActive, setLastActive] = useState(null);
-
+  
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSending, setIsSending] = useState(false);

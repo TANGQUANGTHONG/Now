@@ -1,11 +1,14 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import React, { useState } from 'react';
+import Icon from 'react-native-vector-icons/Entypo'; 
 
-const Item_home_chat = ({ data_chat, onPress }) => {
+const { width, height } = Dimensions.get('window');
+
+const Item_home_chat = ({ data_chat, onPress, onLongPress, isPinned }) => {
   const [error, setError] = useState(false);
 
   return (
-    <Pressable onPress={onPress}>
+    <TouchableOpacity onPress={onPress} onLongPress={onLongPress} delayLongPress={300}>
       <View style={styles.container}>
         <View style={styles.container_item}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -15,7 +18,10 @@ const Item_home_chat = ({ data_chat, onPress }) => {
               onError={() => setError(true)}
             />
             <View style={styles.container_content1}>
-              <Text style={styles.text_name}>{data_chat.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.text_name}>{data_chat.name}</Text>
+              </View>
+              {/* Giới hạn tin nhắn hiển thị trong 1 dòng */}
               <Text
                 style={[styles.text_content, data_chat.unreadCount > 0 && styles.text_bold]}
                 numberOfLines={1}
@@ -27,7 +33,14 @@ const Item_home_chat = ({ data_chat, onPress }) => {
           </View>
 
           <View style={styles.container_content}>
-            <Text style={styles.text_time}>{data_chat.time}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: width * 0.01 }}>
+              {/* Icon ghim nếu tin nhắn được ghim */}
+              {isPinned && (
+                <Icon name="pin" size={width * 0.04} color="gold" style={styles.pinIcon} />
+              )}
+              <Text style={styles.text_time}>{data_chat.time}</Text>
+            </View>
+            {/* Số lượng tin nhắn chưa đọc */}
             {data_chat.unreadCount > 0 && (
               <View style={styles.border}>
                 <Text style={styles.text_notifi}>{data_chat.unreadCount}</Text>
@@ -36,76 +49,75 @@ const Item_home_chat = ({ data_chat, onPress }) => {
           </View>
         </View>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 };
 
 export default Item_home_chat;
 
-
 const styles = StyleSheet.create({
   img: {
-    width: 52,
-    height: 52,
-    borderRadius: 50,
+    width: width * 0.13, 
+    height: width * 0.13, 
+    borderRadius: width * 0.065, 
   },
   container: {
+    top : height * 0.02,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
-    flex: 1
+    marginBottom: height * 0.025, 
+    flex: 1,
   },
   container_item: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    // width: "100%",
-    // marginLeft: 12,
-    flex: 1
+    flex: 1,
   },
   container_content: {
     flexDirection: 'column',
-    marginLeft: 10,
-    alignItems: "center"
+    marginLeft: width * 0.02, 
+    alignItems: "center",
   },
   container_content1: {
     flexDirection: 'column',
-    marginLeft: 10,
-    // alignItems:"center"
+    marginLeft: width * 0.03, 
+    maxWidth: width * 0.5, 
   },
   text_name: {
-    fontSize: 20,
+    fontSize: width * 0.05, 
     fontWeight: '500',
     color: 'white',
   },
   text_time: {
-    fontSize: 12,
-    fontWeight: '450',
-    color: 'white',
-    // marginLeft: 100,
+    fontSize: width * 0.035, 
+    fontWeight: '400',
+    color: 'gray',
   },
   text_content: {
-    fontSize: 12,
-    // fontWeight: '450',
+    fontSize: width * 0.03, 
     color: 'gray',
+    maxWidth: width * 0.5, 
   },
   text_bold: {
     fontWeight: 'bold',
-    color: 'white', // Chữ đậm nếu có tin chưa đọc
+    color: 'white', 
   },
   border: {
     backgroundColor: '#00C608',
-    width: 20,
-    height: 20,
-    borderRadius: 50,
+    width: width * 0.05, 
+    height: width * 0.05, 
+    borderRadius: width * 0.025, 
     justifyContent: 'center',
     alignItems: 'center',
-    // marginLeft: 30,
-    marginTop: 10,
+    marginTop: height * 0.005, 
   },
   text_notifi: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  pinIcon: {
+    marginRight: width * 0.005, 
   },
 });
