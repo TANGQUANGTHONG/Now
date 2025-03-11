@@ -187,27 +187,6 @@ const Home = ({ navigation }) => {
   };
   
 
-
-  const updateLocalChatList = async (chatId, newMessage) => {
-    try {
-      const storedChats = await AsyncStorage.getItem('chatList');
-      if (!storedChats) return;
-
-      let chatList = JSON.parse(storedChats);
-      let updatedChats = chatList.map(chat => {
-        if (chat.chatId === chatId) {
-          return { ...chat, text: newMessage || "", time: "" };
-        }
-        return chat;
-      });
-
-      await AsyncStorage.setItem('chatList', JSON.stringify(updatedChats));
-      setChatList(updatedChats); // Cập nhật UI
-    } catch (error) {
-      console.error("❌ Lỗi cập nhật chatList:", error);
-    }
-  };
-
   useFocusEffect(
     React.useCallback(() => {
       loadChats(); // Gọi lại hàm loadChats khi quay lại Home
@@ -267,39 +246,6 @@ const Home = ({ navigation }) => {
     }
   };
 
-
-  // Kiểm tra và xóa tin nhắn nếu cả hai đã lưu
-  const checkAndDeleteMessages = async (chatId, userId) => {
-    try {
-      const messagesRef = ref(db, `chats/${chatId}/messages`);
-      const snapshot = await get(messagesRef);
-
-      if (!snapshot.exists()) return;
-
-      const messages = snapshot.val();
-      const updates = {};
-      const myId = auth.currentUser?.uid;
-      if (!myId) return;
-
-      Object.entries(messages).forEach(([messageId, messageData]) => {
-        const savedByUser1 = messageData.saved?.[myId] || false;
-        const savedByUser2 = messageData.saved?.[userId] || false;
-
-        if (savedByUser1 && savedByUser2) {
-          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa messageID hoàn toàn
-        }
-      });
-
-      if (Object.keys(updates).length > 0) {
-        await update(ref(db), updates);
-        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
-      } else {
-        console.log("⏳ Không có tin nhắn nào đủ điều kiện để xóa.");
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
-    }
-  };
 
 
 

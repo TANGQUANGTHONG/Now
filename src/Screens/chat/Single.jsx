@@ -120,24 +120,22 @@ const recallMessageForBoth = async (messageId) => {
     const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
     const recallRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
 
-    // 🔍 Kiểm tra tin nhắn còn trong Firebase không
+    // 🔍 Kiểm tra tin nhắn có tồn tại không
     const snapshot = await messageRef.once('value');
     if (snapshot.exists()) {
       await messageRef.remove(); // 🔥 Xóa tin nhắn khỏi Firebase
     }
 
-    // 🔥 Lưu thông tin thu hồi vào Firebase để đồng bộ khi online
+    // 🔥 Lưu thông tin thu hồi vào Firebase
     await recallRef.set({
       recalled: true,
       senderId: myId,
-      confirmedBy: { [myId]: true },
-      seenBy: {}, // 👀 Theo dõi ai đã thấy tin nhắn bị xóa
+      confirmedBy: { [myId]: true }, // Đánh dấu người gửi đã thu hồi
+      seenBy: {}, // 👀 Để theo dõi ai đã thấy tin nhắn thu hồi
       timestamp: Date.now(),
     });
 
-    console.log(`🗑 Tin nhắn ${messageId} đã được thu hồi.`);
-
-    // ✅ Xóa tin nhắn khỏi AsyncStorage (local)
+    // ✅ Xóa tin nhắn khỏi AsyncStorage
     const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
     let messages = storedMessages ? JSON.parse(storedMessages) : [];
     messages = messages.filter(msg => msg.id !== messageId);
@@ -152,7 +150,6 @@ const recallMessageForBoth = async (messageId) => {
 
 
 
-
 useEffect(() => {
   const recallRef = database().ref(`/chats/${chatId}/recalledMessages`);
 
@@ -164,27 +161,29 @@ useEffect(() => {
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       let localMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
-      // 🔥 Xóa tin nhắn bị thu hồi khỏi giao diện Local
+      // 🔥 Xóa tin nhắn thu hồi khỏi giao diện Local
       let updatedMessages = localMessages.filter(msg => !recalledMessages[msg.id]);
       await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
       setMessages(updatedMessages); // 🔄 Cập nhật UI ngay lập tức
 
-      // ✅ Đánh dấu rằng thiết bị này đã thấy tin nhắn thu hồi
+      // ✅ Cập nhật `seenBy` bằng transaction
       for (const messageId of Object.keys(recalledMessages)) {
         const recallMsgRef = database().ref(`/chats/${chatId}/recalledMessages/${messageId}`);
 
-        // 🔥 Cập nhật trạng thái `seenBy`
-        await recallMsgRef.child(`seenBy/${myId}`).set(true);
+        await recallMsgRef.child(`seenBy`).transaction(currentData => {
+          return { ...currentData, [myId]: true }; // ✅ Ghi nhận thiết bị này đã thấy tin nhắn thu hồi
+        });
 
-        // 🛑 Kiểm tra nếu cả hai đã xác nhận thu hồi VÀ đã thấy tin nhắn bị xóa
-        recallMsgRef.once('value', async (msgSnapshot) => {
+        // 🔥 Kiểm tra nếu cả hai đã xác nhận thu hồi VÀ đã seen, xóa Firebase
+        recallMsgRef.on('value', async (msgSnapshot) => {
           if (msgSnapshot.exists()) {
             const recallData = msgSnapshot.val();
-            const confirmedUsers = recallData.confirmedBy || {};
             const seenUsers = recallData.seenBy || {};
-
-            if (Object.keys(confirmedUsers).length >= 2 && Object.keys(seenUsers).length >= 2) {
-              await recallMsgRef.remove();
+                
+            if (Object.keys(seenUsers).length >= 2) {
+              setTimeout(async () => {
+                await recallMsgRef.remove();
+              }, 5000);
             }
           }
         });
@@ -202,9 +201,9 @@ useEffect(() => {
 
 
 
-  
-  
-  
+
+
+
 
   const handleLongPress = (message) => {
      // Kiểm tra nếu người dùng hiện tại có phải là người gửi tin nhắn hay không
@@ -576,34 +575,6 @@ useEffect(() => {
   }, [myId, database]); //  Thêm dependency
 
 
-
-  //xoa ca hai
-  const deleteMessageForBoth = async messageId => {
-    try {
-      // 🔥 Xóa tin nhắn trong Firebase
-      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
-
-      // 🔥 Xóa tin nhắn trong AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      let messages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      // 🔥 Lọc bỏ tin nhắn vừa bị xóa
-      messages = messages.filter(msg => msg.id !== messageId);
-
-      // 🔥 Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(messages),
-      );
-
-      // 🔥 Cập nhật state để UI phản hồi ngay lập tức
-      setMessages(messages);
-
-
-    } catch (error) {
-      console.error('❌ Lỗi khi xóa tin nhắn:', error);
-    }
-  };
 
   const formatCountdown = seconds => {
     const hours = Math.floor(seconds / 3600);
