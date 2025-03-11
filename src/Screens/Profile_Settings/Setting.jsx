@@ -169,6 +169,12 @@ const Setting = ({navigation}) => {
               <TouchableOpacity onPress={() => setQrVisible(true)}>
                 <Icon name="qr-code-outline" size={30} color="black" />
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate('NearbyFriends', {userId: myUser.id})
+                }>
+                <Icon name="location-outline" size={30} color="black" />
+              </TouchableOpacity>
             </View>
 
             {/* 🔥 Modal hiển thị QR Code */}
@@ -232,12 +238,7 @@ const Setting = ({navigation}) => {
                 onPress={() =>
                   navigation.navigate(oStackHome.QRScannerScreen.name)
                 }>
-                <Option
-                  icon="scan"
-                  title="QR"
-                  subtitle="QR scan"
-                  color="red"
-                />
+                <Option icon="scan" title="QR" subtitle="QR scan" color="red" />
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
   profile: {flexDirection: 'row', alignItems: 'center', marginBottom: 20},
   avatar: {width: 60, height: 60, borderRadius: 30, marginRight: 10},
   profileInfo: {flex: 1},
-  name: {fontSize: 18, fontWeight: 'bold',color:'black'},
+  name: {fontSize: 18, fontWeight: 'bold', color: 'black'},
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
