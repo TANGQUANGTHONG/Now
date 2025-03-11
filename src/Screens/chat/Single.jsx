@@ -78,7 +78,7 @@ const Single = () => {
   const [messagene, setMessageNe] = useState([]);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
   const [lastActive, setLastActive] = useState(null);
-
+  
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSending, setIsSending] = useState(false);
@@ -161,9 +161,9 @@ const Single = () => {
       console.error("❌ Lỗi khi thu hồi tin nhắn:", error);
     }
   };
-  
-  
-  
+
+
+  //Lắng nghe Firebase để cập nhật UI khi tin nhắn bị thu hồi
   useEffect(() => {
     const recallRef = database().ref(`/chats/${chatId}/recalledMessages`);
   
@@ -389,37 +389,57 @@ const Single = () => {
     };
   }, [myId]);
 
-  //Lắng nghe thay đổi trạng thái hoạt động của người dùng khác và cập nhật giao diện người dùng
-  useEffect(() => {
-    const userRef = database().ref(`/users/${userId}/lastActive`);
+//lắng nghe thay đổi trạng thái hoạt động của người dùng từ Firebase
+useEffect(() => {
+  // Tạo tham chiếu đến giá trị "lastActive" của người dùng trong firebase
+  const userRef = database().ref(`/users/${userId}/lastActive`);
 
-    const onUserActiveChange = snapshot => {
-      if (snapshot.exists()) {
-        const lastActive = snapshot.val();
-        setLastActive(lastActive);
-      }
-    };
-
-    userRef.on('value', onUserActiveChange);
-
-    return () => userRef.off('value', onUserActiveChange);
-  }, [userId]);
-
-  //Hàm tính toán và hiển thị trạng thái hoạt động của user
-  const getStatusText = () => {
-    if (!lastActive) return 'Đang hoạt động';
-
-    const now = Date.now();
-    const diff = now - lastActive;
-
-    if (diff < 60000) return 'Đang hoạt động';
-    if (diff < 3600000)
-      return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
-    if (diff < 86400000)
-      return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
-
-    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+  // Định nghĩa hàm sẽ được gọi khi giá trị "lastActive" thay đổi
+  const onUserActiveChange = snapshot => {
+    // Kiểm tra xem giá trị "lastActive" có tồn tại trong snapshot không
+    if (snapshot.exists()) {
+      // Lấy giá trị lastActive từ Firebase
+      const lastActive = snapshot.val();
+      
+      // Cập nhật trạng thái lastActive trong local (ứng dụng) với giá trị từ Firebase
+      setLastActive(lastActive);
+    }
   };
+
+  // Thiết lập lắng nghe sự thay đổi của lastActive trong Firebase
+  userRef.on('value', onUserActiveChange);
+
+  // Xóa listener khi component bị hủy hoặc khi userId thay đổi
+  return () => userRef.off('value', onUserActiveChange);
+}, [userId]); // Mảng phụ thuộc đảm bảo hàm này chạy lại khi userId thay đổi
+
+// Hàm tính toán và hiển thị trạng thái hoạt động của người dùng dựa trên thời gian lastActive
+const getStatusText = () => {
+  // Nếu không có giá trị lastActive (ví dụ: vừa mới đăng nhập), hiển thị "Đang hoạt động"
+  if (!lastActive) return 'Đang hoạt động';
+
+  // Lấy thời gian hiện tại (theo đơn vị milliseconds)
+  const now = Date.now();
+
+  // Tính sự chênh lệch giữa thời gian hiện tại và thời gian lastActive
+  const diff = now - lastActive;
+
+  // Nếu thời gian chênh lệch dưới 10 giây, hiển thị "Đang hoạt động"
+  if (diff < 10000) return 'Đang hoạt động';
+
+  // Nếu thời gian chênh lệch từ 10 giây đến 1 phút, hiển thị "Vừa mới truy cập"
+  if (diff < 60000) return 'Vừa mới truy cập';
+
+  // Nếu thời gian chênh lệch từ 1 phút đến 1 giờ, hiển thị số phút trước đó người dùng đã hoạt động
+  if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+
+  // Nếu thời gian chênh lệch từ 1 giờ đến 24 giờ, hiển thị số giờ trước đó người dùng đã hoạt động
+  if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+
+  // Nếu thời gian chênh lệch lớn hơn 24 giờ, hiển thị số ngày trước đó người dùng đã hoạt động
+  return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+};
+
 
   // lấy dữ liệu từ firebase về để show lên
   useEffect(() => {
@@ -438,65 +458,64 @@ const Single = () => {
 
     // Lắng nghe tin nhắn mới
     const onMessageChange = async snapshot => {
+      // Kiểm tra xem snapshot có tồn tại không, nếu không tồn tại, thoát khỏi hàm
       if (!snapshot.exists()) return;
-
+    
       try {
+        // Lấy dữ liệu tin nhắn từ Firebase
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
-
-        const newMessages = Object.entries(firebaseMessages)
+    
+        // Chuyển đổi dữ liệu tin nhắn từ đối tượng sang mảng và giải mã tin nhắn
+        const newMessages = Object.entries(firebaseMessages) // Chuyển đổi đối tượng tin nhắn thành mảng [id, data]
           .map(([id, data]) => ({
-            id,
-            senderId: data.senderId,
+            id, // ID của tin nhắn
+            senderId: data.senderId, // ID của người gửi
             text: data.text
-              ? decryptMessage(data.text, secretKey)
-              : '📷 Ảnh mới',
-            imageUrl: data.imageUrl || null,
-            timestamp: data.timestamp,
-            selfDestruct: data.selfDestruct || false,
-            selfDestructTime: data.selfDestructTime || null,
-            seen: data.seen || {},
-            deleted: data.deleted || false,
+              ? decryptMessage(data.text, secretKey) // Giải mã nội dung tin nhắn nếu có
+              : '📷 Ảnh mới', // Nếu tin nhắn là hình ảnh thì hiển thị thông báo
+            imageUrl: data.imageUrl || null, // URL hình ảnh nếu có
+            timestamp: data.timestamp, // Thời gian gửi tin nhắn
+            selfDestruct: data.selfDestruct || false, // Kiểm tra xem tin nhắn có tự hủy không
+            selfDestructTime: data.selfDestructTime || null, // Thời gian tự hủy của tin nhắn
+            seen: data.seen || {}, // Trạng thái đã xem của tin nhắn
+            deleted: data.deleted || false, // Kiểm tra xem tin nhắn đã bị xóa chưa
           }))
-          .filter(msg => msg.timestamp) // Lọc tin nhắn hợp lệ
-          .sort((a, b) => a.timestamp - b.timestamp); // 🔹 Sắp xếp theo timestamp
-
+          .filter(msg => msg.timestamp) // Lọc những tin nhắn có timestamp hợp lệ
+          .sort((a, b) => a.timestamp - b.timestamp); // Sắp xếp tin nhắn theo thời gian
+    
         console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-
-        // Lọc tin nhắn không tự hủy
+    
+        // (Ghi chú: Đoạn này bị comment out) Lọc tin nhắn không tự hủy
         // const nonSelfDestructMessages = newMessages.filter(
         //   msg => !msg.selfDestruct,
         // );
-
+    
         // Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-        // Gộp tin nhắn mới với tin nhắn cũ, loại bỏ trùng lặp
+    
+        // Gộp tin nhắn mới với tin nhắn cũ và loại bỏ các tin nhắn trùng lặp
         const updatedMessages = [...oldMessages, ...newMessages]
           .filter(
             (msg, index, self) =>
               index === self.findIndex(m => m.id === msg.id),
           )
-          .sort((a, b) => a.timestamp - b.timestamp); // 🔹 Sắp xếp tin nhắn theo timestamp
-
+          .sort((a, b) => a.timestamp - b.timestamp); // Sắp xếp lại theo timestamp
+    
+        // Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
         await AsyncStorage.setItem(
           `messages_${chatId}`,
           JSON.stringify(updatedMessages),
         );
-
-        await AsyncStorage.setItem(
-          `messages_${chatId}`,
-          JSON.stringify(updatedMessages),
-        );
-
-        // Cập nhật UI với tin nhắn mới
+    
+        // Cập nhật lại danh sách tin nhắn trong UI
         const uniqueMessages = updatedMessages.filter(
           (msg, index, self) => index === self.findIndex(m => m.id === msg.id),
         );
         setMessages(uniqueMessages);
-
-        // Kiểm tra nếu cuộn xuống không bị chặn bởi người dùng
+    
+        // Tự động cuộn xuống cuối danh sách tin nhắn nếu cần
         if (shouldAutoScroll && listRef.current) {
           setTimeout(() => {
             if (listRef.current) {
@@ -504,30 +523,30 @@ const Single = () => {
             }
           }, 300);
         }
-
-        // xóa tin nhắn khi cả 2 đã seen
+    
+        // Đánh dấu tin nhắn là đã xem và xóa tin nhắn nếu cả hai bên đã xem
         for (const msg of newMessages) {
           const seenRef = database().ref(
             `/chats/${chatId}/messages/${msg.id}/seen`,
           );
-          await seenRef.child(myId).set(true);
-
-          // Kiểm tra nếu cả hai người đã seen thì xóa tin nhắn
+          await seenRef.child(myId).set(true); // Đánh dấu rằng người dùng hiện tại đã xem tin nhắn
+    
+          // Kiểm tra xem cả hai người đã xem tin nhắn chưa, nếu có thì xóa
           seenRef.once('value', async snapshot => {
             if (snapshot.exists()) {
               const seenUsers = snapshot.val();
               const userIds = Object.keys(seenUsers);
               const allSeen =
                 userIds.length === 2 &&
-                userIds.every(userId => seenUsers[userId]);
-
+                userIds.every(userId => seenUsers[userId]); // Kiểm tra nếu cả hai người đã xem
+    
               if (allSeen) {
                 console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
                 setTimeout(async () => {
                   await database()
                     .ref(`/chats/${chatId}/messages/${msg.id}`)
-                    .remove();
-                }, 30000);
+                    .remove(); // Xóa tin nhắn khỏi Firebase sau 10 giây
+                }, 30000); // Thời gian đếm ngược 30 giây trước khi xóa tin nhắn
               }
             }
           });
@@ -536,6 +555,7 @@ const Single = () => {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
     };
+    
 
     // Đăng ký lắng nghe sự kiện từ Firebase
     typingRef.on('value', onTypingChange);
@@ -1037,53 +1057,66 @@ const Single = () => {
     }
   };
 
-  const sendImageMessage = async imageUrl => {
-    if (!imageUrl || isSending) return; // Ngăn gửi nếu đang xử lý gửi ảnh
-    setIsSending(true);
+// Hàm gửi tin nhắn ảnh
+const sendImageMessage = async imageUrl => {
+  // Kiểm tra nếu URL ảnh không tồn tại hoặc đang gửi ảnh thì không làm gì và thoát khỏi hàm
+  if (!imageUrl || isSending) return; 
+  // Đặt trạng thái isSending thành true để tránh gửi liên tục nhiều ảnh trong khi đang xử lý
+  setIsSending(true);
 
-    try {
-      const chatRef = database().ref(`/chats/${chatId}/messages`).push();
-      const timestamp = Date.now();
+  try {
+    // Tạo một reference mới trong Firebase Realtime Database cho tin nhắn ảnh
+    const chatRef = database().ref(`/chats/${chatId}/messages`).push();
+    // Lấy timestamp hiện tại để lưu lại thời gian gửi tin nhắn
+    const timestamp = Date.now();
 
-      const messageData = {
-        senderId: myId,
-        imageUrl: imageUrl,
-        timestamp: timestamp,
-        seen: {[myId]: true, [userId]: false},
-        selfDestruct: isSelfDestruct, // Áp dụng tự hủy nếu bật
-        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-      };
+    // Tạo dữ liệu cho tin nhắn ảnh
+    const messageData = {
+      senderId: myId, // ID của người gửi
+      imageUrl: imageUrl, // URL của ảnh đã chọn
+      timestamp: timestamp, // Thời gian gửi tin nhắn
+      seen: {[myId]: true, [userId]: false}, // Trạng thái đã xem của tin nhắn (người gửi đã xem, người nhận chưa xem)
+      selfDestruct: isSelfDestruct, // Kiểm tra xem tin nhắn có chế độ tự hủy không
+      selfDestructTime: isSelfDestruct ? selfDestructTime : null, // Nếu tự hủy bật, thì lưu thời gian tự hủy
+    };
 
-      await chatRef.set(messageData);
-      console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
+    // Gửi tin nhắn ảnh lên Firebase bằng cách lưu dữ liệu vào reference đã tạo
+    await chatRef.set(messageData);
+    console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl); // In ra console URL ảnh đã gửi
 
-      // 🔥 Lưu tin nhắn ảnh vào AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+    // 🔥 Lấy các tin nhắn cũ từ AsyncStorage để chuẩn bị cập nhật danh sách tin nhắn
+    const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+    const oldMessages = storedMessages ? JSON.parse(storedMessages) : []; // Chuyển đổi dữ liệu lưu trữ từ chuỗi JSON thành mảng tin nhắn cũ
 
-      //fix lai x2 anh
-      // const updatedMessages = [
-      //   ...oldMessages,
-      //   { id: chatRef.key, ...messageData },
-      // ];
+    // (Đoạn này bị comment out) Gộp tin nhắn ảnh mới với các tin nhắn cũ
+    // const updatedMessages = [
+    //   ...oldMessages,
+    //   { id: chatRef.key, ...messageData }, // Thêm tin nhắn mới vào danh sách
+    // ];
 
-      // await AsyncStorage.setItem(
-      //   `messages_${chatId}`,
-      //   JSON.stringify(updatedMessages),
-      // );
+    // (Đoạn này bị comment out) Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
+    // await AsyncStorage.setItem(
+    //   `messages_${chatId}`,
+    //   JSON.stringify(updatedMessages),
+    // );
 
-      // // Cập nhật UI ngay lập tức
-      // setMessages(updatedMessages);
-      await chatRef.set(messageData);
-      setIsSending(false);
+    // (Đoạn này bị comment out) Cập nhật giao diện với danh sách tin nhắn mới
+    // setMessages(updatedMessages);
 
-      //
-    } catch (error) {
-      console.error('❌ Lỗi khi gửi ảnh:', error);
-    } finally {
-      setTimeout(() => setIsSending(false), 1000);
-    }
-  };
+    // Đảm bảo dữ liệu tin nhắn ảnh được lưu vào Firebase (có thể do double-setting trước đó)
+    await chatRef.set(messageData);
+    // Sau khi gửi xong, đặt lại trạng thái isSending thành false để có thể gửi tin nhắn tiếp theo
+    setIsSending(false);
+
+  } catch (error) {
+    // Nếu có lỗi xảy ra trong quá trình gửi ảnh, in lỗi ra console
+    console.error('❌ Lỗi khi gửi ảnh:', error);
+  } finally {
+    // Đảm bảo trạng thái isSending được đặt lại sau 1 giây, cho dù có lỗi hay không
+    setTimeout(() => setIsSending(false), 1000);
+  }
+};
+
 
   const requestStoragePermission = async () => {
     if (Platform.OS === 'android') {
