@@ -1,19 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, PermissionsAndroid, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  PermissionsAndroid,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import database from '@react-native-firebase/database';
 import { getDistance } from 'geolib';
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
+import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons'; 
+import { oStackHome, oTab } from '../../navigations/HomeNavigation';
 
 const NearbyFriends = ({ route }) => {
-  const { userId } = route.params; // 👉 Lấy userId từ navigation
+  const navigation = useNavigation();
+  const { userId } = route.params;
   const [location, setLocation] = useState(null);
   const [nearbyFriends, setNearbyFriends] = useState([]);
-  const [selectedDistance, setSelectedDistance] = useState(5); // Mặc định 5km
+  const [selectedDistance, setSelectedDistance] = useState(5);
+  const [isLoading, setIsLoading] = useState(false); // 🔥 Thêm biến loading
 
-  // Danh sách khoảng cách có thể chọn
-  const distanceOptions = [1, 5, 10, 20];
+  const distanceOptions = [1, 5, 10, 20, 15000];
 
-  // Yêu cầu quyền truy cập GPS trên Android
   const requestLocationPermission = async () => {
     try {
       const granted = await PermissionsAndroid.request(
@@ -22,7 +35,7 @@ const NearbyFriends = ({ route }) => {
           title: 'Cho phép truy cập vị trí',
           message: 'Ứng dụng cần truy cập vị trí của bạn để tìm bạn bè gần đây',
           buttonPositive: 'OK',
-        }
+        },
       );
       return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
@@ -31,56 +44,77 @@ const NearbyFriends = ({ route }) => {
     }
   };
 
-  // Lấy vị trí hiện tại
   const getLocation = async () => {
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) return;
 
     Geolocation.getCurrentPosition(
-      (position) => {
+      position => {
         const { latitude, longitude } = position.coords;
+        console.log(`📌 Vị trí hiện tại: ${latitude}, ${longitude}`);
+
         setLocation({ latitude, longitude });
 
-        // Cập nhật vị trí của người dùng lên Firebase
-        database().ref(`/users/${userId}`).update({
-          latitude,
-          longitude,
-        });
-
-        // Sau khi có vị trí, lấy danh sách bạn bè gần đây
-        fetchNearbyFriends(latitude, longitude, selectedDistance);
+        if (userId) {
+          database()
+            .ref(`/users/${userId}`)
+            .update({ latitude, longitude })
+            .then(() => console.log('✅ Đã cập nhật vị trí lên Firebase'))
+            .catch(err => console.log('❌ Lỗi khi cập nhật vị trí:', err));
+        }
       },
-      (error) => console.log('❌ Lỗi khi lấy vị trí:', error),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      error => console.log('❌ Lỗi khi lấy vị trí:', error),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
   };
 
-  // Lấy danh sách bạn bè gần đây từ Firebase
   const fetchNearbyFriends = async (latitude, longitude, maxDistance) => {
-    database().ref('/users').once('value', (snapshot) => {
-      const allUsers = snapshot.val();
-      if (!allUsers) return;
+    setIsLoading(true); // 🔥 Bắt đầu tải dữ liệu
 
-      const friendsNearby = Object.keys(allUsers)
-        .filter((id) => id !== userId) // Không lấy chính mình
-        .map((id) => {
-          const friend = allUsers[id];
-          const distance = getDistance(
-            { latitude, longitude },
-            { latitude: friend.latitude, longitude: friend.longitude }
-          ) / 1000; // Chuyển đổi từ mét sang km
+    database()
+      .ref('/users')
+      .once('value', snapshot => {
+        if (!snapshot.exists()) {
+          console.log('❌ Không tìm thấy dữ liệu user trong Firebase');
+          setIsLoading(false);
+          return;
+        }
 
-          return { id, ...friend, distance };
-        })
-        .filter((friend) => friend.distance <= maxDistance); // Lọc theo khoảng cách đã chọn
+        const allUsers = snapshot.val();
+        if (!allUsers) return;
 
-      setNearbyFriends(friendsNearby);
-    });
+        console.log('📌 Tất cả user từ Firebase:', allUsers);
+
+        const friendsWithLocation = Object.keys(allUsers)
+          .filter(
+            id =>
+              id !== userId && allUsers[id].latitude && allUsers[id].longitude,
+          )
+          .map(id => {
+            const friend = allUsers[id];
+            const distance =
+              getDistance(
+                { latitude, longitude },
+                { latitude: friend.latitude, longitude: friend.longitude },
+              ) / 1000;
+
+            return { id, ...friend, distance };
+          });
+
+        const friendsNearby = friendsWithLocation.filter(
+          friend => friend.distance <= maxDistance,
+        );
+
+        console.log('👥 Danh sách bạn bè gần đây:', friendsNearby);
+        setNearbyFriends(friendsNearby);
+        setIsLoading(false); // 🔥 Dữ liệu đã tải xong
+      });
   };
 
-  // Khi người dùng chọn khoảng cách mới
-  const handleDistanceChange = (distance) => {
+  const handleDistanceChange = distance => {
     setSelectedDistance(distance);
+    console.log(`📌 Đang tìm bạn trong phạm vi ${distance} km`);
+
     if (location) {
       fetchNearbyFriends(location.latitude, location.longitude, distance);
     }
@@ -90,43 +124,116 @@ const NearbyFriends = ({ route }) => {
     getLocation();
   }, []);
 
+  useEffect(() => {
+    if (location) {
+      console.log('📌 Gọi hàm fetchNearbyFriends()');
+      fetchNearbyFriends(location.latitude, location.longitude, selectedDistance);
+    }
+  }, [location, selectedDistance]);
+
   return (
-    <View style={{ padding: 20 }}>
-      <Text style={{ fontSize: 16, fontWeight: 'bold' }}>
-        📍 Vị trí hiện tại: {location ? `${location.latitude}, ${location.longitude}` : 'Đang lấy...'}
-      </Text>
-
-      {/* Bộ chọn khoảng cách */}
-      <View style={{ flexDirection: 'row', marginVertical: 20 }}>
-        {distanceOptions.map((distance) => (
-          <TouchableOpacity
-            key={distance}
-            onPress={() => handleDistanceChange(distance)}
-            style={{
-              padding: 10,
-              marginHorizontal: 5,
-              backgroundColor: selectedDistance === distance ? 'blue' : 'gray',
-              borderRadius: 5,
-            }}
-          >
-            <Text style={{ color: 'white' }}>{distance} km</Text>
-          </TouchableOpacity>
-        ))}
+    <View style={{ flex: 1, backgroundColor: '#f5f5f5', padding: 20 }}>
+      
+      {/* Thanh tiêu đề với nút Back */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+        <TouchableOpacity onPress={() => navigation.navigate(oTab.Home.name)} style={{ marginRight: 10 }}>
+          <Icon name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333' }}>
+          Tìm bạn gần đây
+        </Text>
       </View>
-
-      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>👥 Bạn bè gần đây:</Text>
-      {nearbyFriends.length > 0 ? (
-        <FlatList
-          data={nearbyFriends}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={{ padding: 10, borderBottomWidth: 1, borderColor: '#ddd' }}>
-              <Text>🧑 {item.id} - {item.distance.toFixed(2)} km</Text>
-            </View>
-          )}
-        />
+  
+      {/* Danh sách chọn khoảng cách */}
+      <View style={{ alignItems: 'center', marginBottom: 15 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row' }}>
+          {distanceOptions.map(distance => (
+            <TouchableOpacity
+              key={distance}
+              onPress={() => handleDistanceChange(distance)}
+              style={{
+                paddingVertical: 10,
+                paddingHorizontal: 20,
+                marginHorizontal: 5,
+                backgroundColor: selectedDistance === distance ? '#007bff' : '#ddd',
+                borderRadius: 20,
+              }}>
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>{distance} km</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+  
+      <Text style={{
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        color: '#333',
+        textAlign: 'center',
+      }}>
+        🔍 Tìm bạn trong phạm vi {selectedDistance} km...
+      </Text>
+  
+      {/* Hiển thị loading khi dữ liệu chưa tải xong */}
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text style={{ marginTop: 10, fontSize: 16, color: 'gray' }}>Đang tải danh sách...</Text>
+        </View>
       ) : (
-        <Text>😢 Không có ai trong phạm vi {selectedDistance} km</Text>
+        <View style={{ flex: 1 }}>
+          {nearbyFriends.length > 0 ? (
+            <FlatList
+              data={nearbyFriends}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate('Single', {
+                      userId: item.id,
+                      myId: userId,
+                      username: decryptMessage(item.name),
+                      img: decryptMessage(item.Image),
+                    })
+                  }
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 15,
+                    backgroundColor: 'white',
+                    borderRadius: 10,
+                    marginBottom: 10,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  }}>
+                  <Image
+                    source={{
+                      uri: decryptMessage(item.Image) || 'https://via.placeholder.com/50',
+                    }}
+                    style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 25,
+                      marginRight: 15,
+                    }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>
+                      {decryptMessage(item.name)}
+                    </Text>
+                    <Text style={{ color: 'gray', fontSize: 14 }}>
+                      Khoảng cách: {item.distance.toFixed(2)} km
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          ) : (
+            <Text style={{ fontSize: 16, color: 'gray', textAlign: 'center' }}>Không có ai trong phạm vi {selectedDistance} km</Text>
+          )}
+        </View>
       )}
     </View>
   );
