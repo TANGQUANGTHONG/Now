@@ -115,7 +115,7 @@ const Home = ({ navigation }) => {
   
       onValue(chatRef, async snapshot => {
         if (!snapshot.exists()) {
-          console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
+          // console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
           setChatList(chatListFromStorage); // Đặt lại danh sách đã sắp xếp
           return;
         }
