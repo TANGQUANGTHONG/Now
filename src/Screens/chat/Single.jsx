@@ -75,7 +75,6 @@ const Single = () => {
   const [selectedImage, setSelectedImage] = useState(null);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [messagene, setMessageNe] = useState([]);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
   const [lastActive, setLastActive] = useState(null);
 
@@ -540,32 +539,32 @@ const Single = () => {
         }
 
         // Đánh dấu tin nhắn là đã xem và xóa tin nhắn nếu cả hai bên đã xem
-        for (const msg of newMessages) {
-          const seenRef = database().ref(
-            `/chats/${chatId}/messages/${msg.id}/seen`,
-          );
-          await seenRef.child(myId).set(true); // Đánh dấu rằng người dùng hiện tại đã xem tin nhắn
+        // for (const msg of newMessages) {
+        //   const seenRef = database().ref(
+        //     `/chats/${chatId}/messages/${msg.id}/seen`,
+        //   );
+        //   await seenRef.child(myId).set(true); // Đánh dấu rằng người dùng hiện tại đã xem tin nhắn
 
-          // Kiểm tra xem cả hai người đã xem tin nhắn chưa, nếu có thì xóa
-          seenRef.once('value', async snapshot => {
-            if (snapshot.exists()) {
-              const seenUsers = snapshot.val();
-              const userIds = Object.keys(seenUsers);
-              const allSeen =
-                userIds.length === 2 &&
-                userIds.every(userId => seenUsers[userId]); // Kiểm tra nếu cả hai người đã xem
+        //   // Kiểm tra xem cả hai người đã xem tin nhắn chưa, nếu có thì xóa
+        //   seenRef.once('value', async snapshot => {
+        //     if (snapshot.exists()) {
+        //       const seenUsers = snapshot.val();
+        //       const userIds = Object.keys(seenUsers);
+        //       const allSeen =
+        //         userIds.length === 2 &&
+        //         userIds.every(userId => seenUsers[userId]); // Kiểm tra nếu cả hai người đã xem
 
-              if (allSeen) {
-                console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
-                setTimeout(async () => {
-                  await database()
-                    .ref(`/chats/${chatId}/messages/${msg.id}`)
-                    .remove(); // Xóa tin nhắn khỏi Firebase sau 10 giây
-                }, 5000); // Thời gian đếm ngược 30 giây trước khi xóa tin nhắn
-              }
-            }
-          });
-        }
+        //       if (allSeen) {
+        //         console.log(`🗑 Xóa tin nhắn ${msg.id} sau 10 giây`);
+        //         setTimeout(async () => {
+        //           await database()
+        //             .ref(`/chats/${chatId}/messages/${msg.id}`)
+        //             .remove(); // Xóa tin nhắn khỏi Firebase sau 10 giây
+        //         }, 5000); // Thời gian đếm ngược 30 giây trước khi xóa tin nhắn
+        //       }
+        //     }
+        //   });
+        // }
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
@@ -755,7 +754,7 @@ const Single = () => {
         timestamp: currentTimestamp,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-        seen: {[userId]: false, [myId]: true},
+        // seen: {[userId]: false, [myId]: true},
         isLocked: isSelfDestruct, // 🔒 Chỉ khóa nếu tin nhắn tự hủy: isSelfDestruct,
       };
 
@@ -1097,21 +1096,6 @@ const Single = () => {
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       const oldMessages = storedMessages ? JSON.parse(storedMessages) : []; // Chuyển đổi dữ liệu lưu trữ từ chuỗi JSON thành mảng tin nhắn cũ
 
-      // (Đoạn này bị comment out) Gộp tin nhắn ảnh mới với các tin nhắn cũ
-      // const updatedMessages = [
-      //   ...oldMessages,
-      //   { id: chatRef.key, ...messageData }, // Thêm tin nhắn mới vào danh sách
-      // ];
-
-      // (Đoạn này bị comment out) Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
-      // await AsyncStorage.setItem(
-      //   `messages_${chatId}`,
-      //   JSON.stringify(updatedMessages),
-      // );
-
-      // (Đoạn này bị comment out) Cập nhật giao diện với danh sách tin nhắn mới
-      // setMessages(updatedMessages);
-
       // Đảm bảo dữ liệu tin nhắn ảnh được lưu vào Firebase (có thể do double-setting trước đó)
       await chatRef.set(messageData);
       // Sau khi gửi xong, đặt lại trạng thái isSending thành false để có thể gửi tin nhắn tiếp theo
@@ -1328,14 +1312,23 @@ const Single = () => {
                         {/* Nếu tin nhắn là ảnh */}
                         {item.imageUrl ? (
                           <TouchableOpacity
-                            onPress={() => {
+                          onPress={() => {
+                            if (isSelfDestruct) {
+                              handleUnlockAndStartTimer(item.id, item.imageUrl, item.selfDestructTime);
+                            } else {
                               setSelectedImage(item.imageUrl);
                               setIsImageModalVisible(true);
+                            }
                             }}>
                             <Image
                               source={{uri: item.imageUrl}}
                               style={styles.imageMessage}
                             />
+                                {isSelfDestruct && timeLeft > 0 && (
+                              <Text style={styles.selfDestructTimer}>
+                                🕒 {timeLeft}s
+                              </Text>
+                            )}
                           </TouchableOpacity>
                         ) : (
                           <>

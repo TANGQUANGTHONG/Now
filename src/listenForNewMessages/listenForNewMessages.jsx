@@ -26,7 +26,6 @@ const useListenForNewMessages = () => {
 
           const secretKey = generateSecretKey(myId, otherUserId);
 
-          // 🔥 Lấy tin nhắn từ Firebase và giải mã
           let newMessages = Object.entries(chat.messages)
             .map(([id, msg]) => ({
               id,
@@ -40,10 +39,10 @@ const useListenForNewMessages = () => {
               deleted: msg.deleted || false,
               isLocked: msg.selfDestruct,
             }))
-            .filter(msg => !msg.deleted) // ❌ Loại bỏ tin nhắn đã bị xóa
+            .filter(msg => !msg.deleted) // ❌ Bỏ qua tin nhắn đã xóa
             .sort((a, b) => a.timestamp - b.timestamp);
 
-          // 🔥 Lấy dữ liệu cũ từ AsyncStorage
+          // Lấy dữ liệu cũ từ AsyncStorage
           const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
           const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
@@ -54,14 +53,16 @@ const useListenForNewMessages = () => {
           if (newMessages.length > 0) {
             const updatedMessages = [...oldMessages, ...newMessages];
 
-            // 🔥 Lưu dữ liệu mới vào AsyncStorage
+            // ✅ Lưu tin nhắn vào AsyncStorage trước khi xóa trên Firebase
             await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-            console.log(`✅ Đã thêm ${newMessages.length} tin nhắn mới cho chat ${chatId}`);
 
-            // 🔥 Xóa tin nhắn khỏi Firebase sau khi lưu
+            console.log(`✅ Đã thêm ${newMessages.length} tin nhắn mới vào local cho chat ${chatId}`);
+
+            // 🔥 Xóa tin nhắn khỏi Firebase sau khi lưu xong
             newMessages.forEach(async msg => {
+                setTimeout(async () => {
               await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
-              console.log(`🗑 Đã xóa tin nhắn ${msg.id} khỏi Firebase`);
+            }, 5000)
             });
           }
         }
@@ -73,6 +74,7 @@ const useListenForNewMessages = () => {
     chatsRef.on('value', onNewMessage);
     return () => chatsRef.off('value', onNewMessage);
   }, []);
+
 };
 
 export default useListenForNewMessages;
