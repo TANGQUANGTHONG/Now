@@ -175,7 +175,7 @@ const Home = ({ navigation }) => {
               ).length;
             }
           } else {
-            console.log(`📭 Không có tin nhắn trên Firebase cho chatId: ${chatId}, lấy từ local.`);
+            // console.log(`📭 Không có tin nhắn trên Firebase cho chatId: ${chatId}, lấy từ local.`);
             const localMessage = await getLatestMessageFromLocal(chatId);
             lastMessage = localMessage.text;
             lastMessageTime = localMessage.time;
@@ -221,7 +221,7 @@ const Home = ({ navigation }) => {
       const messages = JSON.parse(storedMessages);
   
       if (messages.length === 0) {
-        console.log(`📭 Danh sách tin nhắn rỗng cho chatId: ${chatId}`);
+        // console.log(`📭 Danh sách tin nhắn rỗng cho chatId: ${chatId}`);
         return { text: "", time: "", timestamp: 0, isSeen: false };
       }
   
