@@ -10,7 +10,7 @@ import useListenForNewMessages from './src/listenForNewMessages/listenForNewMess
 
 const App = () => {
   // Bật thông báo khi app khởi động
-  // useListenForNewMessages(); 
+  useListenForNewMessages(); 
   useEffect(() => {
     configurePushNotification();
     listenForNewMessages();

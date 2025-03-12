@@ -6,7 +6,7 @@ import { decryptMessage, generateSecretKey } from '../cryption/Encryption';
 
 const useListenForNewMessages = () => {
   useEffect(() => {
-    const myId = auth().currentUser?.uid; // 🔥 Lấy myId từ Firebase Auth
+    const myId = auth().currentUser?.uid;
     if (!myId) return;
 
     const chatsRef = database().ref('/chats');
@@ -19,38 +19,51 @@ const useListenForNewMessages = () => {
         const chatEntries = Object.entries(chatData);
 
         for (const [chatId, chat] of chatEntries) {
-          if (!chat.users || !chat.users[myId]) continue;
+          if (!chat.users || !chat.users[myId] || !chat.messages) continue;
 
-          // 🔥 Lấy ID của người đối diện
           const otherUserId = Object.keys(chat.users).find(uid => uid !== myId);
           if (!otherUserId) continue;
 
-          const secretKey = generateSecretKey(myId, otherUserId); // ✅ Tạo secretKey chính xác
-          const messages = Object.entries(chat.messages).map(([id, msg]) => ({
-            id,
-            myId, // 🔥 Lưu ID của mình
-            otherUserId, // 🔥 Lưu ID của người đang chat
-            senderId: msg.senderId,
-            text: decryptMessage(msg.text, secretKey) || '📷 Ảnh mới',
-            imageUrl: msg.imageUrl || null,
-            timestamp: msg.timestamp,
-            selfDestruct: msg.selfDestruct || false,
-            selfDestructTime: msg.selfDestructTime || null,
-            seen: msg.seen || {},
-            deleted: msg.deleted || false,
-            isLocked: msg.selfDestruct,
-          }));
+          const secretKey = generateSecretKey(myId, otherUserId);
 
+          // 🔥 Lấy tin nhắn từ Firebase và giải mã
+          let newMessages = Object.entries(chat.messages)
+            .map(([id, msg]) => ({
+              id,
+              senderId: msg.senderId,
+              text: msg.text ? decryptMessage(msg.text, secretKey) : '📷 Ảnh mới',
+              imageUrl: msg.imageUrl || null,
+              timestamp: msg.timestamp,
+              selfDestruct: msg.selfDestruct || false,
+              selfDestructTime: msg.selfDestructTime || null,
+              seen: msg.seen || {},
+              deleted: msg.deleted || false,
+              isLocked: msg.selfDestruct,
+            }))
+            .filter(msg => !msg.deleted) // ❌ Loại bỏ tin nhắn đã bị xóa
+            .sort((a, b) => a.timestamp - b.timestamp);
+
+          // 🔥 Lấy dữ liệu cũ từ AsyncStorage
           const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
           const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
-          // 🔥 Gộp tin nhắn mới mà không bị trùng
-          const updatedMessages = [...oldMessages, ...messages]
-            .filter((msg, index, self) => index === self.findIndex(m => m.id === msg.id))
-            .sort((a, b) => a.timestamp - b.timestamp);
+          // 🔥 Chỉ lấy tin nhắn mới hơn dữ liệu cũ
+          const latestTimestamp = oldMessages.length > 0 ? oldMessages[oldMessages.length - 1].timestamp : 0;
+          newMessages = newMessages.filter(msg => msg.timestamp > latestTimestamp);
 
-          await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-          console.log(`✅ Tin nhắn của ${chatId} đã lưu vào AsyncStorage với myId: ${myId} và otherUserId: ${otherUserId}`);
+          if (newMessages.length > 0) {
+            const updatedMessages = [...oldMessages, ...newMessages];
+
+            // 🔥 Lưu dữ liệu mới vào AsyncStorage
+            await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+            console.log(`✅ Đã thêm ${newMessages.length} tin nhắn mới cho chat ${chatId}`);
+
+            // 🔥 Xóa tin nhắn khỏi Firebase sau khi lưu
+            newMessages.forEach(async msg => {
+              await database().ref(`/chats/${chatId}/messages/${msg.id}`).remove();
+              console.log(`🗑 Đã xóa tin nhắn ${msg.id} khỏi Firebase`);
+            });
+          }
         }
       } catch (error) {
         console.error('❌ Lỗi khi lưu tin nhắn vào AsyncStorage:', error);
@@ -60,7 +73,6 @@ const useListenForNewMessages = () => {
     chatsRef.on('value', onNewMessage);
     return () => chatsRef.off('value', onNewMessage);
   }, []);
-
 };
 
 export default useListenForNewMessages;
