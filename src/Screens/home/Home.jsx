@@ -9,9 +9,12 @@ import {
   TextInput,
   TouchableOpacity,
   LogBox,
+  Modal,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Icon2 from 'react-native-vector-icons/MaterialCommunityIcons';
+
 import Item_home_chat from '../../components/items/Item_home_chat';
 import { getAuth } from '@react-native-firebase/auth';
 import { getDatabase, ref, onValue, get, orderByChild, query, limitToLast, update } from '@react-native-firebase/database';
@@ -26,10 +29,12 @@ import { useFocusEffect } from '@react-navigation/native'; // 🔥 Import useFoc
 const { width, height } = Dimensions.get('window');
 const Home = ({ navigation }) => {
   const [chatList, setChatList] = useState([]);
+  const [pinnedChats, setpinnedChats] = useState([])
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const auth = getAuth();
   const db = getDatabase();
   const [storageChanged, setStorageChanged] = useState(false);
-
   const myId = auth.currentUser?.uid;
   const userId = "KKsCyrEpBSSoqMxlr9cuPHaz8fO2";
   // const secretKey = generateSecretKey(otherUserId, myId);
@@ -37,6 +42,57 @@ const Home = ({ navigation }) => {
   // const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
 
   // console.log("chatlist",secretKey)
+
+
+  useEffect(() => {
+    loadPinnedChats(); // Khi component được mount, tải danh sách tin nhắn đã ghim từ AsyncStorage
+  }, []);
+
+
+  const loadPinnedChats = async () => {
+    try {
+      const storedPinned = await AsyncStorage.getItem('pinnedChats'); // Lấy danh sách ghim từ AsyncStorage
+      setpinnedChats(storedPinned ? JSON.parse(storedPinned) : []); // Chuyển dữ liệu từ chuỗi JSON về mảng
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách ghim:", error);
+
+    }
+  }
+
+  const togglePinChat = async (chatId) => {
+    try {
+      let updatedPinned;
+      if (pinnedChats.includes(chatId)) {
+        updatedPinned = pinnedChats.filter(id => id !== chatId); // Nếu đã ghim, bỏ ghim bằng cách loại bỏ ID khỏi mảng
+      } else {
+        updatedPinned = [...pinnedChats, chatId]; // Nếu chưa ghim, thêm ID vào mảng
+      }
+
+      setpinnedChats(updatedPinned);
+      await AsyncStorage.setItem('pinnedChats', JSON.stringify(updatedPinned)); // Lưu danh sách mới vào AsyncStorage
+      setModalVisible(false);
+    } catch (error) {
+      console.error("Lỗi khi ghim đoạn chat:", error);
+    }
+  };
+
+
+ const handleLongPress = (chatId) => {
+    setSelectedChat(chatId);
+    setModalVisible(true);
+  };
+
+
+  const sortedChats = [...chatList].sort((a, b) => {
+    const aPinned = pinnedChats.includes(a.chatId);
+    const bPinned = pinnedChats.includes(b.chatId);
+    if (aPinned === bPinned) {
+      return b.timestamp - a.timestamp;
+    }
+    return aPinned ? -1 : 1;
+  });
+
+
     LogBox.ignoreAllLogs();
     console.warn = () => { };
 
@@ -274,7 +330,9 @@ const Home = ({ navigation }) => {
           </MaskedView>
 
           <View style={styles.boxIconHeader}>
-            <Icon name="chatbox-ellipses-outline" size={25} color='white' />
+            <TouchableOpacity onPress={() => navigation.navigate('Gemini')}>
+            <Icon2 name="google-assistant" size={25} color='white' />
+            </TouchableOpacity>
             <Icon name="ellipsis-vertical" size={25} color='white' />
           </View>
         </View>
@@ -289,29 +347,20 @@ const Home = ({ navigation }) => {
             onPress={() => navigation.navigate("Search")}
           />
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Gemini')}>
-          <View style={styles.container_item}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Image
-                source={{
-                  uri: 'https://static.vecteezy.com/system/resources/previews/010/054/157/non_2x/chat-bot-robot-avatar-in-circle-round-shape-isolated-on-white-background-stock-illustration-ai-technology-futuristic-helper-communication-conversation-concept-in-flat-style-vector.jpg',
-                }}
-                style={styles.img}
-              />
-              <Text style={styles.text_name_AI}>AI Chat</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+
 
 
         <FlatList
-          data={chatList}
+          data={sortedChats}
           renderItem={({ item }) => (
+       
             <Item_home_chat
               data_chat={item}
               onPress={() =>
                 handleUserPress(item.id, item.name, item.img, item.chatId, item.lastMessageId)
               }
+              onLongPress={() => handleLongPress(item.chatId)} // 🔥 Đảm bảo truyền đúng
+              isPinned={pinnedChats.includes(item.chatId)} // 🔥 Truyền trạng thái ghim
               style={[
                 styles.chatItem,
                 item.isSeen ? styles.readMessage : styles.unreadMessage, // 🔥 Hiển thị giao diện khác nhau cho đã đọc & chưa đọc
@@ -329,6 +378,35 @@ const Home = ({ navigation }) => {
           contentContainerStyle={{ paddingBottom: 150 }}
         />
       </View>
+      <Modal visible={modalVisible} transparent={true} animationType="fade">
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContainer}>
+
+      <View style={styles.modalButtons}>
+        {/* Nút Ghim/Bỏ ghim */}
+        <TouchableOpacity 
+          style={styles.modalButton} 
+          onPress={() => {
+            if (selectedChat) togglePinChat(selectedChat);
+          }}
+        >
+          <Text style={styles.modalButtonText}>
+            {selectedChat && pinnedChats.includes(selectedChat) ? "Bỏ ghim" : "Ghim"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Nút Hủy */}
+        <TouchableOpacity 
+          style={[styles.modalButton, styles.cancelButton]} 
+          onPress={() => setModalVisible(false)}
+        >
+          <Text style={[styles.modalButtonText, styles.cancelButtonText]}>Hủy</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
     </View>
   );
 };
@@ -336,7 +414,60 @@ const Home = ({ navigation }) => {
 export default Home;
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)', // Làm mờ nền
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '80%', // Độ rộng modal
+    backgroundColor: 'white',
+    borderRadius: 15, // Bo góc
+    padding: 20,
+    alignItems: 'center',
+    elevation: 10, // Đổ bóng trên Android
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 15,
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: '#438875',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  cancelButton: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  cancelButtonText: {
+    color: '#333',
+  },
   container: {
+    
     flex: 1,
     backgroundColor: '#121212',
   },
@@ -367,9 +498,9 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   img: {
-    width: 60,
-    height: 60,
-    borderRadius: 50,
+    width: 50,
+    height: 50,
+    borderRadius: 60,
   },
   container_item: {
     flexDirection: 'row',

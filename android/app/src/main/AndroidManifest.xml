@@ -1,21 +1,57 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Quyền Internet (đã có) -->
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- <uses-permission android:name="android.permission.INTERNET" /> -->
 
     <!-- Quyền nhận thông báo trên Android 13+ -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/> -->
 
-    <!-- Quyền truy cập file (tùy chọn nếu cần lưu dữ liệu) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <!-- Quyền truy cập file trên Android < 10 -->
+    <!-- <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" -->
+        <!-- android:maxSdkVersion="28"/> -->
+    <!-- <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" -->
+        <!-- android:maxSdkVersion="28"/> -->
+
+    <!-- Quyền truy cập hình ảnh trên Android 13+ -->
+    <!-- <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/> -->
+
+    <!-- Quyền truy cập tất cả file trên Android 10+ (Scoped Storage) -->
+    <!-- <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/> -->
 
     <!-- Nhận thông báo khi khởi động lại -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/> -->
 
-        <!-- Quyền truy cập camera -->
-    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Quyền truy cập camera -->
+    <!-- <uses-permission android:name="android.permission.CAMERA"/> -->
 
+    <uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.READ_CLIPBOARD"/>
+<uses-permission android:name="android.permission.WRITE_CLIPBOARD"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+<uses-permission android:name="android.permission.RECORD_AUDIO"/>
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+<uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+<uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-feature android:name="android.hardware.camera"/>
+<uses-feature android:name="android.hardware.camera.autofocus"/>
+<!--  Quyền truy cập vị trí  -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<!-- quyền call video -->
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+<uses-permission android:name="android.permission.BLUETOOTH"/>
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
         android:name=".MainApplication"
@@ -25,7 +61,6 @@
         android:allowBackup="false"
         android:theme="@style/AppTheme">
 
-        <!-- Đăng ký MainActivity -->
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
