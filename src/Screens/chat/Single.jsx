@@ -827,7 +827,7 @@ const Single = () => {
 
 
   // Khi countChat về 0, cập nhật timeReset trên Firebase (lưu thời gian reset dưới dạng timestamp)
-  const resetDuration = 100; 
+  const resetDuration = 43200; 
   useEffect(() => {
     if (countChat === 0) {
       const userTimeResetRef = database().ref(`/users/${myId}/timeReset`);
