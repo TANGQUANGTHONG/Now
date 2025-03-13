@@ -1,41 +1,46 @@
 import React, {useEffect, useState} from 'react';
-import {getAuth} from '@react-native-firebase/auth';
+import {NavigationContainer} from '@react-navigation/native';
+import NetInfo from '@react-native-community/netinfo';
 import AppNavigation from './src/navigations/AppNavigation';
-import {NavigationContainer} from '@react-navigation/native'; // Import NavigationContainer
+import HomeNavigation from './src/navigations/HomeNavigation';
 import {
   configurePushNotification,
   listenForNewMessages,
 } from './src/notification/Notification';
-import HomeNavigation from './src/navigations/HomeNavigation';
 import {getCurrentUserFromStorage} from './src/storage/Storage';
 
 const App = () => {
-  // Bật thông báo khi app khởi động
+  const [isConnected, setIsConnected] = useState(true); // Trạng thái mạng
+
+  // Lắng nghe sự thay đổi trạng thái mạng
   useEffect(() => {
     configurePushNotification();
     listenForNewMessages();
+
+    const getUser = async () => {
+      const userId = await getCurrentUserFromStorage();
+      return userId;
+    };
+
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (getUser === '' || getUser == null) return;
+      setIsConnected(state.isConnected);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const auth = getAuth();
-
-  const [myId, setMyid] = useState(null);
-
-  const getUser = async () => {
-    const user = await getCurrentUserFromStorage();
-    setMyid(user.uid);
-  };
-
-  useEffect(() => {
-    if (auth.currentUser?.uid !== null) {
-      setMyid(auth.currentUser?.uid);
-    } else {
-      getUser();
-    }
-  }, []);
+  if (!isConnected) {
+    return (
+      <NavigationContainer>
+        <HomeNavigation />
+      </NavigationContainer>
+    );
+  }
 
   return (
     <NavigationContainer>
-      {myId !== null ? <AppNavigation /> : <HomeNavigation />}
+      <AppNavigation />
     </NavigationContainer>
   );
 };

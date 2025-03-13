@@ -29,20 +29,21 @@ const NearbyFriends = ({ route }) => {
 
   const requestLocationPermission = async () => {
     try {
-      const granted = await PermissionsAndroid.request(
+      const granted = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Cho phép truy cập vị trí',
-          message: 'Ứng dụng cần truy cập vị trí của bạn để tìm bạn bè gần đây',
-          buttonPositive: 'OK',
-        },
+        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
+      ]);
+  
+      return (
+        granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED ||
+        granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED
       );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
       console.warn(err);
       return false;
     }
   };
+  
 
   const getLocation = async () => {
     const hasPermission = await requestLocationPermission();
@@ -64,7 +65,7 @@ const NearbyFriends = ({ route }) => {
         }
       },
       error => console.log('❌ Lỗi khi lấy vị trí:', error),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 },
     );
   };
 
