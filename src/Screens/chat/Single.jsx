@@ -825,6 +825,68 @@ const Single = () => {
     fetchUsers();
   }, []);
 
+
+  // Khi countChat về 0, cập nhật timeReset trên Firebase (lưu thời gian reset dưới dạng timestamp)
+  const resetDuration = 3600; // reset sau 1 giờ (3600 giây)
+  useEffect(() => {
+    if (countChat === 0) {
+      const userTimeResetRef = database().ref(`/users/${myId}/timeReset`);
+      // Chỉ thiết lập timeReset nếu chưa có trên Firebase
+      userTimeResetRef.once('value').then(snapshot => {
+        if (!snapshot.exists()) {
+          const timeResetValue = Date.now() + resetDuration * 1000;
+          database().ref(`/users/${myId}`).update({
+            timeReset: timeResetValue
+          });
+          setResetCountdown(resetDuration);
+        }
+      });
+    }
+  }, [countChat, myId]);
+
+// Khi component mount, đọc timeReset từ Firebase và tính lại thời gian còn lại
+useEffect(() => {
+  const userRef = database().ref(`/users/${myId}/timeReset`);
+  const checkTimeReset = async () => {
+    const snapshot = await userRef.once('value');
+    if (snapshot.exists()) {
+      const timeResetValue = snapshot.val(); // giá trị timeReset lưu trên Firebase
+      const remaining = Math.floor((timeResetValue - Date.now()) / 1000);
+      if (remaining > 0) {
+        setResetCountdown(remaining);
+      } else {
+        // Nếu hết thời gian reset, xóa field timeReset và reset countChat
+        await userRef.remove();
+        database().ref(`/users/${myId}`).update({ countChat: 100 });
+        setcountChat(100);
+        setResetCountdown(null);
+      }
+    }
+  };
+  checkTimeReset();
+}, [myId]);
+
+  // Cập nhật đồng hồ đếm ngược mỗi giây
+  useEffect(() => {
+  if (resetCountdown !== null) {
+    const intervalId = setInterval(() => {
+      setResetCountdown(prev => {
+        if (prev <= 1) {
+          // Countdown hết, reset lượt và xóa timeReset trên Firebase
+          database().ref(`/users/${myId}`).update({ countChat: 100 });
+          database().ref(`/users/${myId}/timeReset`).remove();
+          setcountChat(100);
+          clearInterval(intervalId);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }
+}, [resetCountdown, myId]);
+
+
   // useEffect để tải danh sách chat từ AsyncStorage và Firebase khi component được mount
   useEffect(() => {
     const loadChats = async () => {

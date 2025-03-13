@@ -24,7 +24,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native'; // 🔥 Import useFocusEffect
-import LoadingModal from '../../loading/LoadingModal';
 
 
 const { width, height } = Dimensions.get('window');
@@ -37,8 +36,6 @@ const Home = ({ navigation }) => {
   const db = getDatabase();
   const [storageChanged, setStorageChanged] = useState(false);
   const myId = auth.currentUser?.uid;
-  const [loading, setLoading] = useState(true);
-
   const userId = "KKsCyrEpBSSoqMxlr9cuPHaz8fO2";
   // const secretKey = generateSecretKey(otherUserId, myId);
 
@@ -105,7 +102,6 @@ const Home = ({ navigation }) => {
 
   const loadChats = async () => {
     try {
-      setLoading(true); 
       const storedChats = await AsyncStorage.getItem('chatList');
       let chatListFromStorage = storedChats ? JSON.parse(storedChats) : [];
   
@@ -121,8 +117,6 @@ const Home = ({ navigation }) => {
         if (!snapshot.exists()) {
           // console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
           setChatList(chatListFromStorage); // Đặt lại danh sách đã sắp xếp
-          setLoading(false);
-
           return;
         }
   
@@ -207,12 +201,9 @@ const Home = ({ navigation }) => {
         let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp); // Sắp xếp theo thời gian
         await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
         setChatList(filteredChats);
-        setLoading(false);
       });
     } catch (error) {
       console.error('❌ Lỗi khi lấy dữ liệu:', error);
-      setLoading(false);
-
     }
   };
   
@@ -318,7 +309,6 @@ const Home = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <LoadingModal visible={loading}/>
       <View style={{ marginHorizontal: 20 }}>
         <View style={styles.boxHeader}>
 
