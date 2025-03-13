@@ -28,6 +28,7 @@ import {oStackHome} from '../../navigations/HomeNavigation';
 import {launchImageLibrary} from 'react-native-image-picker';
 import { getAuth } from "@react-native-firebase/auth";
 import { getDatabase, ref, update } from "@react-native-firebase/database";
+import LoadingModal from '../../loading/LoadingModal';
 
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
 const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
@@ -38,6 +39,7 @@ const {width, height} = Dimensions.get('window');
 const Setting = ({navigation}) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
+  const [loading, setloading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false);
   const [qrVisible, setQrVisible] = useState(false); // 🔥 State để hiển thị modal QR
   GoogleSignin.configure({
@@ -58,8 +60,7 @@ const updateAvatar = async (avatarUrl) => {
 
     const userRef = ref(getDatabase(), `users/${userId}`);
     await update(userRef, { Image: encryptMessage(avatarUrl) });
-
-    Alert.alert("Thành công", "Cập nhật ảnh đại diện thành công!");
+    
   } catch (error) {
     Alert.alert("Lỗi", error.message);
     console.log("Lỗi cập nhật avatar:", error);
@@ -89,6 +90,7 @@ const pickImage = () => {
 
   const uploadImageToCloudinary = async imageUri => {
     try {
+      setloading(true)
       const formData = new FormData();
       formData.append('file', {
         uri: imageUri,
@@ -111,6 +113,9 @@ const pickImage = () => {
       }
     } catch (error) {
       console.error('❌ Lỗi khi upload ảnh:', error);
+    }
+    finally{
+      setloading(false)
     }
   };
 
@@ -188,6 +193,7 @@ const pickImage = () => {
 
   return (
     <View style={styles.container}>
+      <LoadingModal visible={loading}/>
       {!myUser ? (
         <Text style={{color: 'white', textAlign: 'center', marginTop: 20}}>
           Đang tải...
@@ -331,7 +337,7 @@ const pickImage = () => {
                   borderRadius: 10,
                 }}>
                 <Text
-                  style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10}}>
+                  style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10,color:'black'}}>
                   Nhập mật khẩu
                 </Text>
 
@@ -340,6 +346,7 @@ const pickImage = () => {
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
+                  placeholderTextColor={'#aaa'}
                   style={{borderBottomWidth: 1, marginBottom: 20}}
                 />
 

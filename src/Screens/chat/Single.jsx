@@ -15,6 +15,7 @@ import {
   Platform,
   PermissionsAndroid,
   NativeModules,
+  ActivityIndicator
 } from 'react-native';
 import {
   useRoute,
@@ -86,6 +87,7 @@ const Single = () => {
   const [selectedMess, setSelectedMess] = useState(null);
   const [unlockedMessages, setUnlockedMessages] = useState({});
   const [timeLefts, setTimeLefts] = useState({});
+  const [loadingImageUrl, setLoadingImageUrl] = useState(null);
 
   const { RNMediaScanner } = NativeModules;
   
@@ -565,7 +567,6 @@ const Single = () => {
     const interval = setInterval(() => {
       setTimeLefts(prev => {
         let updatedTimers = { ...prev };
-
         Object.keys(prev).forEach(messageId => {
           if (prev[messageId] > 0) {
             updatedTimers[messageId] = prev[messageId] - 1;
@@ -574,14 +575,12 @@ const Single = () => {
             delete updatedTimers[messageId];
           }
         });
-
         return updatedTimers;
       });
     }, 1000);
-
+  
     return () => clearInterval(interval);
   }, []);
-
 
   //hàm xóa tin nhắn dưới local
   const deleteMessage = async messageId => {
@@ -692,24 +691,24 @@ const Single = () => {
 
   const sendMessage = useCallback(async () => {
     if (!text.trim() || isSending) return; // Kiểm tra nếu tin nhắn rỗng hoặc đang gửi thì chặn gửi
-
+  
     if (countChat === 0) {
       Alert.alert('Thông báo', 'Bạn đã hết lượt nhắn tin!');
       return;
     }
-
+  
     setIsSending(true); // Đánh dấu trạng thái đang gửi để tránh spam gửi liên tục
-
+  
     try {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
-
+  
       // Lấy dữ liệu người dùng và kiểm tra nếu cuộc trò chuyện đã tồn tại
       const [userSnapshot, chatSnapshot] = await Promise.all([
         userRef.once('value'),
         chatRef.once('value'),
       ]);
-
+  
       if (!userSnapshot.exists()) {
         Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
         return;
@@ -724,12 +723,11 @@ const Single = () => {
       if (!chatSnapshot.exists()) {
         await chatRef.set({ users: { [userId]: true, [myId]: true } });
       }
-
+  
       // Mã hóa tin nhắn trước khi gửi
       const encryptedText = encryptMessage(text, secretKey);
       const messageRef = chatRef.child('messages').push(); // Tạo reference cho tin nhắn mới
       const messageId = messageRef.key; // Lấy ID tin nhắn duy nhất từ Firebase
-
       const messageData = {
         id: messageId, // Đảm bảo ID không bị trùng
         senderId: myId,
@@ -739,7 +737,7 @@ const Single = () => {
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
         isLocked: isSelfDestruct, // 🔒 Chỉ khóa nếu tin nhắn tự hủy
       };
-
+  
       // Gửi tin nhắn lên Firebase
       await messageRef.set(messageData);
 
@@ -766,7 +764,6 @@ const Single = () => {
       setTimeout(() => setIsSending(false), 1000); // Cho phép gửi lại sau 1 giây
     }
   }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime, isSending]);
-
 
   //Hàm xử lý khi người dùng đang nhập tin nhắn
   const handleTyping = isTyping => {
@@ -1014,6 +1011,19 @@ const Single = () => {
 
   const uploadImageToCloudinary = async imageUri => {
     try {
+      setLoadingImageUrl(imageUri); // Cập nhật trạng thái đang gửi ảnh
+  
+      // ✅ Thêm tin nhắn tạm vào danh sách tin nhắn
+      const tempMessageId = `temp-${Date.now()}`;
+      const tempMessage = {
+        id: tempMessageId, // ID tạm thời
+        senderId: myId,
+        imageUrl: imageUri,
+        timestamp: Date.now(),
+        isLoading: true, // ✅ Đánh dấu là tin nhắn đang tải
+      };
+      setMessages(prev => [...prev, tempMessage]);
+  
       const formData = new FormData();
       formData.append('file', {
         uri: imageUri,
@@ -1021,23 +1031,37 @@ const Single = () => {
         name: 'upload.jpg',
       });
       formData.append('upload_preset', CLOUDINARY_PRESET);
-
+  
       const response = await fetch(CLOUDINARY_URL, {
         method: 'POST',
         body: formData,
       });
-
+  
       const data = await response.json();
       if (data.secure_url) {
         console.log('✅ Ảnh đã tải lên Cloudinary:', data.secure_url);
-        sendImageMessage(data.secure_url);
+  
+        // ✅ Cập nhật tin nhắn tạm với ảnh thật và tắt loading
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === tempMessageId
+              ? { ...msg, imageUrl: data.secure_url, isLoading: false }
+              : msg
+          )
+        );
+  
+        sendImageMessage(data.secure_url, tempMessageId);
       } else {
         throw new Error('Lỗi khi tải ảnh lên Cloudinary');
       }
     } catch (error) {
       console.error('❌ Lỗi khi upload ảnh:', error);
+    } finally {
+      setLoadingImageUrl(null); // Xóa trạng thái loading khi hoàn tất
     }
   };
+  
+  
 
   // Hàm gửi tin nhắn ảnh
   const sendImageMessage = async imageUrl => {
@@ -1180,19 +1204,16 @@ const Single = () => {
   };
   const handleUnlockMessage = async (messageId, selfDestructTime) => {
     setUnlockedMessages(prev => ({ ...prev, [messageId]: true }));
-
     // ✅ Cập nhật local để xóa trạng thái khóa nhưng KHÔNG xóa trên Firebase
     setMessages(prev =>
       prev.map(msg => (msg.id === messageId ? { ...msg, isLocked: false } : msg))
     );
-
     // ✅ Bắt đầu đếm ngược nếu chưa có giá trị
     setTimeLefts(prev => ({
       ...prev,
       [messageId]: prev[messageId] !== undefined ? prev[messageId] : selfDestructTime,
     }));
   };
-
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -1286,19 +1307,24 @@ const Single = () => {
                         {/* Nếu tin nhắn là ảnh */}
                         {item.imageUrl ? (
                           <TouchableOpacity
-                            onPress={() => {
-                              if (isSelfDestruct) {
-                                handleUnlockAndStartTimer(item.id, item.imageUrl, item.selfDestructTime);
-                              } else {
-                                setSelectedImage(item.imageUrl);
-                                setIsImageModalVisible(true);
-                              }
+                          onPress={() => {
+                            if (isSelfDestruct) {
+                              handleUnlockAndStartTimer(item.id, item.imageUrl, item.selfDestructTime);
+                            } else {
+                              setSelectedImage(item.imageUrl);
+                              setIsImageModalVisible(true);
+                            }
                             }}>
-                            <Image
-                              source={{ uri: item.imageUrl }}
-                              style={styles.imageMessage}
-                            />
-                            {isSelfDestruct && timeLeft > 0 && (
+                              
+                           
+                              {/* ✅ Luôn giữ `View` hiển thị ảnh, chỉ thay đổi trạng thái loading */}
+    <View style={styles.imageWrapper}>
+      <Image source={{ uri: item.imageUrl }} style={styles.imageMessage} />
+      {item.isLoading && (
+        <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
+      )}
+    </View>
+                                {isSelfDestruct && timeLeft > 0 && (
                               <Text style={styles.selfDestructTimer}>
                                 🕒 {timeLeft}s
                               </Text>
@@ -1513,6 +1539,7 @@ const Single = () => {
                 handleTyping(value.length > 0);
               }}
               placeholder="Nhập tin nhắn..."
+              placeholderTextColor={'#aaa'}
               onBlur={() => handleTyping(false)}
             />
           </View>
@@ -1558,6 +1585,23 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
+  imageWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 200, 
+    height: 200,
+  },
+  
+  loadingIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -15 }, { translateY: -15 }],
+  },
+  
+  
+  
   statusContainer: {
     marginLeft: 5,
     flexDirection: 'row',
@@ -1737,6 +1781,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    
   },
   modalContent: {
     backgroundColor: '#fff',
@@ -1749,6 +1794,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
+    color:'black',
   },
   modalOption: {
     paddingVertical: 10,
@@ -1758,6 +1804,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ccc',
   },
   modalText: {
+    color:'black',
     fontSize: 16,
   },
   modalCancel: {

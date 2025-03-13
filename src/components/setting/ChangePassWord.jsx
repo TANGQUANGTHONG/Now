@@ -2,31 +2,37 @@ import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, Alert } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LottieView from 'lottie-react-native';
 
 const ChangePasswordScreen = (props) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
-      Alert.alert('Lỗi', 'Mật khẩu mới phải có ít nhất 6 ký tự.');
+      Alert.alert('Lỗi', 'Vui lòng nhập thông tin hợp lệ.');
       return;
     }
-
+  
     try {
+      setLoading(true); // 🔥 Bật loading khi bắt đầu đổi mật khẩu
       const user = auth().currentUser;
       if (!user) throw new Error('Bạn chưa đăng nhập.');
-
+  
       const credential = auth.EmailAuthProvider.credential(user.email, currentPassword);
       await user.reauthenticateWithCredential(credential);
       await user.updatePassword(newPassword);
-      Alert.alert('Thành công', 'Mật khẩu đã được đổi.');
+      
+      setLoading(false);
       props.navigation.goBack();
     } catch (error) {
+      setLoading(false);
       Alert.alert('Lỗi', error.message);
     }
   };
+  
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f5f5f5' }}>
@@ -41,6 +47,7 @@ const ChangePasswordScreen = (props) => {
           value={currentPassword}
           onChangeText={setCurrentPassword}
           style={styles.input}
+          placeholderTextColor={'#aaa'}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Icon name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#777" />
@@ -56,6 +63,7 @@ const ChangePasswordScreen = (props) => {
           value={newPassword}
           onChangeText={setNewPassword}
           style={styles.input}
+          placeholderTextColor={'#aaa'}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Icon name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#777" />
@@ -63,15 +71,39 @@ const ChangePasswordScreen = (props) => {
       </View>
 
       {/* Button Đổi mật khẩu */}
-      <TouchableOpacity style={styles.button} onPress={handleChangePassword}>
-        <Text style={styles.buttonText}>Đổi Mật Khẩu</Text>
-      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={handleChangePassword} disabled={loading}>
+  <View style={styles.buttonContent}>
+    {loading ? (
+      <LottieView
+        source={require('../../loading/loading3.json')} 
+        autoPlay
+        loop
+        style={styles.loadingAnimation}
+      />
+    ) : (
+      <Text style={styles.buttonText}>Đổi Mật Khẩu</Text>
+    )}
+  </View>
+</TouchableOpacity>
+
+
     </View>
   );
 };
 
 // Styles
 const styles = {
+  buttonContent: {
+    height: 35, // Đặt chiều cao cố định (bằng với chiều cao chữ)
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingAnimation: {
+    width: 60,  // Giữ animation nhỏ hơn một chút để không làm thay đổi layout
+    height: 55,
+  },
+  
+  
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -96,7 +128,7 @@ const styles = {
   button: {
     backgroundColor: '#007bff',
     width: '100%',
-    padding: 15,
+    padding: 10,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,

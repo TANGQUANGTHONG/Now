@@ -24,6 +24,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native'; // 🔥 Import useFocusEffect
+import LoadingModal from '../../loading/LoadingModal';
 
 
 const { width, height } = Dimensions.get('window');
@@ -36,6 +37,8 @@ const Home = ({ navigation }) => {
   const db = getDatabase();
   const [storageChanged, setStorageChanged] = useState(false);
   const myId = auth.currentUser?.uid;
+  const [loading, setLoading] = useState(true);
+
   const userId = "KKsCyrEpBSSoqMxlr9cuPHaz8fO2";
   // const secretKey = generateSecretKey(otherUserId, myId);
 
@@ -102,6 +105,7 @@ const Home = ({ navigation }) => {
 
   const loadChats = async () => {
     try {
+      setLoading(true); 
       const storedChats = await AsyncStorage.getItem('chatList');
       let chatListFromStorage = storedChats ? JSON.parse(storedChats) : [];
   
@@ -115,8 +119,10 @@ const Home = ({ navigation }) => {
   
       onValue(chatRef, async snapshot => {
         if (!snapshot.exists()) {
-          console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
+          // console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
           setChatList(chatListFromStorage); // Đặt lại danh sách đã sắp xếp
+          setLoading(false);
+
           return;
         }
   
@@ -158,7 +164,7 @@ const Home = ({ navigation }) => {
               const latestMessage = sortedMessages[0];
               lastMessageId = latestMessage.msgId;
               if (latestMessage.imageUrl) {
-                lastMessage = 'Có ảnh mới';
+                lastMessage = 'Hình ảnh';
               } else {
                 lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
               }
@@ -175,6 +181,7 @@ const Home = ({ navigation }) => {
               ).length;
             }
           } else {
+            // console.log(`📭 Không có tin nhắn trên Firebase cho chatId: ${chatId}, lấy từ local.`);
             const localMessage = await getLatestMessageFromLocal(chatId);
             lastMessage = localMessage.text;
             lastMessageTime = localMessage.time;
@@ -200,9 +207,12 @@ const Home = ({ navigation }) => {
         let filteredChats = resolvedChats.filter(Boolean).sort((a, b) => b.timestamp - a.timestamp); // Sắp xếp theo thời gian
         await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
         setChatList(filteredChats);
+        setLoading(false);
       });
     } catch (error) {
       console.error('❌ Lỗi khi lấy dữ liệu:', error);
+      setLoading(false);
+
     }
   };
   
@@ -220,7 +230,7 @@ const Home = ({ navigation }) => {
       const messages = JSON.parse(storedMessages);
   
       if (messages.length === 0) {
-        console.log(`📭 Danh sách tin nhắn rỗng cho chatId: ${chatId}`);
+        // console.log(`📭 Danh sách tin nhắn rỗng cho chatId: ${chatId}`);
         return { text: "", time: "", timestamp: 0, isSeen: false };
       }
   
@@ -308,6 +318,7 @@ const Home = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <LoadingModal visible={loading}/>
       <View style={{ marginHorizontal: 20 }}>
         <View style={styles.boxHeader}>
 
