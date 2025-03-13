@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, {useEffect, useState} from 'react';
 import auth from '@react-native-firebase/auth';
-
 import HomeNavigation from './HomeNavigation';
 import UserNavigation from './UserNavigation';
 import DashBoard from '../Screens/auth/DashBoard';
@@ -21,7 +19,7 @@ const AppNavigation = () => {
   }, []);
 
   useEffect(() => {
-    const subscriber = auth().onAuthStateChanged(async (user) => {
+    const subscriber = auth().onAuthStateChanged(async user => {
       setUser(user);
       if (user) {
         console.log('User đăng nhập:', user.email);
@@ -36,7 +34,7 @@ const AppNavigation = () => {
     return subscriber;
   }, []);
 
-  const checkEmailVerification = async (user) => {
+  const checkEmailVerification = async user => {
     await user.reload();
     setIsEmailVerified(user.emailVerified);
   };
@@ -49,15 +47,17 @@ const AppNavigation = () => {
   }
 
   return (
-    <NavigationContainer>
+    <>
       {!user ? (
         <UserNavigation />
       ) : isEmailVerified === false ? (
-        <DashBoard checkEmailVerification={() => checkEmailVerification(user)} />
+        <DashBoard
+          checkEmailVerification={() => checkEmailVerification(user)}
+        />
       ) : (
         <HomeNavigation />
       )}
-    </NavigationContainer>
+    </>
   );
 };
 
