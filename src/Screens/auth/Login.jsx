@@ -12,6 +12,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
 import{saveCurrentUserAsyncStorage,saveChatsAsyncStorage} from '../../storage/Storage';
+import LoadingModal from '../../loading/LoadingModal';
 
 const {width, height} = Dimensions.get('window');
 
@@ -46,6 +47,8 @@ const Login = ({navigation}) => {
   
   async function signInWithGoogle() {
     try {
+      setIsLoading(true); // 🔥 Hiển thị hiệu ứng loading khi bắt đầu
+
       await GoogleSignin.signOut(); // Clear any existing sessions
       
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -100,6 +103,8 @@ const Login = ({navigation}) => {
       }
     } catch (error) {
       console.log('Google Sign-In Error:', error);
+    }finally {
+      setIsLoading(false); // 🔥 Tắt hiệu ứng loading sau khi hoàn tất
     }
   }
 

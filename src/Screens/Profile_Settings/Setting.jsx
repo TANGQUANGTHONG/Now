@@ -25,12 +25,21 @@ import {
 } from '../../storage/Storage';
 import QRCode from 'react-native-qrcode-svg'; // ✅ Import thư viện QR Code
 import {oStackHome} from '../../navigations/HomeNavigation';
+import {launchImageLibrary} from 'react-native-image-picker';
+import { getAuth } from "@react-native-firebase/auth";
+import { getDatabase, ref, update } from "@react-native-firebase/database";
+import LoadingModal from '../../loading/LoadingModal';
+
+const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
+const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
+
 
 const {width, height} = Dimensions.get('window');
 
 const Setting = ({navigation}) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
+  const [loading, setloading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false);
   const [qrVisible, setQrVisible] = useState(false); // 🔥 State để hiển thị modal QR
   GoogleSignin.configure({
@@ -38,15 +47,77 @@ const Setting = ({navigation}) => {
       '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
   });
 
-  // useEffect(() => {
-  //   const fetchUser = async ()=>{
-  //     const userData = await getCurrentUserFromStorage();
-  //     if(userData){
-  //       setMyUser(userData)
-  //     }
-  //   }
-  //   fetchUser();
-  // }, [])
+// đổi avatar 
+const updateAvatar = async (avatarUrl) => {
+  try {
+    const auth = getAuth();
+    const userId = auth.currentUser?.uid;
+
+    if (!userId) {
+      Alert.alert("Lỗi", "Không tìm thấy ID người dùng!");
+      return;
+    }
+
+    const userRef = ref(getDatabase(), `users/${userId}`);
+    await update(userRef, { Image: encryptMessage(avatarUrl) });
+    
+  } catch (error) {
+    Alert.alert("Lỗi", error.message);
+    console.log("Lỗi cập nhật avatar:", error);
+  }
+};
+
+// lấy ảnh từ thư viện
+const pickImage = () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 1,
+    };
+
+    launchImageLibrary(options, response => {
+      if (response.didCancel) return;
+      if (response.errorMessage) {
+        Alert.alert('Lỗi', response.errorMessage);
+        return;
+      }
+
+      if (response.assets && response.assets.length > 0) {
+        const imageUri = response.assets[0].uri;
+        uploadImageToCloudinary(imageUri);
+      }
+    });
+  };
+
+  const uploadImageToCloudinary = async imageUri => {
+    try {
+      setloading(true)
+      const formData = new FormData();
+      formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'upload.jpg',
+      });
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+
+      const response = await fetch(CLOUDINARY_URL, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.secure_url) {
+        console.log('✅ Ảnh đã tải lên Cloudinary:', data.secure_url);
+        updateAvatar(data.secure_url);
+      } else {
+        throw new Error('Lỗi khi tải ảnh lên Cloudinary');
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi upload ảnh:', error);
+    }
+    finally{
+      setloading(false)
+    }
+  };
 
   useEffect(() => {
     const fetchUser = () => {
@@ -122,6 +193,7 @@ const Setting = ({navigation}) => {
 
   return (
     <View style={styles.container}>
+      <LoadingModal visible={loading}/>
       {!myUser ? (
         <Text style={{color: 'white', textAlign: 'center', marginTop: 20}}>
           Đang tải...
@@ -152,7 +224,7 @@ const Setting = ({navigation}) => {
           </View>
           <View style={styles.body}>
             <View style={styles.profile}>
-              <Pressable>
+              <Pressable onPress={pickImage}>
                 <Image
                   source={
                     myUser?.img
@@ -161,6 +233,9 @@ const Setting = ({navigation}) => {
                   }
                   style={styles.avatar}
                 />
+                <View style={{position: 'absolute', right: 5, bottom: 0}}>
+                <Icon name="camera-reverse-outline" size={20} color="black" />
+                </View>
               </Pressable>
               <View style={styles.profileInfo}>
                 <Text style={styles.name}>{myUser?.name}</Text>

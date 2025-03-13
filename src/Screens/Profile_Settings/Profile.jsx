@@ -14,6 +14,7 @@ import ImageGallery from './ImageGallery';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import {getAuth} from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
+import LoadingModal from '../../loading/LoadingModal';
 
 const {width, height} = Dimensions.get('window');
 
@@ -41,21 +42,20 @@ const Profile = props => {
   const [myUser, setMyUser] = useState(null);
   const {navigation} = props;
   const auth = getAuth();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = () => {
+      setLoading(true); // Bật loading khi bắt đầu lấy dữ liệu
       const id = auth.currentUser?.uid;
       if (!id) return;
-
+  
       const userRef = database().ref(`users/${id}`);
       userRef.on('value', snapshot => {
         if (snapshot.exists()) {
           const data = snapshot.val();
-          let decryptedNickname = data.nickname
-            ? decryptMessage(data.nickname)
-            : 'Không có nickname';
-
-          // Thêm @ vào trước nickname nếu chưa có
+          let decryptedNickname = data.nickname ? decryptMessage(data.nickname) : 'Không có nickname';
+  
           if (decryptedNickname && !decryptedNickname.startsWith('@')) {
             decryptedNickname = `@${decryptedNickname}`;
           }
@@ -69,65 +69,47 @@ const Profile = props => {
               : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7xcDbUE0eJvCkvvGNoKQrTfMI4Far-8n7pHQbbTCkV9uVWN2AJ8X6juVovcORp0S04XA&usqp=CAU',
           });
         }
+        setLoading(false); // Tắt loading sau khi lấy dữ liệu xong
       });
-
+  
       return () => userRef.off();
     };
-
+  
     fetchUser();
   }, []);
+  
 
   return (
     <View style={styles.container}>
-      {!myUser ? (
-        <Text style={{color: 'white', textAlign: 'center', marginTop: 20}}>
-          Đang tải...
-        </Text>
-      ) : (
-        <>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconBack}>
-              <Pressable onPress={() => navigation.goBack()}>
-                {/* <Icon name="chevron-back" size={width* 0.066} color={'gray'}/> */}
-              </Pressable>
-            </View>
-            <Image source={{uri: myUser.img}} style={styles.avatar} />
-            <Text style={styles.name}>{myUser.name}</Text>
-            <Text style={styles.username}>{myUser.nickname}</Text>
-          </View>
-
-          {/* Body */}
-          <View style={styles.body}>
-            <View style={styles.rectangle}>
-              <View style={styles.rectangleLine}></View>
-            </View>
-            <View style={styles.section}>
-              <Text style={styles.label}>Display Name</Text>
-              <Text style={styles.value}>{myUser.name}</Text>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.label}>Email Address</Text>
-              <Text style={styles.value}>{myUser.email}</Text>
-            </View>
-            {/* 
-        <View style={styles.section}>
-          <Text style={styles.label}>Address</Text>
-          <Text style={styles.value}>{user.address}</Text>
+    {loading ? (
+      <View style={styles.loadingContainer}>
+        <LoadingModal/>
+      </View>
+    ) : (
+      <>
+        <View style={styles.header}>
+          <Image source={{ uri: myUser.img }} style={styles.avatar} />
+          <Text style={styles.name}>{myUser.name}</Text>
+          <Text style={styles.username}>{myUser.nickname}</Text>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Phone Number</Text>
-          <Text style={styles.value}>{user.phone}</Text>
-        </View> */}
-            {/* Media Section */}
-
-            {/* <ImageGallery images={user.media}/> */}
+  
+        <View style={styles.body}>
+          <View style={styles.rectangle}>
+            <View style={styles.rectangleLine}></View>
           </View>
-        </>
-      )}
-    </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>Display Name</Text>
+            <Text style={styles.value}>{myUser.name}</Text>
+          </View>
+  
+          <View style={styles.section}>
+            <Text style={styles.label}>Email Address</Text>
+            <Text style={styles.value}>{myUser.email}</Text>
+          </View>
+        </View>
+      </>
+    )}
+  </View>
   );
 };
 

@@ -18,6 +18,8 @@ import {
   onValue,
   update,
 } from '@react-native-firebase/database';
+import LoadingModal from '../../loading/LoadingModal';
+import LottieView from 'lottie-react-native';
 
 const ChangeUserInfo = () => {
   const navigation = useNavigation();
@@ -25,12 +27,15 @@ const ChangeUserInfo = () => {
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [myUser, setMyUser] = useState(null);
-
+  const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  
   useEffect(() => {
     const fetchUser = () => {
+      setLoading(true); // Bật loading khi bắt đầu lấy dữ liệu
       const id = auth.currentUser?.uid;
       if (!id) return;
-
+  
       const userRef = ref(getDatabase(), `users/${id}`);
       onValue(userRef, snapshot => {
         if (snapshot.exists()) {
@@ -41,26 +46,27 @@ const ChangeUserInfo = () => {
           let decryptedNickname = data.nickname
             ? decryptMessage(data.nickname)
             : '';
-
-          // Thêm @ vào trước nickname nếu chưa có
+  
           if (decryptedNickname && !decryptedNickname.startsWith('@')) {
             decryptedNickname = `@${decryptedNickname}`;
           }
-
+  
           setMyUser({
             id: id,
             name: decryptedName,
             nickname: decryptedNickname,
           });
-
+  
           setName(decryptedName);
           setNickname(decryptedNickname);
         }
-      });
+        setLoading(false); // Tắt loading sau khi lấy dữ liệu
+      }, { onlyOnce: true });
     };
-
+  
     fetchUser();
   }, []);
+  
 
   const handleUpdateUsername = async () => {
     if (!name.trim() || !nickname.trim()) {
@@ -69,6 +75,7 @@ const ChangeUserInfo = () => {
     }
   
     try {
+      setUpdating(true); // Bật loading khi bắt đầu cập nhật
       const id = auth.currentUser?.uid;
       if (!id) {
         Alert.alert('Lỗi', 'Không tìm thấy ID người dùng!');
@@ -80,84 +87,111 @@ const ChangeUserInfo = () => {
       const db = getDatabase();
       const usersRef = ref(db, 'users');
   
-      // Kiểm tra nickname có bị trùng không
       onValue(usersRef, async (snapshot) => {
         if (snapshot.exists()) {
           const users = snapshot.val();
           const isDuplicate = Object.keys(users).some((userId) => {
             const existingNickname = users[userId].nickname ? decryptMessage(users[userId].nickname) : null;
-          
             return userId !== id && existingNickname && existingNickname === formattedNickname;
           });
-          
+  
           if (isDuplicate) {
             Alert.alert('Lỗi', 'Biệt danh đã tồn tại, vui lòng chọn biệt danh khác!');
+            setUpdating(false); // Tắt loading nếu lỗi
             return;
           }
   
-          // Nếu nickname không trùng thì cập nhật thông tin
           const userRef = ref(db, `users/${id}`);
           await update(userRef, { name: encryptMessage(name) });
           await update(userRef, { nickname: encryptMessage(formattedNickname) });
   
-          Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
+          setUpdating(false);
           navigation.goBack();
         }
-      }, { onlyOnce: true }); // Chỉ lấy dữ liệu một lần, tránh re-render không cần thiết
+      }, { onlyOnce: true });
   
     } catch (error) {
       Alert.alert('Lỗi', error.message);
       console.log('Lỗi cập nhật name:', error);
+      setUpdating(false);
     }
   };
+  
   
 
   return (
     <View style={styles.container}>
-      <View style={styles.containerHearder}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Icon
-            style={styles.iconBack}
-            name="angle-left"
-            size={30}
-            color="black"
-          />
-        </Pressable>
-        <TouchableOpacity onPress={handleUpdateUsername}>
-          <Text style={styles.text_hearder}>Xong</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.label}>Thay đổi tên</Text>
-      <TextInput
-        placeholder="Nhập tên mới"
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
+    {loading ? (
+      <LottieView
+        source={require('../../loading/loading3.json')}
+        autoPlay
+        loop
+        style={styles.loadingAnimation}
       />
-
-      <Text style={styles.label}>Đặt biệt danh</Text>
-      <TextInput
-        placeholder="@Nhập biệt danh mới"
-        style={styles.input}
-        value={nickname}
-        onChangeText={text => {
-          if (!text.startsWith('@')) {
-            setNickname(`@${text}`); // Đảm bảo luôn có @ phía trước
-          } else {
-            setNickname(text);
-          }
-        }}
-      />
-
-      {/* <TouchableOpacity style={styles.button} onPress={handleUpdateUsername}>
-        <Text style={styles.buttonText}>xác nhận</Text>
-      </TouchableOpacity> */}
-    </View>
+    ) : (
+      <>
+        <View style={styles.containerHearder}>
+          <Pressable onPress={() => navigation.goBack()}>
+            <Icon
+              style={styles.iconBack}
+              name="angle-left"
+              size={30}
+              color="black"
+            />
+          </Pressable>
+          <TouchableOpacity onPress={handleUpdateUsername} disabled={updating}>
+            {updating ? (
+              <LottieView
+                source={require('../../loading/loading3.json')}
+                autoPlay
+                loop
+                style={styles.updateLoading}
+              />
+            ) : (
+              <Text style={styles.text_hearder}>Xong</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+  
+        <Text style={styles.label}>Thay đổi tên</Text>
+        <TextInput
+          placeholder="Nhập tên mới"
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+        />
+  
+        <Text style={styles.label}>Đặt biệt danh</Text>
+        <TextInput
+          placeholder="@Nhập biệt danh mới"
+          style={styles.input}
+          value={nickname}
+          onChangeText={text => {
+            if (!text.startsWith('@')) {
+              setNickname(`@${text}`);
+            } else {
+              setNickname(text);
+            }
+          }}
+        />
+      </>
+    )}
+  </View>
+  
   );
 };
 
 const styles = StyleSheet.create({
+  loadingAnimation: {
+    width: 150,
+    height: 150,
+    alignSelf: 'center',
+  },
+  updateLoading: {
+    width: 30,
+    height: 30,
+  },
+  
   container: {flex: 1, padding: 20, backgroundColor: 'white'},
   iconBack: {marginBottom: 20},
   label: {fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: 'black'},
