@@ -11,7 +11,7 @@ import {
   LogBox,
   Modal,
 } from 'react-native';
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Icon2 from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -49,7 +49,7 @@ const Home = ({navigation}) => {
   const db = getDatabase();
   const [storageChanged, setStorageChanged] = useState(false);
   const myId = auth.currentUser?.uid;
-  const userId = 'KKsCyrEpBSSoqMxlr9cuPHaz8fO2';
+  const lastSelfDestruct = useRef({});
   // const secretKey = generateSecretKey(otherUserId, myId);
 
   // const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
@@ -170,6 +170,7 @@ const Home = ({navigation}) => {
               if (latestMessage.imageUrl) {
                 lastMessage = 'Có ảnh mới';
               } else if (latestMessage.selfDestruct === true) { // 🔥 Đảm bảo luôn kiểm tra selfDestruct
+                lastSelfDestruct.current[chatId] = true; // Lưu trạng thái selfDestruct
                 lastMessage = '🔒 Nhấn để mở khóa';
               } else {
                 lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
