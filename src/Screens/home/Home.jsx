@@ -158,7 +158,7 @@ const Home = ({ navigation }) => {
               const latestMessage = sortedMessages[0];
               lastMessageId = latestMessage.msgId;
               if (latestMessage.imageUrl) {
-                lastMessage = 'Có ảnh mới';
+                lastMessage = 'Hình ảnh';
               } else {
                 lastMessage = decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
               }

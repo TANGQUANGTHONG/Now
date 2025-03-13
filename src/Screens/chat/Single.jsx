@@ -15,6 +15,7 @@ import {
   Platform,
   PermissionsAndroid,
   NativeModules,
+  ActivityIndicator,
 } from 'react-native';
 import {
   useRoute,
@@ -86,6 +87,7 @@ const Single = () => {
   const [selectedMess, setSelectedMess] = useState(null);
   const [unlockedMessages, setUnlockedMessages] = useState({});
   const [timeLefts, setTimeLefts] = useState({});
+  const [loadingImageUrl, setLoadingImageUrl] = useState(null);
 
   const {RNMediaScanner} = NativeModules;
 
@@ -486,7 +488,7 @@ const Single = () => {
           senderId: data.senderId, // ID của người gửi
           text: data.text
             ? decryptMessage(data.text, secretKey) // Giải mã nội dung tin nhắn nếu có
-            : '📷 Ảnh mới', // Nếu tin nhắn là hình ảnh thì hiển thị thông báo
+            : 'Hình ảnh', // Nếu tin nhắn là hình ảnh thì hiển thị thông báo
           imageUrl: data.imageUrl || null, // URL hình ảnh nếu có
           timestamp: data.timestamp, // Thời gian gửi tin nhắn
           selfDestruct: data.selfDestruct || false, // Kiểm tra xem tin nhắn có tự hủy không
@@ -1033,6 +1035,19 @@ const Single = () => {
 
   const uploadImageToCloudinary = async imageUri => {
     try {
+      setLoadingImageUrl(imageUri); // Cập nhật trạng thái đang gửi ảnh
+  
+      // ✅ Thêm tin nhắn tạm vào danh sách tin nhắn
+      const tempMessageId = `temp-${Date.now()}`;
+      const tempMessage = {
+        id: tempMessageId, // ID tạm thời
+        senderId: myId,
+        imageUrl: imageUri,
+        timestamp: Date.now(),
+        isLoading: true, // ✅ Đánh dấu là tin nhắn đang tải
+      };
+      setMessages(prev => [...prev, tempMessage]);
+  
       const formData = new FormData();
       formData.append('file', {
         uri: imageUri,
@@ -1040,23 +1055,37 @@ const Single = () => {
         name: 'upload.jpg',
       });
       formData.append('upload_preset', CLOUDINARY_PRESET);
-
+  
       const response = await fetch(CLOUDINARY_URL, {
         method: 'POST',
         body: formData,
       });
-
+  
       const data = await response.json();
       if (data.secure_url) {
         console.log('✅ Ảnh đã tải lên Cloudinary:', data.secure_url);
-        sendImageMessage(data.secure_url);
+  
+        // ✅ Cập nhật tin nhắn tạm với ảnh thật và tắt loading
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === tempMessageId
+              ? { ...msg, imageUrl: data.secure_url, isLoading: false }
+              : msg
+          )
+        );
+  
+        sendImageMessage(data.secure_url, tempMessageId);
       } else {
         throw new Error('Lỗi khi tải ảnh lên Cloudinary');
       }
     } catch (error) {
       console.error('❌ Lỗi khi upload ảnh:', error);
+    } finally {
+      setLoadingImageUrl(null); // Xóa trạng thái loading khi hoàn tất
     }
   };
+  
+  
 
   // Hàm gửi tin nhắn ảnh
   const sendImageMessage = async imageUrl => {
@@ -1079,6 +1108,7 @@ const Single = () => {
         seen: {[myId]: true, [userId]: false}, // Trạng thái đã xem của tin nhắn (người gửi đã xem, người nhận chưa xem)
         selfDestruct: isSelfDestruct, // Kiểm tra xem tin nhắn có chế độ tự hủy không
         selfDestructTime: isSelfDestruct ? selfDestructTime : null, // Nếu tự hủy bật, thì lưu thời gian tự hủy
+
       };
 
       // Gửi tin nhắn ảnh lên Firebase bằng cách lưu dữ liệu vào reference đã tạo
@@ -1313,10 +1343,15 @@ const Single = () => {
                               setIsImageModalVisible(true);
                             }
                             }}>
-                            <Image
-                              source={{uri: item.imageUrl}}
-                              style={styles.imageMessage}
-                            />
+                              
+                           
+                              {/* ✅ Luôn giữ `View` hiển thị ảnh, chỉ thay đổi trạng thái loading */}
+    <View style={styles.imageWrapper}>
+      <Image source={{ uri: item.imageUrl }} style={styles.imageMessage} />
+      {item.isLoading && (
+        <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
+      )}
+    </View>
                                 {isSelfDestruct && timeLeft > 0 && (
                               <Text style={styles.selfDestructTimer}>
                                 🕒 {timeLeft}s
@@ -1362,6 +1397,17 @@ const Single = () => {
                 </View>
               </View>
             );
+          }}
+
+          onContentSizeChange={() => {
+            if (listRef.current) {
+              listRef.current.scrollToEnd({ animated: true });
+            }
+          }}
+          onLayout={() => {
+            if (listRef.current) {
+              listRef.current.scrollToEnd({ animated: false }); // Khi mở lại trang thì không dùng animation
+            }
           }}
         />
 
@@ -1581,6 +1627,23 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
+  imageWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 200, 
+    height: 200,
+  },
+  
+  loadingIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -15 }, { translateY: -15 }],
+  },
+  
+  
+  
   statusContainer: {
     marginLeft: 5,
     flexDirection: 'row',
