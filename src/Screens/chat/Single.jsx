@@ -127,6 +127,23 @@ const Single = () => {
     }
   };
 
+  const deleteMessageForUser = async (messageId) => {
+    try {
+      const messageRef = database().ref(`/chats/${chatId}/messages/${messageId}`);
+      const snapshot = await messageRef.once('value');
+      if (snapshot.exists()) {
+        const messageData = snapshot.val();
+        const newDeletedBy = { ...(messageData.deletedBy || {}) };
+        newDeletedBy[myId] = true;
+        await messageRef.update({ deletedBy: newDeletedBy });
+        console.log(`🗑 Tin nhắn ${messageId} đã được đánh dấu xóa bởi ${myId} trên Firebase.`);
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi cập nhật trạng thái deletedBy trên Firebase:', error);
+    }
+  };
+  
+
   const recallMessageForBoth = async messageId => {
     try {
       const messageRef = database().ref(
@@ -634,6 +651,7 @@ const Single = () => {
             updatedTimers[messageId] = prev[messageId] - 1;
           } else if (prev[messageId] === 0) {
             deleteMessageLocally(messageId); // Xóa chỉ trong AsyncStorage
+            deleteMessageForUser(messageId)
             delete updatedTimers[messageId];
           }
         });
@@ -1376,7 +1394,7 @@ const Single = () => {
         <FlatList
           ref={listRef}
           data={[...messages]
-            .filter(msg => !msg.deleted)
+            .filter(msg => !msg.deleted && !(msg.deletedBy && msg.deletedBy[myId]))
             .sort((a, b) => a.timestamp - b.timestamp)}
           keyExtractor={item => item.id}
           renderItem={({item}) => {
@@ -1641,6 +1659,7 @@ const Single = () => {
                   style={styles.modalOption}
                   onPress={() => {
                     deleteMessageLocally(selectedMess.id);
+                    deleteMessageForUser(selectedMess.id);
                     setModal(false);
                   }}>
                   <Text style={styles.modalText}> Xóa chỉ mình tôi</Text>

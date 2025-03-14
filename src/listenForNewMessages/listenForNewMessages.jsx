@@ -57,8 +57,8 @@ const useListenForNewMessages = () => {
       if (seen[myId] && seen[otherUserId]) {
         setTimeout(async () => {
           await database().ref(`/chats/${chatId}/messages/${msgId}`).remove();
-          console.log(`🗑 Tin nhắn ${msgId} đã bị xóa trên Firebase `);
-        }, 10000);
+          console.log(`🗑 Tin nhắn ${msgId} đã bị xóa trên Firebase`);
+        }, 604800000); // 1 tuần
       }
     };
 

@@ -161,7 +161,7 @@ const Home = ({navigation}) => {
             const messagesData = messagesSnapshot.val();
             const sortedMessages = Object.entries(messagesData)
               .map(([msgId, msg]) => ({msgId, ...msg}))
-              .filter(msg => !msg.deleted) // 🔥 Bỏ qua tin nhắn bị xóa
+              .filter(msg => !(msg.deletedBy && msg.deletedBy[currentUserId]))
               .sort((a, b) => b.timestamp - a.timestamp);
 
             if (sortedMessages.length > 0) {
