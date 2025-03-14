@@ -124,7 +124,6 @@ const Home = ({navigation}) => {
         if (!snapshot.exists()) {
           // console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
           setChatList(chatListFromStorage); // Đặt lại danh sách đã sắp xếp
-
           return;
         }
 
@@ -246,7 +245,6 @@ const Home = ({navigation}) => {
       });
     } catch (error) {
       console.error('❌ Lỗi khi lấy dữ liệu:', error);
-
     }
   };
 
@@ -453,7 +451,6 @@ const Home = ({navigation}) => {
             <TouchableOpacity onPress={() => navigation.navigate('Gemini')}>
               <Icon2 name="google-assistant" size={25} color="white" />
             </TouchableOpacity>
-            <Icon name="ellipsis-vertical" size={25} color="white" />
           </View>
         </View>
         <View style={styles.inputSearch}>

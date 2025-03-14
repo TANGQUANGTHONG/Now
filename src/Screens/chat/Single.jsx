@@ -67,7 +67,7 @@ const Single = () => {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true); // Theo dõi trạng thái cuộn tin nhắn tự động khi có tin nhắn mới
   const [isTyping, setIsTyping] = useState(false); // Trạng thái người dùng đang nhập tin nhắn
   const [countChat, setcountChat] = useState(); // Số lượt tin nhắn người dùng còn có thể gửi
-  const [resetCountdown, setResetCountdown] = useState(null);
+  // const [resetCountdown, setResetCountdown] = useState(null);
   const [timers, setTimers] = useState({});
   setSelectedImage;
   const [user, setUser] = useState([]);
@@ -863,6 +863,63 @@ const Single = () => {
 
     fetchUsers();
   }, []);
+
+
+  // Khi countChat về 0, cập nhật timeReset trên Firebase (lưu thời gian reset dưới dạng timestamp)
+  const resetDuration = 24 * 60 * 60; // 86400 giây, tức 24 giờ
+  const [resetCountdown, setResetCountdown] = useState(null);
+  
+  useEffect(() => {
+    const userTimeResetRef = database().ref(`/users/${myId}/timeReset`);
+  
+    userTimeResetRef.once('value').then(snapshot => {
+      const serverTimeReset = snapshot.val(); // Lấy timestamp từ Firebase
+      const currentTime = Date.now();
+      
+      if (serverTimeReset) {
+        // Tính số giây còn lại dựa trên thời gian hiện tại và timestamp từ Firebase
+        const timeLeft = Math.max(0, Math.floor((serverTimeReset - currentTime) / 1000));
+        setResetCountdown(timeLeft);
+      } else {
+        // Nếu chưa có timeReset trên Firebase, thiết lập mới
+        const timeResetValue = currentTime + resetDuration * 1000;
+        database().ref(`/users/${myId}`).update({ timeReset: timeResetValue });
+        setResetCountdown(resetDuration);
+      }
+    });
+  }, [countChat, myId]);
+  
+  // Hàm chạy interval để đếm ngược mỗi giây
+  useEffect(() => {
+    if (resetCountdown > 0) {
+      const interval = setInterval(() => {
+        setResetCountdown(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+  
+      return () => clearInterval(interval);
+    }
+  }, [resetCountdown]);
+  
+  // Cập nhật đồng hồ đếm ngược mỗi giây và reset khi hết thời gian
+  useEffect(() => {
+    if (resetCountdown !== null) {
+      const intervalId = setInterval(() => {
+        setResetCountdown(prev => {
+          if (prev <= 1) {
+            // Khi countdown hết, reset lượt chat và xóa timeReset trên Firebase
+            database().ref(`/users/${myId}`).update({ countChat: 100 });
+            database().ref(`/users/${myId}/timeReset`).remove();
+            setcountChat(100);
+            clearInterval(intervalId);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(intervalId);
+    }
+  }, [resetCountdown, myId]);
+  
 
   // useEffect để tải danh sách chat từ AsyncStorage và Firebase khi component được mount
   useEffect(() => {
