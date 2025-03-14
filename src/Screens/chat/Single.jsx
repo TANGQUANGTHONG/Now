@@ -15,6 +15,7 @@ import {
   Platform,
   PermissionsAndroid,
   NativeModules,
+  ActivityIndicator,
 } from 'react-native';
 import {
   useRoute,
@@ -86,6 +87,7 @@ const Single = () => {
   const [selectedMess, setSelectedMess] = useState(null);
   const [unlockedMessages, setUnlockedMessages] = useState({});
   const [timeLefts, setTimeLefts] = useState({});
+  const [loadingImageUrl, setLoadingImageUrl] = useState(null);
 
   const {RNMediaScanner} = NativeModules;
 
@@ -106,25 +108,24 @@ const Single = () => {
       // Lấy danh sách tin nhắn từ AsyncStorage
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       let oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
+
       // 🔥 Đánh dấu tin nhắn là đã bị xóa thay vì loại bỏ hoàn toàn
       const updatedMessages = oldMessages.map(msg =>
-        msg.id === messageId ? {...msg, deleted: true} : msg
+        msg.id === messageId ? {...msg, deleted: true} : msg,
       );
-  
+
       // 🔥 Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
       await AsyncStorage.setItem(
         `messages_${chatId}`,
         JSON.stringify(updatedMessages),
       );
-  
+
       console.log(`🗑 Tin nhắn ${messageId} đã bị đánh dấu là deleted.`);
       setMessages(updatedMessages); // 🔄 Cập nhật UI ngay lập tức
     } catch (error) {
       console.error('❌ Lỗi khi cập nhật trạng thái deleted:', error);
     }
   };
-  
 
   const recallMessageForBoth = async messageId => {
     try {
@@ -228,6 +229,14 @@ const Single = () => {
     // }
     setSelectedMess(message); // Lưu tin nhắn đang chọn
     setModal(true); // Hiển thị Modal
+    if (message.isPinned) {
+      // Nếu tin nhắn đã ghim, mở modal bỏ ghim
+      handleUnpinRequest(message);
+    } else {
+      // Nếu tin nhắn chưa ghim, mở modal ghim
+      setSelectedMessage(message);
+      // setIsPinModalVisible(true);
+    }
   };
 
   const pinMessage = async (messageId, text, timestamp) => {
@@ -279,16 +288,16 @@ const Single = () => {
     }
   };
 
-  const handlePinMessage = message => {
-    if (message.isPinned) {
-      // Nếu tin nhắn đã ghim, mở modal bỏ ghim
-      handleUnpinRequest(message);
-    } else {
-      // Nếu tin nhắn chưa ghim, mở modal ghim
-      setSelectedMessage(message);
-      setIsPinModalVisible(true);
-    }
-  };
+  // const handlePinMessage = message => {
+  //   if (message.isPinned) {
+  //     // Nếu tin nhắn đã ghim, mở modal bỏ ghim
+  //     handleUnpinRequest(message);
+  //   } else {
+  //     // Nếu tin nhắn chưa ghim, mở modal ghim
+  //     setSelectedMessage(message);
+  //     setIsPinModalVisible(true);
+  //   }
+  // };
 
   const handleUnpinRequest = message => {
     setSelectedMessage(message); // Lưu tin nhắn cần bỏ ghim
@@ -628,7 +637,6 @@ const Single = () => {
             delete updatedTimers[messageId];
           }
         });
-
         return updatedTimers;
       });
     }, 1000);
@@ -782,7 +790,6 @@ const Single = () => {
       const encryptedText = encryptMessage(text, secretKey);
       const messageRef = chatRef.child('messages').push(); // Tạo reference cho tin nhắn mới
       const messageId = messageRef.key; // Lấy ID tin nhắn duy nhất từ Firebase
-
       const messageData = {
         id: messageId, // Đảm bảo ID không bị trùng
         senderId: myId,
@@ -1067,6 +1074,19 @@ const Single = () => {
 
   const uploadImageToCloudinary = async imageUri => {
     try {
+      setLoadingImageUrl(imageUri); // Cập nhật trạng thái đang gửi ảnh
+
+      // ✅ Thêm tin nhắn tạm vào danh sách tin nhắn
+      const tempMessageId = `temp-${Date.now()}`;
+      const tempMessage = {
+        id: tempMessageId, // ID tạm thời
+        senderId: myId,
+        imageUrl: imageUri,
+        timestamp: Date.now(),
+        isLoading: true, // ✅ Đánh dấu là tin nhắn đang tải
+      };
+      setMessages(prev => [...prev, tempMessage]);
+
       const formData = new FormData();
       formData.append('file', {
         uri: imageUri,
@@ -1083,12 +1103,24 @@ const Single = () => {
       const data = await response.json();
       if (data.secure_url) {
         console.log('✅ Ảnh đã tải lên Cloudinary:', data.secure_url);
-        sendImageMessage(data.secure_url);
+
+        // ✅ Cập nhật tin nhắn tạm với ảnh thật và tắt loading
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === tempMessageId
+              ? {...msg, imageUrl: data.secure_url, isLoading: false}
+              : msg,
+          ),
+        );
+
+        sendImageMessage(data.secure_url, tempMessageId);
       } else {
         throw new Error('Lỗi khi tải ảnh lên Cloudinary');
       }
     } catch (error) {
       console.error('❌ Lỗi khi upload ảnh:', error);
+    } finally {
+      setLoadingImageUrl(null); // Xóa trạng thái loading khi hoàn tất
     }
   };
 
@@ -1238,7 +1270,6 @@ const Single = () => {
     setMessages(prev =>
       prev.map(msg => (msg.id === messageId ? {...msg, isLocked: false} : msg)),
     );
-
     // ✅ Bắt đầu đếm ngược nếu chưa có giá trị
     setTimeLefts(prev => ({
       ...prev,
@@ -1353,10 +1384,25 @@ const Single = () => {
                                 setIsImageModalVisible(true);
                               }
                             }}>
-                            <Image
-                              source={{uri: item.imageUrl}}
-                              style={styles.imageMessage}
-                            />
+                            {/* ✅ Luôn giữ `View` hiển thị ảnh, chỉ thay đổi trạng thái loading */}
+
+                            <View style={styles.imageWrapper}>
+                              {item.isLoading || !item.imageUrl ? (
+                                // Hiển thị loading khi đang tải hoặc không có ảnh
+                                <ActivityIndicator
+                                  size="large"
+                                  color="blue"
+                                  style={styles.loadingIndicator}
+                                />
+                              ) : (
+                                // Hiển thị ảnh khi đã tải xong
+                                <Image
+                                  source={{uri: item.imageUrl}}
+                                  style={styles.imageMessage}
+                                />
+                              )}
+                            </View>
+
                             {isSelfDestruct && timeLeft > 0 && (
                               <Text style={styles.selfDestructTimer}>
                                 🕒 {timeLeft}s
@@ -1403,6 +1449,9 @@ const Single = () => {
               </View>
             );
           }}
+          onContentSizeChange={() =>
+            listRef.current?.scrollToEnd({animated: false})
+          } // Cuộn xuống cuối khi render xong
         />
 
         <FlatList
@@ -1464,34 +1513,15 @@ const Single = () => {
             onRequestClose={() => setIsPinModalVisible(false)}>
             <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>
-                  {selectedMessage?.isPinned
-                    ? 'Bỏ ghim tin nhắn?'
-                    : 'Ghim tin nhắn?'}
-                </Text>
-
-                {selectedMessage?.isPinned ? (
-                  // Nếu tin nhắn đã ghim, hiển thị nút bỏ ghim
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => {
-                      unpinMessage(selectedMessage.id);
-                      setIsPinModalVisible(false);
-                    }}>
-                    <Text style={styles.modalText}>Bỏ ghim</Text>
-                  </TouchableOpacity>
-                ) : (
-                  // Nếu tin nhắn chưa ghim, hiển thị nút ghim
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => {
-                      pinMessage(selectedMessage.id);
-                      setIsPinModalVisible(false);
-                    }}>
-                    <Text style={styles.modalText}>Ghim</Text>
-                  </TouchableOpacity>
-                )}
-
+                <Text style={styles.modalTitle}>Bỏ ghim tin nhắn?</Text>
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    unpinMessage(selectedMessage.id);
+                    setIsPinModalVisible(false);
+                  }}>
+                  <Text style={styles.modalText}>Bỏ ghim</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setIsPinModalVisible(false)}
                   style={styles.modalCancel}>
@@ -1500,6 +1530,7 @@ const Single = () => {
               </View>
             </View>
           </Modal>
+
           <Modal
             animationType="slide"
             transparent={true}
@@ -1524,6 +1555,17 @@ const Single = () => {
                     <Text style={styles.modalText}> Sao chép</Text>
                   </TouchableOpacity>
                 )}
+
+                {/* // Nếu tin nhắn chưa ghim, hiển thị nút ghim */}
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    pinMessage(selectedMessage.id);
+                    setIsPinModalVisible(false);
+                    setModal(false);
+                  }}>
+                  <Text style={styles.modalText}>Ghim</Text>
+                </TouchableOpacity>
 
                 {/* Nếu là ảnh, thêm nút "Tải ảnh về" */}
                 {selectedMess?.imageUrl && (
@@ -1576,6 +1618,7 @@ const Single = () => {
                 handleTyping(value.length > 0);
               }}
               placeholder="Nhập tin nhắn..."
+              placeholderTextColor={'#aaa'}
               onBlur={() => handleTyping(false)}
             />
           </View>
@@ -1621,6 +1664,21 @@ const Single = () => {
 };
 
 const styles = StyleSheet.create({
+  imageWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 200,
+    height: 200,
+  },
+
+  loadingIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{translateX: -15}, {translateY: -15}],
+  },
+
   statusContainer: {
     marginLeft: 5,
     flexDirection: 'row',
@@ -1812,6 +1870,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
+    color: 'black',
   },
   modalOption: {
     paddingVertical: 10,
@@ -1821,6 +1880,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ccc',
   },
   modalText: {
+    color: 'black',
     fontSize: 16,
   },
   modalCancel: {

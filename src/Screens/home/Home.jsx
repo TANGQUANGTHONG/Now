@@ -124,6 +124,7 @@ const Home = ({navigation}) => {
         if (!snapshot.exists()) {
           // console.log('🔥 Không có tin nhắn mới trên Firebase, lấy từ local.');
           setChatList(chatListFromStorage); // Đặt lại danh sách đã sắp xếp
+
           return;
         }
 
@@ -245,6 +246,7 @@ const Home = ({navigation}) => {
       });
     } catch (error) {
       console.error('❌ Lỗi khi lấy dữ liệu:', error);
+
     }
   };
 

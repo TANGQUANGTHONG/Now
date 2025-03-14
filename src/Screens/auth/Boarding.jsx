@@ -8,6 +8,7 @@ import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
 import{saveCurrentUserAsyncStorage,saveChatsAsyncStorage} from '../../storage/Storage';
+import LoadingModal from '../../loading/LoadingModal';
 
 
 const Boarding = (props) => {
@@ -16,13 +17,14 @@ const Boarding = (props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setnickname] = useState('')
-  
+  const [loading, setloading] = useState(false)
  GoogleSignin.configure({
   webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
 });
 
 async function signInWithGoogle() {
 try {
+  setloading(true)
   await GoogleSignin.signOut(); // Clear any existing sessions
 
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -77,10 +79,13 @@ try {
   }
 } catch (error) {
   console.log('Google Sign-In Error:', error);
+}finally{
+  setloading(false)
 }
 }
   return (
     <View style={styles.container}>
+      <LoadingModal visible={loading}/>
       <Image
         style={styles.image1}
         source={require('../auth/assets/background/Illustration.png')}

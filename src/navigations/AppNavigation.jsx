@@ -12,7 +12,7 @@ const AppNavigation = () => {
   const [user, setUser] = useState(null);
   const [isEmailVerified, setIsEmailVerified] = useState(null);
   const [isSplashVisible, setSplashVisible] = useState(true);
-
+  
   useEffect(() => {
     const timeout = setTimeout(() => {
       setSplashVisible(false);

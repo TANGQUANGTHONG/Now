@@ -106,6 +106,8 @@ const Search = () => {
           placeholder="Search"
           value={searchText}
           onChangeText={handleSearch} // Gọi hàm debounce
+          placeholderTextColor={'#aaa'}
+          style={{color:'black'}}
         />
       </View>
       <View>
