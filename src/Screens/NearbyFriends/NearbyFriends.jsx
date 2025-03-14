@@ -9,7 +9,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service'; // 🔥 Import thư viện mới
 import database from '@react-native-firebase/database';
 import { getDistance } from 'geolib';
 import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
@@ -23,27 +23,22 @@ const NearbyFriends = ({ route }) => {
   const [location, setLocation] = useState(null);
   const [nearbyFriends, setNearbyFriends] = useState([]);
   const [selectedDistance, setSelectedDistance] = useState(5);
-  const [isLoading, setIsLoading] = useState(false); // 🔥 Thêm biến loading
+  const [isLoading, setIsLoading] = useState(false);
 
   const distanceOptions = [1, 5, 10, 20, 15000];
 
   const requestLocationPermission = async () => {
     try {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
-      ]);
-  
-      return (
-        granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED ||
-        granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
       );
+
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
       console.warn(err);
       return false;
     }
   };
-  
 
   const getLocation = async () => {
     const hasPermission = await requestLocationPermission();
@@ -65,12 +60,12 @@ const NearbyFriends = ({ route }) => {
         }
       },
       error => console.log('❌ Lỗi khi lấy vị trí:', error),
-      { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 },
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
     );
   };
 
   const fetchNearbyFriends = async (latitude, longitude, maxDistance) => {
-    setIsLoading(true); // 🔥 Bắt đầu tải dữ liệu
+    setIsLoading(true);
 
     database()
       .ref('/users')
@@ -108,7 +103,7 @@ const NearbyFriends = ({ route }) => {
 
         console.log('👥 Danh sách bạn bè gần đây:', friendsNearby);
         setNearbyFriends(friendsNearby);
-        setIsLoading(false); // 🔥 Dữ liệu đã tải xong
+        setIsLoading(false);
       });
   };
 
@@ -134,8 +129,6 @@ const NearbyFriends = ({ route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5', padding: 20 }}>
-      
-      {/* Thanh tiêu đề với nút Back */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
         <TouchableOpacity onPress={() => navigation.navigate(oTab.Home.name)} style={{ marginRight: 10 }}>
           <Icon name="arrow-back" size={24} color="black" />
@@ -145,7 +138,6 @@ const NearbyFriends = ({ route }) => {
         </Text>
       </View>
   
-      {/* Danh sách chọn khoảng cách */}
       <View style={{ alignItems: 'center', marginBottom: 15 }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row' }}>
           {distanceOptions.map(distance => (
@@ -165,76 +157,52 @@ const NearbyFriends = ({ route }) => {
         </ScrollView>
       </View>
   
-      <Text style={{
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        color: '#333',
-        textAlign: 'center',
-      }}>
-        🔍 Tìm bạn trong phạm vi {selectedDistance} km...
-      </Text>
-  
-      {/* Hiển thị loading khi dữ liệu chưa tải xong */}
       {isLoading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#007bff" />
           <Text style={{ marginTop: 10, fontSize: 16, color: 'gray' }}>Đang tải danh sách...</Text>
         </View>
       ) : (
-        <View style={{ flex: 1 }}>
-          {nearbyFriends.length > 0 ? (
-            <FlatList
-              data={nearbyFriends}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate('Single', {
-                      userId: item.id,
-                      myId: userId,
-                      username: decryptMessage(item.name),
-                      img: decryptMessage(item.Image),
-                    })
-                  }
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    padding: 15,
-                    backgroundColor: 'white',
-                    borderRadius: 10,
-                    marginBottom: 10,
-                    shadowColor: '#000',
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 2,
-                  }}>
-                  <Image
-                    source={{
-                      uri: decryptMessage(item.Image) || 'https://via.placeholder.com/50',
-                    }}
-                    style={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: 25,
-                      marginRight: 15,
-                    }}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>
-                      {decryptMessage(item.name)}
-                    </Text>
-                    <Text style={{ color: 'gray', fontSize: 14 }}>
-                      Khoảng cách: {item.distance.toFixed(2)} km
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-          ) : (
-            <Text style={{ fontSize: 16, color: 'gray', textAlign: 'center' }}>Không có ai trong phạm vi {selectedDistance} km</Text>
+        <FlatList
+          data={nearbyFriends}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate('Single', {
+                  userId: item.id,
+                  myId: userId,
+                  username: decryptMessage(item.name),
+                  img: decryptMessage(item.Image),
+                })
+              }
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: 15,
+                backgroundColor: 'white',
+                borderRadius: 10,
+                marginBottom: 10,
+                shadowColor: '#000',
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 2,
+              }}>
+              <Image
+                source={{
+                  uri: decryptMessage(item.Image) || 'https://via.placeholder.com/50',
+                }}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  marginRight: 15,
+                }}
+              />
+              <Text>{decryptMessage(item.name)}</Text>
+            </TouchableOpacity>
           )}
-        </View>
+        />
       )}
     </View>
   );

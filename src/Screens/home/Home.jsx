@@ -161,7 +161,7 @@ const Home = ({navigation}) => {
             const messagesData = messagesSnapshot.val();
             const sortedMessages = Object.entries(messagesData)
               .map(([msgId, msg]) => ({msgId, ...msg}))
-              .filter(msg => !msg.deleted)
+              .filter(msg => !msg.deleted) // 🔥 Bỏ qua tin nhắn bị xóa
               .sort((a, b) => b.timestamp - a.timestamp);
 
             if (sortedMessages.length > 0) {
@@ -197,6 +197,17 @@ const Home = ({navigation}) => {
             // console.log(`📭 Không có tin nhắn trên Firebase cho chatId: ${chatId}, lấy từ local.`);
             if (!messagesSnapshot.exists()) {
               const localMessage = await getLatestMessageFromLocal(chatId);
+
+              // Nếu không còn tin nhắn hợp lệ, đặt tin nhắn rỗng
+              if (!localMessage.text) {
+                lastMessage = '';
+                lastMessageTime = '';
+                lastMessageTimestamp = 0;
+              } else {
+                lastMessage = localMessage.text;
+                lastMessageTime = localMessage.time;
+                lastMessageTimestamp = localMessage.timestamp;
+              }
               lastMessage = localMessage.text;
               lastMessageTime = localMessage.time;
               lastMessageTimestamp = localMessage.timestamp;
@@ -250,6 +261,9 @@ const Home = ({navigation}) => {
       }
 
       const messages = JSON.parse(storedMessages);
+
+      
+
       if (messages.length === 0) {
         // 🔥 Nếu không có tin nhắn, lấy trạng thái `isSeen` từ chatList trong AsyncStorage
         const storedChats = await AsyncStorage.getItem('chatList');
