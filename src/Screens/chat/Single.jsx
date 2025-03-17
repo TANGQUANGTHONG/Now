@@ -516,7 +516,6 @@ const Single = () => {
           .filter(msg => msg.timestamp) // Lọc những tin nhắn có timestamp hợp lệ
           .sort((a, b) => a.timestamp - b.timestamp); // Sắp xếp tin nhắn theo thời gian
 
-        console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
 
         // (Ghi chú: Đoạn này bị comment out) Lọc tin nhắn không tự hủy
         // const nonSelfDestructMessages = newMessages.filter(
@@ -547,14 +546,13 @@ const Single = () => {
         );
         setMessages(uniqueMessages);
 
-        // // Tự động cuộn xuống cuối danh sách tin nhắn nếu cần
-        // if (shouldAutoScroll && listRef.current) {
-        //   setTimeout(() => {
-        //     if (listRef.current) {
-        //       listRef.current.scrollToEnd({ animated: true });
-        //     }
-        //   }, 300);
-        // }
+        // Tự động cuộn xuống cuối danh sách tin nhắn nếu cần
+          setTimeout(() => {
+            if (listRef.current) {
+              listRef.current.scrollToOffset({ offset: 0, animated: true });
+            }
+          }, 50);
+        
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
@@ -1380,6 +1378,8 @@ const Single = () => {
             );
           }}
           inverted // 👈 THÊM DÒNG NÀY
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }} // 💥 Thêm dòng này
+
         />
 
         <FlatList
