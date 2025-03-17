@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   LogBox,
   Modal,
+  AppState,
 } from 'react-native';
 import React, {useState, useEffect, useRef} from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -161,7 +162,7 @@ const Home = ({navigation}) => {
             const messagesData = messagesSnapshot.val();
             const sortedMessages = Object.entries(messagesData)
               .map(([msgId, msg]) => ({msgId, ...msg}))
-              .filter(msg => !(msg.deletedBy && msg.deletedBy[currentUserId]))
+              .filter(msg => !msg.deleted && !(msg.deletedBy && msg.deletedBy[currentUserId])) // 🔥 Lọc tin nhắn bị xóa
               .sort((a, b) => b.timestamp - a.timestamp);
 
             if (sortedMessages.length > 0) {
@@ -323,9 +324,23 @@ const Home = ({navigation}) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      loadChats(); // Gọi lại hàm loadChats khi quay lại Home
-    }, []),
+      console.log('🔄 Vào lại Home, cập nhật danh sách chat...');
+      loadChats();
+    }, [])
   );
+
+  useEffect(() => {
+    const appStateListener = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        console.log('🔄 Ứng dụng vừa mở lại, cập nhật danh sách chat...');
+        loadChats();
+      }
+    });
+  
+    return () => {
+      appStateListener.remove(); // Dọn dẹp listener khi component unmount
+    };
+  }, []);
 
   // Giải mã tin nhắn
   const safeDecrypt = (encryptedText, secretKey) => {
