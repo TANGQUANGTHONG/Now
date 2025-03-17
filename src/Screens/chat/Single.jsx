@@ -91,6 +91,7 @@ const Single = () => {
 
   const { RNMediaScanner } = NativeModules;
   
+  
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
   const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
@@ -102,7 +103,13 @@ const Single = () => {
     { label: '5 phút', value: 300 },
     { label: 'Tắt tự hủy', value: null },
   ];
-
+  //tự động cuộn xuống khi có tin nhắn mới.
+  useEffect(() => {
+    if (listRef.current && shouldAutoScroll && messages.length > 0) {
+      listRef.current.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [messages, shouldAutoScroll]);
+  
   //xóa tin nhắn ở local
   const deleteMessageLocally = async messageId => {
     try {
@@ -540,14 +547,14 @@ const Single = () => {
         );
         setMessages(uniqueMessages);
 
-        // Tự động cuộn xuống cuối danh sách tin nhắn nếu cần
-        if (shouldAutoScroll && listRef.current) {
-          setTimeout(() => {
-            if (listRef.current) {
-              listRef.current.scrollToEnd({ animated: true });
-            }
-          }, 300);
-        }
+        // // Tự động cuộn xuống cuối danh sách tin nhắn nếu cần
+        // if (shouldAutoScroll && listRef.current) {
+        //   setTimeout(() => {
+        //     if (listRef.current) {
+        //       listRef.current.scrollToEnd({ animated: true });
+        //     }
+        //   }, 300);
+        // }
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
@@ -1254,8 +1261,10 @@ const Single = () => {
           {renderPinnedMessages()}
         </View>
         <FlatList
-          ref={listRef}
-          data={[...messages].sort((a, b) => a.timestamp - b.timestamp)}
+          ref={listRef} 
+          onScrollBeginDrag={() => setShouldAutoScroll(false)}
+          onEndReached={() => setShouldAutoScroll(true)}
+          data={[...messages].sort((a, b) => b.timestamp - a.timestamp)} // đảo ngược dữ liệu
           keyExtractor={item => item.id}
           renderItem={({ item }) => {
             const isSentByMe = item.senderId === myId;
@@ -1370,7 +1379,7 @@ const Single = () => {
               </View>
             );
           }}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })} // Cuộn xuống cuối khi render xong
+          inverted // 👈 THÊM DÒNG NÀY
         />
 
         <FlatList
