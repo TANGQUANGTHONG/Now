@@ -446,6 +446,9 @@ const styles = StyleSheet.create({
   avatar: {width: 60, height: 60, borderRadius: 30, marginRight: 10},
   profileInfo: {flex: 1},
   name: {fontSize: 18, fontWeight: 'bold', color: 'black'},
+  status:{
+color: 'black',
+  },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',

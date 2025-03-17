@@ -90,19 +90,23 @@ const Single = () => {
   const [timeLefts, setTimeLefts] = useState({});
   const [loadingImageUrl, setLoadingImageUrl] = useState(null);
 
-  const {RNMediaScanner} = NativeModules;
+  const { RNMediaScanner } = NativeModules;
+  
+  
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
   const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
 
   const timeOptions = [
-    {label: '5 giây', value: 5},
-    {label: '10 giây', value: 10},
     {label: '1 phút', value: 60},
+    {label: '2 phút', value: 120},
+    {label: '3 phút', value: 180},
+    {label: '4 phút', value: 240},
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
 
+  
   //xóa tin nhắn ở local
   const deleteMessageLocally = async messageId => {
     try {
@@ -595,30 +599,13 @@ const Single = () => {
 
         setMessages(updatedMessages);
 
-        // 🔄 Tự động cuộn xuống cuối nếu có tin nhắn mới
-        if (shouldAutoScroll && listRef.current) {
+        // Tự động cuộn xuống cuối danh sách tin nhắn nếu cần
           setTimeout(() => {
-            listRef.current?.scrollToEnd({animated: true});
-          }, 300);
-        }
-
-        // 🔥 Cập nhật trạng thái "đã xem" nếu tin nhắn từ người khác
-        for (const msg of newMessages) {
-          if (msg.senderId === myId) continue;
-          const seenRef = database().ref(
-            `/chats/${chatId}/messages/${msg.id}/seen/${myId}`,
-          );
-          seenRef.once('value', async seenSnapshot => {
-            if (!seenSnapshot.exists() || seenSnapshot.val() === false) {
-              setTimeout(async () => {
-                await seenRef.set(true);
-                console.log(
-                  `👀 Đã cập nhật trạng thái seen cho tin nhắn ${msg.id}`,
-                );
-              }, 2000);
+            if (listRef.current) {
+              listRef.current.scrollToOffset({ offset: 0, animated: true });
             }
-          });
-        }
+          }, 50);
+        
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
@@ -1503,7 +1490,9 @@ const Single = () => {
             .filter(
               msg => !msg.deleted && !(msg.deletedBy && msg.deletedBy[myId]),
             )
-            .sort((a, b) => a.timestamp - b.timestamp)}
+            .sort((a, b) => b.timestamp - a.timestamp)}
+          onScrollBeginDrag={() => setShouldAutoScroll(false)}
+          onEndReached={() => setShouldAutoScroll(true)}
           keyExtractor={item => item.id}
           renderItem={({item}) => {
             const isSentByMe = item.senderId === myId;
@@ -1554,44 +1543,33 @@ const Single = () => {
                       <>
                         {/* Nếu tin nhắn là ảnh */}
                         {item.imageUrl ? (
-                          <TouchableOpacity
-                            onPress={() => {
-                              if (isSelfDestruct) {
-                                handleUnlockAndStartTimer(
-                                  item.id,
-                                  item.imageUrl,
-                                  item.selfDestructTime,
-                                );
-                              } else {
-                                setSelectedImage(item.imageUrl);
-                                setIsImageModalVisible(true);
-                              }
-                            }}>
-                            {/* ✅ Luôn giữ `View` hiển thị ảnh, chỉ thay đổi trạng thái loading */}
-
-                            <View style={styles.imageWrapper}>
-                              {item.isLoading || !item.imageUrl ? (
-                                // Hiển thị loading khi đang tải hoặc không có ảnh
-                                <ActivityIndicator
-                                  size="large"
-                                  color="blue"
-                                  style={styles.loadingIndicator}
-                                />
-                              ) : (
-                                // Hiển thị ảnh khi đã tải xong
-                                <Image
-                                  source={{uri: item.imageUrl}}
-                                  style={styles.imageMessage}
-                                />
-                              )}
-                            </View>
-
-                            {isSelfDestruct && timeLeft > 0 && (
-                              <Text style={styles.selfDestructTimer}>
-                                🕒 {timeLeft}s
-                              </Text>
-                            )}
-                          </TouchableOpacity>
+                         <TouchableOpacity
+                         onPress={() => {
+                           if (isSelfDestruct && item.isLocked) {
+                             // 🔥 Nếu tin nhắn là ảnh tự hủy và đang khóa, mở khóa ảnh
+                             handleUnlockAndStartTimer(item.id, item.imageUrl, item.selfDestructTime);
+                           } else {
+                             // 🔥 Nếu đã mở khóa hoặc không phải ảnh tự hủy, mở ảnh phóng to
+                             setSelectedImage(item.imageUrl);
+                             setIsImageModalVisible(true);
+                           }
+                         }}>
+                         <View style={styles.imageWrapper}>
+                           {item.isLoading || !item.imageUrl ? (
+                             // Hiển thị loading khi ảnh chưa tải xong
+                             <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
+                           ) : (
+                             // Hiển thị ảnh bình thường
+                             <Image source={{ uri: item.imageUrl }} style={styles.imageMessage} />
+                           )}
+                         </View>
+                       
+                         {/* Hiển thị thời gian tự hủy nếu ảnh đã mở khóa */}
+                         {isSelfDestruct && timeLeft > 0 && (
+                           <Text style={styles.selfDestructTimer}>🕒 {timeLeft}s</Text>
+                         )}
+                       </TouchableOpacity>
+                       
                         ) : (
                           <>
                             {/* Hiển thị nội dung tin nhắn */}
@@ -1632,9 +1610,9 @@ const Single = () => {
               </View>
             );
           }}
-          onContentSizeChange={() =>
-            listRef.current?.scrollToEnd({animated: false})
-          } // Cuộn xuống cuối khi render xong
+          inverted // 👈 THÊM DÒNG NÀY
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }} // 💥 Thêm dòng này
+
         />
 
         <FlatList
