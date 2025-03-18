@@ -255,8 +255,7 @@ const Single = () => {
     // if (message.senderId !== myId) {
     //   return;
     // }
-    setSelectedMess(message); // Lưu tin nhắn đang chọn
-    setModal(true); // Hiển thị Modal
+   
     if (message.isPinned) {
       // Nếu tin nhắn đã ghim, mở modal bỏ ghim
       handleUnpinRequest(message);
@@ -264,6 +263,8 @@ const Single = () => {
       // Nếu tin nhắn chưa ghim, mở modal ghim
       setSelectedMessage(message);
       // setIsPinModalVisible(true);
+      setSelectedMess(message); // Lưu tin nhắn đang chọn
+      setModal(true); // Hiển thị Modal
     }
   };
 
