@@ -9,6 +9,7 @@ import {
 } from './src/notification/Notification';
 import {getCurrentUserFromStorage} from './src/storage/Storage';
 
+
 const App = () => {
   const [isConnected, setIsConnected] = useState(true); // Trạng thái mạng
 
