@@ -584,37 +584,54 @@ const Single = () => {
     // 🟢 Lắng nghe khi một tin nhắn bị thay đổi (ví dụ: đã xem, bị chỉnh sửa)
     const onMessageChanged = async snapshot => {
       if (!snapshot.exists()) return;
-  
+    
       try {
         const msgId = snapshot.key;
         const msgData = snapshot.val();
         if (!msgData) return;
-  
+    
         console.log(`🔄 Cập nhật tin nhắn ${msgId}:`, msgData);
-  
-        // Lấy tin nhắn từ local
+    
+        // 🔥 Tạo bản sao mới của tin nhắn
+        const updatedMessage = {
+          id: msgId,
+          senderId: msgData.senderId,
+          text: msgData.text ? decryptMessage(msgData.text, secretKey) : '',
+          imageUrl: msgData.imageUrl || null,
+          timestamp: msgData.timestamp,
+          selfDestruct: msgData.selfDestruct || false,
+          selfDestructTime: msgData.selfDestructTime || null,
+          seen: msgData.seen || {},
+          deleted: msgData.deleted || false,
+          isLocked: msgData.isLockedBy?.[myId] ?? msgData.selfDestruct,
+          deletedBy: msgData.deletedBy || {},
+        };
+    
+        // 🔥 Lấy danh sách tin nhắn từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         let oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-  
-        // Tìm tin nhắn bị thay đổi
+    
+        // Kiểm tra xem tin nhắn có tồn tại không
         const messageIndex = oldMessages.findIndex(msg => msg.id === msgId);
         if (messageIndex !== -1) {
-          oldMessages[messageIndex] = {
-            ...oldMessages[messageIndex],
-            seen: msgData.seen || oldMessages[messageIndex].seen,
-            deleted: msgData.deleted || oldMessages[messageIndex].deleted,
-          };
+          oldMessages[messageIndex] = updatedMessage;
+        } else {
+          oldMessages = [...oldMessages, updatedMessage]; // Nếu tin nhắn mới, thêm vào danh sách
         }
-  
+    
         oldMessages.sort((a, b) => a.timestamp - b.timestamp);
-  
-        // Cập nhật vào AsyncStorage & UI
+    
+        // 🔥 Lưu vào AsyncStorage
         await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(oldMessages));
+    
+        // 🔄 Cập nhật UI ngay lập tức
         setMessages([...oldMessages]);
+    
       } catch (error) {
         console.error('❌ Lỗi khi cập nhật tin nhắn:', error);
       }
     };
+    
   
     // 🟢 Đăng ký lắng nghe sự kiện từ Firebase
     typingRef.on('value', onTypingChange);
@@ -1748,7 +1765,7 @@ const Single = () => {
           </View>
 
           <TouchableOpacity
-            onPress={sendMessage}
+            onPress={() => sendMessage()}
             disabled={!text.trim() || countChat === 0}
             style={[styles.sendButton, countChat === 0 && {opacity: 0.5}]}>
             <Icon
