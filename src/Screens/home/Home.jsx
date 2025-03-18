@@ -340,9 +340,24 @@ const Home = ({navigation}) => {
   useFocusEffect(
     React.useCallback(() => {
       console.log('🔄 Vào lại Home, cập nhật danh sách chat...');
-      loadChats();
+      
+      loadChats().then(async () => {
+        // 🔥 Kiểm tra và cập nhật `isSeen` trong `AsyncStorage`
+        const storedChats = await AsyncStorage.getItem('chatList');
+        if (storedChats) {
+          let chatList = JSON.parse(storedChats);
+          chatList = chatList.map(chat => ({
+            ...chat,
+            isSeen: chat.unreadCount === 0, // Nếu không còn tin nhắn chưa đọc thì đặt `isSeen = true`
+          }));
+          await AsyncStorage.setItem('chatList', JSON.stringify(chatList));
+          setChatList(chatList);
+        }
+      });
+  
     }, [])
   );
+  
 
   useEffect(() => {
     const appStateListener = AppState.addEventListener('change', nextAppState => {
@@ -378,10 +393,10 @@ const Home = ({navigation}) => {
   // Khi nhấn vào chat, đánh dấu tin nhắn đã seen
   const handleUserPress = async (userId, username, img) => {
     if (!myId) return;
-
+  
     const chatId = await getStoredChatId(userId);
     if (!chatId) return;
-
+  
     navigation.navigate('Single', {
       userId,
       myId,
@@ -389,21 +404,41 @@ const Home = ({navigation}) => {
       img,
       chatId,
     });
-
-    // 🔥 Chỉ đánh dấu là đã xem nếu tin nhắn vẫn còn trong local
-    const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-    if (storedMessages) {
-      let messages = JSON.parse(storedMessages);
-      messages = messages.map(msg => ({
-        ...msg,
-        seen: {...msg.seen, [myId]: true},
-      }));
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(messages),
+  
+    // 🔥 Cập nhật `isSeen` ngay khi vào màn hình chat
+    setChatList(prevChats =>
+      prevChats.map(chat =>
+        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat
+      )
+    );
+  
+    // 🔥 Cập nhật `AsyncStorage` để lưu trạng thái mới
+    const storedChats = await AsyncStorage.getItem('chatList');
+    if (storedChats) {
+      let chatList = JSON.parse(storedChats);
+      chatList = chatList.map(chat =>
+        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat
       );
+      await AsyncStorage.setItem('chatList', JSON.stringify(chatList));
+    }
+  
+    // 🔥 Cập nhật trạng thái đã đọc lên Firebase
+    const messagesRef = ref(db, `chats/${chatId}/messages`);
+    const snapshot = await get(messagesRef);
+    if (snapshot.exists()) {
+      const updates = {};
+      Object.entries(snapshot.val()).forEach(([msgId, msgData]) => {
+        if (msgData.senderId !== myId && !msgData.seen?.[myId]) {
+          updates[`/chats/${chatId}/messages/${msgId}/seen/${myId}`] = true;
+        }
+      });
+  
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates);
+      }
     }
   };
+  
 
   const getStoredChatId = async userId => {
     try {

@@ -64,14 +64,6 @@ export const getCurrentUserFromStorage = async () => {
     }
     const user = JSON.parse(userStr);
 
-<<<<<<< HEAD
-    const userdecryptMessage={
-       email : decryptMessage(user.email),
-       name : decryptMessage(user.name),
-       image : decryptMessage(user.image),
-       nickname : decryptMessage(user.nickname),
-    }
-=======
     const userdecryptMessage = {
       uid: user.uid,
       email: decryptMessage(user.email),
@@ -80,7 +72,6 @@ export const getCurrentUserFromStorage = async () => {
       nickname: decryptMessage(user.nickname),
     };
     console.log('Lấy user của tao từ AsyncStorage:', userdecryptMessage);
->>>>>>> 8ee0e282d0b8ffa507e11917462092a18890531d
     return userdecryptMessage;
   } catch (error) {
     console.error('Lỗi khi lấy user từ AsyncStorage:', error);
@@ -416,14 +407,9 @@ export const getChatsByIdUserAsynStorage = async idUser => {
       return acc;
     }, {});
 
-<<<<<<< HEAD
-    // console.log(`Danh sách chats của user ${idUser}:`, filteredChats);
-    const chatArray = Object.entries(filteredChats)
-=======
     console.log(`Danh sách chats của user ${idUser}:`, filteredChats);
     const chatArray = Object.entries(filteredChats);
     console.log('danh sach chat', chatArray[0]);
->>>>>>> 8ee0e282d0b8ffa507e11917462092a18890531d
     return chatArray;
   } catch (error) {
     console.error('Lỗi khi lấy danh sách chats từ AsyncStorage:', error);

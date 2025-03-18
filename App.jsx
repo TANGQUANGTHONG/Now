@@ -8,12 +8,14 @@ import {
   listenForNewMessages,
 } from './src/notification/Notification';
 import {getCurrentUserFromStorage} from './src/storage/Storage';
+import useListenForNewMessages from './src/listenForNewMessages/listenForNewMessages';
 
 
 const App = () => {
   const [isConnected, setIsConnected] = useState(true); // Trạng thái mạng
 
   // Lắng nghe sự thay đổi trạng thái mạng
+  useListenForNewMessages()
   useEffect(() => {
     configurePushNotification();
     listenForNewMessages();

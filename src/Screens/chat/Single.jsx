@@ -514,9 +514,7 @@ const Single = () => {
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
-
-    // Lưu danh sách tin nhắn cũ để so sánh
-
+  
     // 🟢 Lắng nghe trạng thái đang nhập
     const onTypingChange = snapshot => {
       if (snapshot.exists()) {
@@ -526,22 +524,19 @@ const Single = () => {
         setIsTyping(false);
       }
     };
-
-    // 🟢 Lắng nghe tin nhắn mới và tối ưu hóa tránh cập nhật khi chỉ `isLockedBy` thay đổi
+  
+    // 🟢 Lắng nghe tin nhắn từ Firebase & đồng bộ với local
     const onMessageChange = async snapshot => {
-      if (!snapshot.exists()) return;
-
       try {
-        const firebaseMessages = snapshot.val();
-        if (!firebaseMessages) return;
-
-        const newMessages = Object.entries(firebaseMessages).map(
-          ([id, data]) => ({
+        let newMessages = [];
+  
+        if (snapshot.exists() && Object.keys(snapshot.val()).length > 0) {
+          const firebaseMessages = snapshot.val();
+  
+          newMessages = Object.entries(firebaseMessages).map(([id, data]) => ({
             id,
             senderId: data.senderId,
-            text: data.text
-              ? decryptMessage(data.text, secretKey)
-              : '📷 Ảnh mới',
+            text: data.text ? decryptMessage(data.text, secretKey) : '📷 Ảnh mới',
             imageUrl: data.imageUrl || null,
             timestamp: data.timestamp,
             selfDestruct: data.selfDestruct || false,
@@ -550,99 +545,58 @@ const Single = () => {
             deleted: data.deleted || false,
             isLocked: data.isLockedBy?.[myId] ?? data.selfDestruct,
             deletedBy: data.deletedBy || {},
-          }),
-        )
-        .filter(msg => !(msg.deletedBy && msg.deletedBy[myId])) // ✅ Ẩn tin nhắn đã bị xóa
-
-        console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-        await AsyncStorage.setItem(
-          `messages_${chatId}`,
-          JSON.stringify(newMessages),
-        );
-    
-
-        // 🛠 So sánh với tin nhắn cũ, chỉ cập nhật nếu nội dung thay đổi
-        const prevMessages = prevMessagesRef.current;
-        const hasNewChanges = newMessages.some(newMsg => {
-          const oldMsg = prevMessages.find(m => m.id === newMsg.id);
-          if (!oldMsg) return true; // Nếu là tin nhắn mới, cập nhật ngay
-
-          // So sánh toàn bộ nội dung, nhưng bỏ qua `isLockedBy`
-          const {isLocked: _, ...oldData} = oldMsg;
-          const {isLocked: __, ...newData} = newMsg;
-          return JSON.stringify(oldData) !== JSON.stringify(newData);
-        });
-
-        if (!hasNewChanges) {
-          console.log('🚀 Bỏ qua cập nhật vì chỉ có thay đổi isLockedBy');
-          return;
+          })).filter(msg => !(msg.deletedBy && msg.deletedBy[myId])); // Ẩn tin nhắn đã bị xóa
+  
+          console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
+        } else {
+          console.log('⚠️ Firebase không có dữ liệu, dùng tin nhắn từ AsyncStorage');
         }
-
-        prevMessagesRef.current = newMessages; // Lưu lại tin nhắn mới để so sánh lần sau
-
-        // Lấy tin nhắn cũ từ AsyncStorage
+  
+        // 🔥 Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-        // 🔥 Chỉ giữ lại tin nhắn có ID duy nhất
+  
+        // 🔄 **Hợp nhất tin nhắn cũ & mới mà không bị trùng**
         const updatedMessages = [...oldMessages, ...newMessages]
           .reduce((unique, msg) => {
             if (!unique.some(m => m.id === msg.id)) unique.push(msg);
             return unique;
           }, [])
-          .sort((a, b) => a.timestamp - b.timestamp);
-
-        // Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
-        await AsyncStorage.setItem(
-          `messages_${chatId}`,
-          JSON.stringify(updatedMessages),
-        );
-
+          .sort((a, b) => a.timestamp - b.timestamp); // Sắp xếp theo thời gian
+  
+        console.log("🔄 Danh sách tin nhắn sau khi cập nhật:", updatedMessages);
+  
+        // 🔥 Lưu lại vào AsyncStorage để dự phòng nếu Firebase mất dữ liệu
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+  
+        // 🔄 Cập nhật UI
         setMessages(updatedMessages);
-
-        // Tự động cuộn xuống cuối danh sách tin nhắn nếu cần
+  
+        // 🔄 **Tự động cuộn xuống cuối nếu có tin nhắn mới**
+        if (shouldAutoScroll && listRef.current) {
           setTimeout(() => {
-            if (listRef.current) {
-              listRef.current.scrollToOffset({ offset: 0, animated: true });
-            }
+            listRef.current.scrollToOffset({ offset: 0, animated: true });
           }, 50);
-        
+        }
       } catch (error) {
         console.error('❌ Lỗi khi xử lý tin nhắn:', error);
       }
     };
-
+  
     // 🟢 Đăng ký lắng nghe sự kiện từ Firebase
     typingRef.on('value', onTypingChange);
     messagesRef.on('value', onMessageChange);
-
+  
     return () => {
       typingRef.off('value', onTypingChange);
       messagesRef.off('value', onMessageChange);
     };
   }, [chatId, secretKey, shouldAutoScroll]);
+  
 
-  //hàm xóa tin nhắn dưới local
-  const deleteMessage = async (chatId, messageId) => {
-    try {
-      await database().ref(`/chats/${chatId}/messages/${messageId}`).update({
-        deleted: true,
-      });
-  
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      let messages = storedMessages ? JSON.parse(storedMessages) : [];
-  
-      messages = messages.filter(msg => msg.id !== messageId);
-      await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(messages));
-  
-      setMessages(messages);
-  
-      // 🔥 Gọi lại loadChats() để cập nhật danh sách chat
-      loadChats();
-    } catch (error) {
-      console.error('❌ Lỗi khi xóa tin nhắn:', error);
-    }
-  };
+  useEffect(() => {
+    console.log("🛠 Giá trị ban đầu của messages:", messages);
+  }, [messages]);
   
 
   useEffect(() => {
@@ -661,62 +615,8 @@ const Single = () => {
     return () => userRef.off();
   }, [myId, database]); //  Thêm dependency
 
-  const deleteMessageLocallyAndRemotely = async messageId => {
-    try {
-      // Xóa tin nhắn trong Firebase
-      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
+ 
 
-      // Lấy tin nhắn từ AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      // Lọc bỏ tin nhắn cần xóa
-      const updatedMessages = oldMessages.filter(msg => msg.id !== messageId);
-
-      // Cập nhật lại AsyncStorage
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(updatedMessages),
-      );
-
-      console.log(
-        `🗑 Tin nhắn ${messageId} đã bị xóa khỏi Firebase và AsyncStorage.`,
-      );
-      setMessages(updatedMessages); // Cập nhật UI
-    } catch (error) {
-      console.error('❌ Lỗi khi xóa tin nhắn:', error);
-    }
-  };
-
-  //xoa ca hai
-  const deleteMessageForBoth = async messageId => {
-    try {
-      // 🔥 Xóa tin nhắn trong Firebase
-      await database().ref(`/chats/${chatId}/messages/${messageId}`).remove();
-
-      // 🔥 Xóa tin nhắn trong AsyncStorage
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      let messages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      // 🔥 Lọc bỏ tin nhắn vừa bị xóa
-      messages = messages.filter(msg => msg.id !== messageId);
-
-      // 🔥 Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
-      await AsyncStorage.setItem(
-        `messages_${chatId}`,
-        JSON.stringify(messages),
-      );
-
-      // 🔥 Cập nhật state để UI phản hồi ngay lập tức
-      setMessages(messages);
-
-      console.log(
-        `🗑 Tin nhắn ${messageId} đã bị xóa trên cả Firebase và AsyncStorage.`,
-      );
-    } catch (error) {
-      console.error('❌ Lỗi khi xóa tin nhắn:', error);
-    }
-  };
 
   const formatCountdown = seconds => {
     const hours = Math.floor(seconds / 3600);
