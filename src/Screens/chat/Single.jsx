@@ -106,6 +106,11 @@ const Single = () => {
     {label: 'Tắt tự hủy', value: null},
   ];
 
+  // useEffect(() => {
+  //   if (listRef.current && shouldAutoScroll && messages.length > 0) {
+  //     listRef.current.scrollToOffset({ offset: 0, animated: true });
+  //   }
+  // }, [messages, shouldAutoScroll]);
   
   //xóa tin nhắn ở local
   const deleteMessageLocally = async messageId => {
@@ -525,73 +530,104 @@ const Single = () => {
       }
     };
   
-    // 🟢 Lắng nghe tin nhắn từ Firebase & đồng bộ với local
-    const onMessageChange = async snapshot => {
+    // 🟢 Lắng nghe khi có tin nhắn mới được thêm vào
+    const onNewMessage = async snapshot => {
+      if (!snapshot.exists()) return;
+  
       try {
-        let newMessages = [];
+        const msgId = snapshot.key;
+        const msgData = snapshot.val();
+        if (!msgData || msgData.deleted) return; // Bỏ qua nếu tin nhắn đã bị xóa
   
-        if (snapshot.exists() && Object.keys(snapshot.val()).length > 0) {
-          const firebaseMessages = snapshot.val();
+        const newMessage = {
+          id: msgId,
+          senderId: msgData.senderId,
+          text: msgData.text ? decryptMessage(msgData.text, secretKey) : '📷 Ảnh mới',
+          imageUrl: msgData.imageUrl || null,
+          timestamp: msgData.timestamp,
+          selfDestruct: msgData.selfDestruct || false,
+          selfDestructTime: msgData.selfDestructTime || null,
+          seen: msgData.seen || {},
+          deleted: msgData.deleted || false,
+          isLocked: msgData.isLockedBy?.[myId] ?? msgData.selfDestruct,
+          deletedBy: msgData.deletedBy || {},
+        };
   
-          newMessages = Object.entries(firebaseMessages).map(([id, data]) => ({
-            id,
-            senderId: data.senderId,
-            text: data.text ? decryptMessage(data.text, secretKey) : '📷 Ảnh mới',
-            imageUrl: data.imageUrl || null,
-            timestamp: data.timestamp,
-            selfDestruct: data.selfDestruct || false,
-            selfDestructTime: data.selfDestructTime || null,
-            seen: data.seen || {},
-            deleted: data.deleted || false,
-            isLocked: data.isLockedBy?.[myId] ?? data.selfDestruct,
-            deletedBy: data.deletedBy || {},
-          })).filter(msg => !(msg.deletedBy && msg.deletedBy[myId])); // Ẩn tin nhắn đã bị xóa
-  
-          console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
-        } else {
-          console.log('⚠️ Firebase không có dữ liệu, dùng tin nhắn từ AsyncStorage');
-        }
+        console.log('📩 Tin nhắn mới từ Firebase:', newMessage);
   
         // 🔥 Lấy tin nhắn cũ từ AsyncStorage
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-        const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+        let oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
   
-        // 🔄 **Hợp nhất tin nhắn cũ & mới mà không bị trùng**
-        const updatedMessages = [...oldMessages, ...newMessages]
-          .reduce((unique, msg) => {
-            if (!unique.some(m => m.id === msg.id)) unique.push(msg);
-            return unique;
-          }, [])
-          .sort((a, b) => a.timestamp - b.timestamp); // Sắp xếp theo thời gian
+        // Kiểm tra nếu tin nhắn đã tồn tại, thì cập nhật thay vì thêm mới
+        const messageIndex = oldMessages.findIndex(msg => msg.id === newMessage.id);
+        if (messageIndex !== -1) {
+          oldMessages[messageIndex] = newMessage; // Cập nhật tin nhắn
+        } else {
+          oldMessages = [...oldMessages, newMessage]; // Thêm tin nhắn mới vào danh sách
+        }
   
-        console.log("🔄 Danh sách tin nhắn sau khi cập nhật:", updatedMessages);
+        oldMessages.sort((a, b) => a.timestamp - b.timestamp); // Sắp xếp theo thời gian
+  
+        console.log("🔄 Danh sách tin nhắn sau khi cập nhật:", oldMessages);
   
         // 🔥 Lưu lại vào AsyncStorage để dự phòng nếu Firebase mất dữ liệu
-        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(oldMessages));
   
-        // 🔄 Cập nhật UI
-        setMessages(updatedMessages);
-  
-        // 🔄 **Tự động cuộn xuống cuối nếu có tin nhắn mới**
-        if (shouldAutoScroll && listRef.current) {
-          setTimeout(() => {
-            listRef.current.scrollToOffset({ offset: 0, animated: true });
-          }, 50);
-        }
+        // 🔄 Cập nhật UI với tin nhắn mới hoặc thay đổi
+        setMessages([...oldMessages]);
       } catch (error) {
-        console.error('❌ Lỗi khi xử lý tin nhắn:', error);
+        console.error('❌ Lỗi khi xử lý tin nhắn mới:', error);
+      }
+    };
+  
+    // 🟢 Lắng nghe khi một tin nhắn bị thay đổi (ví dụ: đã xem, bị chỉnh sửa)
+    const onMessageChanged = async snapshot => {
+      if (!snapshot.exists()) return;
+  
+      try {
+        const msgId = snapshot.key;
+        const msgData = snapshot.val();
+        if (!msgData) return;
+  
+        console.log(`🔄 Cập nhật tin nhắn ${msgId}:`, msgData);
+  
+        // Lấy tin nhắn từ local
+        const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+        let oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+  
+        // Tìm tin nhắn bị thay đổi
+        const messageIndex = oldMessages.findIndex(msg => msg.id === msgId);
+        if (messageIndex !== -1) {
+          oldMessages[messageIndex] = {
+            ...oldMessages[messageIndex],
+            seen: msgData.seen || oldMessages[messageIndex].seen,
+            deleted: msgData.deleted || oldMessages[messageIndex].deleted,
+          };
+        }
+  
+        oldMessages.sort((a, b) => a.timestamp - b.timestamp);
+  
+        // Cập nhật vào AsyncStorage & UI
+        await AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(oldMessages));
+        setMessages([...oldMessages]);
+      } catch (error) {
+        console.error('❌ Lỗi khi cập nhật tin nhắn:', error);
       }
     };
   
     // 🟢 Đăng ký lắng nghe sự kiện từ Firebase
     typingRef.on('value', onTypingChange);
-    messagesRef.on('value', onMessageChange);
+    messagesRef.on('child_added', onNewMessage); // Lắng nghe tin nhắn mới
+    messagesRef.on('child_changed', onMessageChanged); // Lắng nghe thay đổi tin nhắn
   
     return () => {
       typingRef.off('value', onTypingChange);
-      messagesRef.off('value', onMessageChange);
+      messagesRef.off('child_added', onNewMessage);
+      messagesRef.off('child_changed', onMessageChanged);
     };
-  }, [chatId, secretKey, shouldAutoScroll]);
+  }, [chatId, secretKey]);
+  
   
 
   useEffect(() => {
@@ -668,13 +704,13 @@ const Single = () => {
         id: messageId, // Đảm bảo ID không bị trùng
         senderId: myId,
         text: encryptedText || '🔒 Tin nhắn mã hóa',
-        TimeLefts: null,
+        TimeLeft: isSelfDestruct ? selfDestructTime : null, // 🔥 Không cần set null thủ công nếu không có self-destruct
         deletedBy: {},
         timestamp: currentTimestamp,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
         seen: {[userId]: false, [myId]: true},
-        isLocked: isSelfDestruct, // 🔒 Chỉ khóa nếu tin nhắn tự hủy
+        isLockedBy:{[userId]: true, [myId]: true}, // 🔒 Chỉ khóa nếu tin nhắn tự hủy
       };
 
       // Gửi tin nhắn lên Firebase
@@ -1224,7 +1260,7 @@ const Single = () => {
       // 🔥 Cập nhật Firebase
       await database().ref(`/chats/${chatId}/messages/${messageId}`).update({
         TimeLeft: { [myId]: expiryTimestamp },
-        [`isLockedBy/${myId}`]: false,
+        [`isLockedBy/${myId}`]: true,
       });
   
       // 🔥 Lưu vào AsyncStorage
@@ -1292,10 +1328,12 @@ const Single = () => {
   
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const checkExpiryAndUpdate = async () => {
       const currentTime = Date.now();
       let updatedTimeLefts = {};
+      let messagesToDelete = [];
   
+      // 🔄 Lặp qua danh sách tin nhắn để kiểm tra thời gian còn lại
       for (const msg of messages) {
         if (unlockedMessages[msg.id]) {
           const expiryTimestamp = await AsyncStorage.getItem(`expiry_${msg.id}`);
@@ -1303,48 +1341,71 @@ const Single = () => {
             const timeLeft = Math.max(0, Math.floor((Number(expiryTimestamp) - currentTime) / 1000));
             updatedTimeLefts[msg.id] = timeLeft;
   
+            // 🔥 Nếu tin nhắn đã hết thời gian, thêm vào danh sách cần xóa
             if (timeLeft === 0) {
-              console.log(`🔥 Tin nhắn ${msg.id} đã hết thời gian, xóa khỏi UI`);
-  
-              // 🔥 Cập nhật Firebase
-              await database().ref(`/chats/${chatId}/messages/${msg.id}`).update({
-                deleted: true,
-              });
-  
-              setMessages(prev => prev.filter(m => m.id !== msg.id));
+              messagesToDelete.push(msg.id);
             }
           }
         }
       }
   
-      setTimeLefts(updatedTimeLefts);
-    }, 1000); // Cập nhật mỗi giây
+      // 🔥 Xóa tin nhắn hết hạn khỏi Firebase & local cùng lúc
+      if (messagesToDelete.length > 0) {
+        console.log(`🔥 Những tin nhắn đã hết thời gian:`, messagesToDelete);
   
-    return () => clearInterval(interval); // Dọn dẹp khi component unmount
-  }, [messages, unlockedMessages]);
-  
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        setMessages(prevMessages => {
-          const updatedMessages = prevMessages.map(msg => {
-            // ✅ Nếu tin nhắn chưa bị xóa, đặt lại `isLocked = true`
-            if (!msg.deletedBy || !msg.deletedBy[myId]) {
-              return { ...msg, isLocked: true };
-            }
-            return msg; // Nếu đã bị xóa, giữ nguyên
-          });
-  
-          // 🔥 Cập nhật lại AsyncStorage để lưu trạng thái khóa
-          AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
-  
-          return updatedMessages;
+        // Cập nhật Firebase (đánh dấu là `deleted: true`)
+        const updates = {};
+        messagesToDelete.forEach(msgId => {
+          updates[`/chats/${chatId}/messages/${msgId}/deleted`] = true;
         });
+        await database().ref().update(updates);
   
-        console.log('🔒 Tất cả tin nhắn chưa bị xóa đã được khóa lại.');
-      };
-    }, [chatId])
-  );
+        // Cập nhật lại danh sách tin nhắn trên UI
+        setMessages(prevMessages => prevMessages.filter(m => !messagesToDelete.includes(m.id)));
+  
+        // Xóa tin nhắn khỏi AsyncStorage
+        for (const msgId of messagesToDelete) {
+          await AsyncStorage.removeItem(`expiry_${msgId}`);
+        }
+      }
+  
+      setTimeLefts(updatedTimeLefts);
+    };
+  
+    // Chạy kiểm tra mỗi giây
+    const interval = setInterval(checkExpiryAndUpdate, 1000);
+  
+    return () => clearInterval(interval);
+  }, [messages, unlockedMessages, chatId]);
+  
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     return () => {
+  //       setMessages(prevMessages => {
+  //         let updatedMessages = prevMessages.map(msg => {
+  //           // ✅ Nếu tin nhắn chưa bị xóa, đặt lại `isLocked = true` & cập nhật Firebase
+  //           if (!msg.deletedBy || !msg.deletedBy[myId]) {
+  //             database()
+  //               .ref(`/chats/${chatId}/messages/${msg.id}`)
+  //               .update({
+  //                 [`isLockedBy.${myId}`]: true, // 🔥 Cập nhật `isLockedBy` trên Firebase
+  //               });
+  
+  //             return { ...msg, isLocked: true };
+  //           }
+  //           return msg; // Nếu đã bị xóa, giữ nguyên
+  //         });
+  
+  //         // 🔥 Cập nhật lại AsyncStorage để lưu trạng thái khóa
+  //         AsyncStorage.setItem(`messages_${chatId}`, JSON.stringify(updatedMessages));
+  
+  //         console.log('🔒 Cập nhật isLocked & isLockedBy trên Firebase.');
+  //         return updatedMessages;
+  //       });
+  //     };
+  //   }, [chatId])
+  // );
+  
   
 
   return (

@@ -179,19 +179,21 @@ const Home = ({navigation}) => {
               .filter(msg => !msg.deleted && !(msg.deletedBy && msg.deletedBy[currentUserId])) // 🔥 Lọc tin nhắn bị xóa
               .sort((a, b) => b.timestamp - a.timestamp);
 
-            if (sortedMessages.length > 0) {
-              const latestMessage = sortedMessages[0];
-              lastMessageId = latestMessage.msgId;
-              if (latestMessage.imageUrl) {
-                lastMessage = 'Có ảnh mới';
-              } else if (latestMessage.selfDestruct === true) {
-                lastSelfDestruct.current[chatId] = true;
-                lastMessage = '🔒 Nhấn để mở khóa';
-              } else {
-                lastMessage =
-                  decryptMessage(latestMessage.text, secretKey) ||
-                  'Tin nhắn bị mã hóa';
-              }
+              if (sortedMessages.length > 0) {
+                const latestMessage = sortedMessages[0];
+                lastMessageId = latestMessage.msgId;
+              
+                if (latestMessage.selfDestruct === true ) {
+                  lastMessage = latestMessage.text ? '🔒 Nhấn để mở khóa' : '';
+                } else if (latestMessage.imageUrl) {
+                  lastMessage = '📷 Có ảnh mới';
+                } else if  (latestMessage.selfDestruct === false ) {
+                  lastMessage =
+                    decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
+                } else{
+                  return null;
+                }
+              
 
               lastMessageTime = new Date(
                 latestMessage.timestamp,
