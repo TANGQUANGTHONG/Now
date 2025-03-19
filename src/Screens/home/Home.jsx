@@ -183,16 +183,24 @@ const Home = ({navigation}) => {
                 const latestMessage = sortedMessages[0];
                 lastMessageId = latestMessage.msgId;
               
-                if (latestMessage.selfDestruct === true ) {
-                  lastMessage = latestMessage.text ? '🔒 Nhấn để mở khóa' : '';
-                } else if (latestMessage.imageUrl) {
-                  lastMessage = '📷 Có ảnh mới';
-                } else if  (latestMessage.selfDestruct === false ) {
+                if (latestMessage.imageUrl) {
+                  // 📸 Nếu tin nhắn là ảnh
+                  if (!latestMessage.isLockedBy || latestMessage.isLockedBy?.[myId] === true) {
+                    lastMessage = '📷 Có ảnh mới'; // ✅ Ảnh không bị khóa
+                  } else {
+                    lastMessage = '🔒 Nhấn để mở khóa'; // ✅ Ảnh bị khóa
+                  }
+                } else if (latestMessage.selfDestruct === true) {
+                  // 🔥 Nếu là tin nhắn tự hủy
+                  lastMessage = '🔒 Nhấn để mở khóa';
+                } else if (latestMessage.selfDestruct === false) {
+                  // 🔓 Nếu là tin nhắn bình thường, giải mã
                   lastMessage =
                     decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
-                } else{
+                } else {
                   return null;
                 }
+                
               
 
               lastMessageTime = new Date(
