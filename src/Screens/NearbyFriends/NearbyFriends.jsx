@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  FlatList,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import database from '@react-native-firebase/database';
@@ -15,7 +16,9 @@ import MapView, {PROVIDER_GOOGLE, Marker, Callout} from 'react-native-maps';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import { Animated } from 'react-native';
 const NearbyFriendsMap = ({route}) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current; // Giá trị animation
   const navigation = useNavigation();
   const {userId} = route.params;
   const [location, setLocation] = useState(null);
@@ -144,6 +147,27 @@ const NearbyFriendsMap = ({route}) => {
       });
   };
 
+  const handleMarkerPress = user => {
+    if (user.id === userId) {
+      console.log("🚫 Bạn đã bấm vào chính mình, không chuyển trang!");
+      return;
+    }
+  
+    // Hiệu ứng phóng to
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 1.2, duration: 200, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+  
+    // Chuyển đến màn hình Single
+    navigation.navigate('Single', {
+      userId: user.id,
+      myId: userId,
+      username: user.name,
+      img: user.avatar,
+    });
+  };
+
   // Cập nhật khi thay đổi khoảng cách
   useEffect(() => {
     if (location) {
@@ -157,6 +181,8 @@ const NearbyFriendsMap = ({route}) => {
 
   return (
     <View style={{flex: 1}}>
+    
+
       {/* Thanh tiêu đề */}
       <View
         style={{
@@ -172,6 +198,25 @@ const NearbyFriendsMap = ({route}) => {
         </TouchableOpacity>
         <Text style={{fontSize: 18, fontWeight: 'bold'}}>Tìm bạn gần đây</Text>
       </View>
+      <View>
+      <FlatList
+  horizontal
+  data={users}
+  keyExtractor={item => item.id}
+  renderItem={({ item }) => (
+    <TouchableOpacity onPress={() => handleMarkerPress(item)}>
+      <View style={{ alignItems: 'center', margin: 10 }}>
+        <Image
+          source={{ uri: item.avatar }}
+          style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderColor: "white" }}
+          resizeMode="cover"
+        />
+        <Text style={{ fontWeight: 'bold', marginTop: 5 }}>{item.name}</Text>
+      </View>
+    </TouchableOpacity>
+  )}
+/>
+</View>
 
       {/* Bản đồ */}
       <View style={{flex: 1}}>
@@ -272,6 +317,7 @@ const NearbyFriendsMap = ({route}) => {
           ))}
         </ScrollView>
       </View>
+      
     </View>
   );
 };
