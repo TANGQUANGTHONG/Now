@@ -17,6 +17,7 @@ import {
   NativeModules,
   ActivityIndicator,
 } from 'react-native';
+import MapView, {Marker} from 'react-native-maps';
 import {
   useRoute,
   useNavigation,
@@ -30,6 +31,7 @@ import {
   encodeChatId,
 } from '../../cryption/Encryption';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {oStackHome} from '../../navigations/HomeNavigation';
 import database, {set, onValue, ref} from '@react-native-firebase/database';
 import ActionSheet from 'react-native-actionsheet';
@@ -105,6 +107,10 @@ const Single = () => {
   ];
 
 
+
+
+  
+  
   //xóa tin nhắn ở local
   const deleteMessageLocally = async messageId => {
     try {
@@ -577,9 +583,8 @@ const Single = () => {
     return `${hours}h ${minutes}m ${secs}s`;
   };
 
-
-  //gửi tin nhắn
-  const sendMessage = useCallback(async () => {
+  const sendMessage = useCallback(async (text) => {
+    // const text = customText || text;
     if (!text.trim() || isSending) return; // Kiểm tra nếu tin nhắn rỗng hoặc đang gửi thì chặn gửi
 
     if (countChat === 0) {
@@ -1312,9 +1317,18 @@ const Single = () => {
     }, 1000);
   
     return () => clearInterval(interval);
-  }, [timeLefts, messages, chatId]);
+  }, [timeLefts, messages, chatId]); // ✅ Thêm `timeLefts` để không bị dừng lại
+  //gửi vị trí
+  useEffect(() => {
+    if (route.params?.locationMessage) {
+      sendLocationMessage(route.params.locationMessage);
+    }
+  }, [route.params?.locationMessage]);
   
-
+  const sendLocationMessage = async (message) => {
+    setText(''); // Clear input vì bạn gửi tự động
+    await sendMessage(message);
+  };
   // console.log(timeLefts);
 
   useFocusEffect(
@@ -1405,150 +1419,145 @@ const Single = () => {
           {renderPinnedMessages()}
         </View>
         <FlatList
-          ref={listRef}
-          data={messages
-            .filter(msg => !(msg.deletedBy?.[myId] === true))
-            .sort((a, b) => b.timestamp - a.timestamp)}
-          onScrollBeginDrag={() => setShouldAutoScroll(false)}
-          onEndReached={() => setShouldAutoScroll(true)}
-          keyExtractor={item => item.id}
-          renderItem={({item}) => {
-            // console.log("🔍 TimeLeft của tin nhắn:", item.id, item.TimeLeft?.[myId]);
-            // console.log(`⏳ UI kiểm tra timeLefts của tin nhắn ${item.id}:`, timeLefts[item.id]);
+  ref={listRef}
+  data={messages
+    .filter(msg => !(msg.deletedBy?.[myId] === true))
+    .sort((a, b) => b.timestamp - a.timestamp)}
+  onScrollBeginDrag={() => setShouldAutoScroll(false)}
+  onEndReached={() => setShouldAutoScroll(true)}
+  keyExtractor={item => item.id}
+  renderItem={({item}) => {
+    const isSentByMe = item.senderId === myId;
+    const isSelfDestruct = item.selfDestruct;
 
-            const isSentByMe = item.senderId === myId;
-            const isSelfDestruct = item.selfDestruct;
-            const messageId = item.id;
-            // const isLocked = item.isLockedBy?.[myId] ?? false;
+    const isGoogleMapsLink = (text) => {
+      return /^https:\/\/www\.google\.com\/maps\?q=/.test(text);
+    };
 
-            const timeLeft =
-              isSelfDestruct && !item.isLockedBy?.[myId]
-                ? timeLefts[item.id] !== undefined &&
-                  timeLefts[item.id] !== null
-                  ? timeLefts[item.id]
-                  : item.TimeLeft?.[myId] || 0
-                : null;
+    const handlePressLocation = (text) => {
+      const query = text.split('q=')[1];
+      const [lat, lng] = query.split(',').map(Number);
 
-            return (
-              <View style={{flexDirection: 'column'}}>
-                <View
-                  style={
-                    isSentByMe ? styles.sentWrapper : styles.receivedWrapper
-                  }>
-                  {!isSentByMe && (
-                    <Image source={{uri: img}} style={styles.avatar} />
-                  )}
+      navigation.navigate('MapScreen', {
+        externalLocation: { latitude: lat, longitude: lng }
+      });
+    };
 
+    return (
+      <View style={{ flexDirection: 'column' }}>
+        <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
+          {!isSentByMe && (
+            <Image source={{ uri: img }} style={styles.avatar} />
+          )}
+
+          <TouchableOpacity
+            onPress={() => {
+              if (isSelfDestruct && item.isLockedBy?.[myId]) {
+                handleUnlockMessage(item.id, item.selfDestructTime);
+              }
+            }}
+            onLongPress={() => handleLongPress(item)}
+            style={[
+              isSentByMe
+                ? styles.sentContainer
+                : styles.receivedContainer,
+              isSelfDestruct && styles.selfDestructMessage,
+            ]}
+          >
+            {!isSentByMe && (
+              <Text style={styles.usernameText}>{username}</Text>
+            )}
+
+            {isSelfDestruct && item.isLockedBy?.[myId] ? (
+              <Text style={styles.lockedMessage}>🔒 Nhấn để mở khóa</Text>
+            ) : (
+              <>
+                {/* Nếu tin nhắn là ảnh */}
+                {item.imageUrl ? (
+                  // ảnh
                   <TouchableOpacity
                     onPress={() => {
-                      if (item.isLockedBy?.[myId]) {
-                        handleUnlockMessage(item.id, item.selfDestructTime);
-                      }
+                      setSelectedImage(item.imageUrl);
+                      setIsImageModalVisible(true);
                     }}
-                    onLongPress={() => handleLongPress(item)}
-                    style={[
-                      isSentByMe
-                        ? styles.sentContainer
-                        : styles.receivedContainer,
-                      isSelfDestruct && styles.selfDestructMessage,
-                    ]}>
-                    {!isSentByMe && (
-                      <Text style={styles.usernameText}>{username}</Text>
-                    )}
-
-                    {/* Kiểm tra nếu tin nhắn bị khóa */}
-                    {isSelfDestruct && item.isLockedBy?.[myId] ? (
-                      <Text style={styles.lockedMessage}>
-                        🔒 Nhấn để mở khóa
-                      </Text>
-                    ) : (
-                      <>
-                        {/* Nếu tin nhắn là ảnh */}
-                        {item.imageUrl ? (
-                          <TouchableOpacity
-                            onPress={() => {
-                              if (isSelfDestruct && item.isLockedBy?.[myId]) {
-                                // 🔒 Nếu ảnh đang bị khóa, mở khóa và bắt đầu đếm ngược
-                                handleUnlockAndStartTimer(
-                                  item.id,
-                                  item.imageUrl,
-                                  item.selfDestructTime,
-                                );
-                              } else {
-                                // 🔥 Nếu ảnh đã mở khóa hoặc không phải ảnh tự hủy, mở ảnh full screen
-                                setSelectedImage(item.imageUrl);
-                                setIsImageModalVisible(true);
-                              }
-                            }}>
-                            <View style={styles.imageWrapper}>
-                              {item.isLoading || !item.imageUrl ? (
-                                // 🌀 Hiển thị loading khi ảnh chưa tải xong
-                                <ActivityIndicator
-                                  size="large"
-                                  color="blue"
-                                  style={styles.loadingIndicator}
-                                />
-                              ) : (
-                                // 🖼️ Hiển thị ảnh bình thường
-                                <Image
-                                  source={{uri: item.imageUrl}}
-                                  style={styles.imageMessage}
-                                />
-                              )}
-                            </View>
-
-                            {/* 🔥 Hiển thị thời gian tự hủy nếu ảnh đã mở khóa */}
-                            {isSelfDestruct &&
-                              !item.isLockedBy?.[myId] &&
-                              timeLefts[item.id] > 0 && (
-                                <Text style={styles.selfDestructTimer}>
-                                  🕒 {timeLefts[item.id]}s
-                                </Text>
-                              )}
-                          </TouchableOpacity>
-                        ) : (
-                          <>
-                            {/* Hiển thị nội dung tin nhắn */}
-                            <Text
-                              style={
-                                isSentByMe
-                                  ? styles.SendmessageText
-                                  : styles.ReceivedmessageText
-                              }>
-                              {item.text}
-                            </Text>
-
-                            {/* Hiển thị thời gian tự hủy nếu đã mở khóa */}
-                            {isSelfDestruct && timeLefts[item.id] > 0 && (
-                              <Text style={styles.selfDestructTimer}>
-                                🕒 {timeLefts[item.id]}s
-                              </Text>
-                            )}
-                          </>
-                        )}
-                      </>
-                    )}
-
-                    {/* Hiển thị thời gian gửi tin nhắn */}
-                    <Text
-                      style={
-                        isSentByMe
-                          ? styles.Sendtimestamp
-                          : styles.Revecivedtimestamp
-                      }>
-                      {new Date(item.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
+                  >
+                    <View style={styles.imageWrapper}>
+                      <Image
+                        source={{ uri: item.imageUrl }}
+                        style={styles.imageMessage}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ) : isGoogleMapsLink(item.text) ? (
+                  // nếu là link vị trí Google onPress={() => handlePressLocation(item.text)}
+                  <View style={{ alignItems: 'center' }}>
+                  {/* Mini Map */}
+                  <MapView
+                    style={{ width: 200, height: 120, borderRadius: 10 }}
+                    initialRegion={{
+                      latitude: parseFloat(item.text.split('q=')[1].split(',')[0]),
+                      longitude: parseFloat(item.text.split('q=')[1].split(',')[1]),
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    pointerEvents="none" // chặn tương tác map mini
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: parseFloat(item.text.split('q=')[1].split(',')[0]),
+                        longitude: parseFloat(item.text.split('q=')[1].split(',')[1]),
+                      }}
+                    />
+                  </MapView>
+              
+                  {/* Nút mở Google Maps */}
+                  <TouchableOpacity
+                    style={{
+                      marginTop: 5,
+                      backgroundColor: '#2196F3',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                    }}
+                    onPress={() => handlePressLocation(item.text)}
+                  >
+                    <Text style={{ color: '#fff' }}>Mở Google Maps</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            );
-          }}
-          inverted // 👈 THÊM DÒNG NÀY
-          contentContainerStyle={{flexGrow: 1, justifyContent: 'flex-end'}} // 💥 Thêm dòng này
-        />
+                ) : (
+                  // text bình thường
+                  <Text
+                    style={
+                      isSentByMe
+                        ? styles.SendmessageText
+                        : styles.ReceivedmessageText
+                    }>
+                    {item.text}
+                  </Text>
+                )}
+              </>
+            )}
+
+            <Text
+              style={
+                isSentByMe
+                  ? styles.Sendtimestamp
+                  : styles.Revecivedtimestamp
+              }>
+              {new Date(item.timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }}
+  inverted
+  contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+/>
+
 
         <FlatList
           data={user}
@@ -1558,6 +1567,24 @@ const Single = () => {
 
         {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
         <View style={styles.inputContainer}>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('MapScreen', {
+              userId,
+              myId,
+              username,
+              img,
+              messages,
+              isGui: true,
+            })
+          }
+          style={styles.imageButton}
+        >
+          <Ionicons name="navigate-outline" size={24} color="#007bff" />
+        </TouchableOpacity>
+          <TouchableOpacity onPress={pickImage} style={styles.imageButton}>
+            <Ionicons name="image" size={24} color="#007bff" />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setIsModalVisible(true)}
             style={{
@@ -1565,6 +1592,7 @@ const Single = () => {
               backgroundColor: '#f5f5f5',
               borderRadius: 10,
               alignItems: 'center',
+              marginRight:10,
             }}>
             <Icon
               name={isSelfDestruct ? 'timer-sand' : 'timer-off'}
@@ -1573,10 +1601,6 @@ const Single = () => {
             />
             <Text>{selfDestructTime ? `${selfDestructTime}s` : 'Tắt'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={pickImage} style={styles.imageButton}>
-            <Icon name="image" size={24} color="#007bff" />
-          </TouchableOpacity>
-
           <Modal
             animationType="slide"
             transparent={true}
@@ -1721,7 +1745,7 @@ const Single = () => {
           </View>
 
           <TouchableOpacity
-            onPress={() => sendMessage()}
+            onPress={() => sendMessage(text)}
             disabled={!text.trim() || countChat === 0}
             style={[styles.sendButton, countChat === 0 && {opacity: 0.5}]}>
             <Icon
