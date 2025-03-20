@@ -15,7 +15,7 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(true); // Trạng thái mạng
 
   // Lắng nghe sự thay đổi trạng thái mạng
-  useListenForNewMessages()
+  // useListenForNewMessages()
   useEffect(() => {
     configurePushNotification();
     listenForNewMessages();
