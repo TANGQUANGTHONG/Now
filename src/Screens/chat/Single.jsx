@@ -17,6 +17,7 @@ import {
   NativeModules,
   ActivityIndicator,
 } from 'react-native';
+import MapView, {Marker} from 'react-native-maps';
 import {
   useRoute,
   useNavigation,
@@ -1601,16 +1602,41 @@ const Single = () => {
                     </View>
                   </TouchableOpacity>
                 ) : isGoogleMapsLink(item.text) ? (
-                  // nếu là link vị trí Google
-                  <TouchableOpacity onPress={() => handlePressLocation(item.text)}>
-                    <Text style={{
-                      color: '#007bff',
-                      textDecorationLine: 'underline',
-                      fontSize: 16
-                    }}>
-                      📍 Vị trí đã chia sẻ - Xem trên bản đồ
-                    </Text>
+                  // nếu là link vị trí Google onPress={() => handlePressLocation(item.text)}
+                  <View style={{ alignItems: 'center' }}>
+                  {/* Mini Map */}
+                  <MapView
+                    style={{ width: 200, height: 120, borderRadius: 10 }}
+                    initialRegion={{
+                      latitude: parseFloat(item.text.split('q=')[1].split(',')[0]),
+                      longitude: parseFloat(item.text.split('q=')[1].split(',')[1]),
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    pointerEvents="none" // chặn tương tác map mini
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: parseFloat(item.text.split('q=')[1].split(',')[0]),
+                        longitude: parseFloat(item.text.split('q=')[1].split(',')[1]),
+                      }}
+                    />
+                  </MapView>
+              
+                  {/* Nút mở Google Maps */}
+                  <TouchableOpacity
+                    style={{
+                      marginTop: 5,
+                      backgroundColor: '#2196F3',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                    }}
+                    onPress={() => handlePressLocation(item.text)}
+                  >
+                    <Text style={{ color: '#fff' }}>Mở Google Maps</Text>
                   </TouchableOpacity>
+                </View>
                 ) : (
                   // text bình thường
                   <Text
