@@ -581,75 +581,70 @@ const Single = () => {
   //gửi tin nhắn
   const sendMessage = useCallback(async () => {
     if (!text.trim() || isSending) return; // Kiểm tra nếu tin nhắn rỗng hoặc đang gửi thì chặn gửi
-  
+
     if (countChat === 0) {
       Alert.alert('Thông báo', 'Bạn đã hết lượt nhắn tin!');
       return;
     }
-  
+
     setIsSending(true); // Đánh dấu trạng thái đang gửi để tránh spam gửi liên tục
-  
+
     try {
       const userRef = database().ref(`/users/${myId}`);
       const chatRef = database().ref(`/chats/${chatId}`);
-  
-      // Lấy dữ liệu người dùng và cuộc trò chuyện
+
+      // Lấy dữ liệu người dùng và kiểm tra nếu cuộc trò chuyện đã tồn tại
       const [userSnapshot, chatSnapshot] = await Promise.all([
         userRef.once('value'),
         chatRef.once('value'),
       ]);
-  
+
       if (!userSnapshot.exists()) {
         Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng.');
         return;
       }
-  
-      let { countChat = 100 } = userSnapshot.val();
+
+      let {countChat = 100} = userSnapshot.val();
+
+      // Tạo timestamp chung từ Firebase để đồng bộ thời gian
       const currentTimestamp = Date.now();
-  
+
       // Nếu cuộc trò chuyện chưa tồn tại, tạo mới
       if (!chatSnapshot.exists()) {
-        await chatRef.set({ users: { [userId]: true, [myId]: true } });
-      } else {
-        const chatData = chatSnapshot.val();
-  
-        // 🔥 Nếu chat đã bị xóa bởi myId, đặt lại deletedBy[myId] = null
-        if (chatData.deletedBy?.[myId]) {
-          console.log(`🔄 Khôi phục chat ${chatId} vì có tin nhắn mới`);
-          await chatRef.child('deletedBy').update({ [myId]: null });
-        }
+        await chatRef.set({users: {[userId]: true, [myId]: true}});
       }
-  
+
       // Mã hóa tin nhắn trước khi gửi
       const encryptedText = encryptMessage(text, secretKey);
-      const messageRef = chatRef.child('messages').push();
-      const messageId = messageRef.key;
-  
+      const messageRef = chatRef.child('messages').push(); // Tạo reference cho tin nhắn mới
+      const messageId = messageRef.key; // Lấy ID tin nhắn duy nhất từ Firebase
       const messageData = {
-        id: messageId,
+        id: messageId, // Đảm bảo ID không bị trùng
         senderId: myId,
         text: encryptedText || '🔒 Tin nhắn mã hóa',
+        // TimeLeft: isSelfDestruct
+        //   ? {[myId]: selfDestructTime, [userId]: selfDestructTime}
+        //   : null,
         deletedBy: {},
         timestamp: currentTimestamp,
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-        seen: { [userId]: false, [myId]: true },
-        isLockedBy: { [userId]: true, [myId]: true }, // 🔒 Chỉ khóa nếu tin nhắn tự hủy
+        seen: {[userId]: false, [myId]: true},
+        isLockedBy: {[userId]: true, [myId]: true}, // 🔒 Chỉ khóa nếu tin nhắn tự hủy
       };
-  
+
       // Gửi tin nhắn lên Firebase
       await messageRef.set(messageData);
-  
+
       setText(''); // Xóa nội dung nhập vào sau khi gửi
-      await userRef.update({ countChat: countChat - 1 });
+      await userRef.update({countChat: countChat - 1});
       setcountChat(countChat - 1);
     } catch (error) {
       console.error('❌ Lỗi khi gửi tin nhắn:', error);
     } finally {
-      setTimeout(() => setIsSending(false), 1000);
+      setTimeout(() => setIsSending(false), 1000); // Cho phép gửi lại sau 1 giây
     }
   }, [text, chatId, secretKey, isSelfDestruct, selfDestructTime, isSending]);
-  
 
 
   //Hàm xử lý khi người dùng đang nhập tin nhắn
