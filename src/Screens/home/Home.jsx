@@ -58,6 +58,22 @@ const Home = ({navigation}) => {
   // const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
 
   // console.log("chatlist",secretKey)
+  //giải mã
+  const safeDecrypt = (encryptedText, secretKey) => {
+    try {
+      if (!encryptedText) return 'Nội dung trống';
+
+      const decryptedText = decryptMessage(encryptedText, secretKey);
+
+      if (!decryptedText || decryptedText === '') {
+        return 'Tin nhắn bị mã hóa';
+      }
+
+      return decryptedText;
+    } catch (error) {
+      return 'Tin nhắn bị mã hóa';
+    }
+  };
 
   useEffect(() => {
     loadPinnedChats(); // Khi component được mount, tải danh sách tin nhắn đã ghim từ AsyncStorage
@@ -176,32 +192,38 @@ const Home = ({navigation}) => {
             const messagesData = messagesSnapshot.val();
             const sortedMessages = Object.entries(messagesData)
               .map(([msgId, msg]) => ({msgId, ...msg}))
-              .filter(msg => !msg.deleted && !(msg.deletedBy && msg.deletedBy[currentUserId])) // 🔥 Lọc tin nhắn bị xóa
+              .filter(
+                msg =>
+                  !msg.deleted &&
+                  !(msg.deletedBy && msg.deletedBy[currentUserId]),
+              ) // 🔥 Lọc tin nhắn bị xóa
               .sort((a, b) => b.timestamp - a.timestamp);
 
-              if (sortedMessages.length > 0) {
-                const latestMessage = sortedMessages[0];
-                lastMessageId = latestMessage.msgId;
-              
-                if (latestMessage.imageUrl) {
-                  // 📸 Nếu tin nhắn là ảnh
-                  if (!latestMessage.isLockedBy || latestMessage.isLockedBy?.[myId] === true) {
-                    lastMessage = '📷 Có ảnh mới'; // ✅ Ảnh không bị khóa
-                  } else {
-                    lastMessage = '🔒 Nhấn để mở khóa'; // ✅ Ảnh bị khóa
-                  }
-                } else if (latestMessage.selfDestruct === true) {
-                  // 🔥 Nếu là tin nhắn tự hủy
-                  lastMessage = '🔒 Nhấn để mở khóa';
-                } else if (latestMessage.selfDestruct === false) {
-                  // 🔓 Nếu là tin nhắn bình thường, giải mã
-                  lastMessage =
-                    decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
+            if (sortedMessages.length > 0) {
+              const latestMessage = sortedMessages[0];
+              lastMessageId = latestMessage.msgId;
+
+              if (latestMessage.imageUrl) {
+                // 📸 Nếu tin nhắn là ảnh
+                if (
+                  !latestMessage.isLockedBy ||
+                  latestMessage.isLockedBy?.[myId] === true
+                ) {
+                  lastMessage = '📷 Có ảnh mới'; // ✅ Ảnh không bị khóa
                 } else {
-                  return null;
+                  lastMessage = '🔒 Nhấn để mở khóa'; // ✅ Ảnh bị khóa
                 }
-                
-              
+              } else if (latestMessage.selfDestruct === true) {
+                // 🔥 Nếu là tin nhắn tự hủy
+                lastMessage = '🔒 Nhấn để mở khóa';
+              } else if (latestMessage.selfDestruct === false) {
+                // 🔓 Nếu là tin nhắn bình thường, giải mã
+                lastMessage =
+                  decryptMessage(latestMessage.text, secretKey) ||
+                  'Tin nhắn bị mã hóa';
+              } else {
+                return null;
+              }
 
               lastMessageTime = new Date(
                 latestMessage.timestamp,
@@ -287,8 +309,6 @@ const Home = ({navigation}) => {
 
       const messages = JSON.parse(storedMessages);
 
-      
-
       if (messages.length === 0) {
         // 🔥 Nếu không có tin nhắn, lấy trạng thái `isSeen` từ chatList trong AsyncStorage
         const storedChats = await AsyncStorage.getItem('chatList');
@@ -327,30 +347,11 @@ const Home = ({navigation}) => {
     }
   };
 
-  const updateLocalChatList = async (chatId, newMessage) => {
-    try {
-      const storedChats = await AsyncStorage.getItem('chatList');
-      if (!storedChats) return;
-
-      let chatList = JSON.parse(storedChats);
-      let updatedChats = chatList.map(chat => {
-        if (chat.chatId === chatId) {
-          return {...chat, text: newMessage || '', time: ''};
-        }
-        return chat;
-      });
-
-      await AsyncStorage.setItem('chatList', JSON.stringify(updatedChats));
-      setChatList(updatedChats); // Cập nhật UI
-    } catch (error) {
-      console.error('❌ Lỗi cập nhật chatList:', error);
-    }
-  };
 
   useFocusEffect(
     React.useCallback(() => {
       console.log('🔄 Vào lại Home, cập nhật danh sách chat...');
-      
+
       loadChats().then(async () => {
         // 🔥 Kiểm tra và cập nhật `isSeen` trong `AsyncStorage`
         const storedChats = await AsyncStorage.getItem('chatList');
@@ -364,49 +365,35 @@ const Home = ({navigation}) => {
           setChatList(chatList);
         }
       });
-  
-    }, [])
+    }, []),
   );
-  
 
   useEffect(() => {
-    const appStateListener = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') {
-        console.log('🔄 Ứng dụng vừa mở lại, cập nhật danh sách chat...');
-        loadChats();
-      }
-    });
-  
+    const appStateListener = AppState.addEventListener(
+      'change',
+      nextAppState => {
+        if (nextAppState === 'active') {
+          console.log('🔄 Ứng dụng vừa mở lại, cập nhật danh sách chat...');
+          loadChats();
+        }
+      },
+    );
+
     return () => {
-      appStateListener.remove(); // Dọn dẹp listener khi component unmount
+      appStateListener.remove(); 
     };
   }, []);
 
-  // Giải mã tin nhắn
-  const safeDecrypt = (encryptedText, secretKey) => {
-    try {
-      if (!encryptedText) return 'Nội dung trống';
 
-      const decryptedText = decryptMessage(encryptedText, secretKey);
-
-      if (!decryptedText || decryptedText === '') {
-        return 'Tin nhắn bị mã hóa';
-      }
-
-      return decryptedText;
-    } catch (error) {
-      return 'Tin nhắn bị mã hóa';
-    }
-  };
 
   // Xử lý nhấn vào người dùng
   // Khi nhấn vào chat, đánh dấu tin nhắn đã seen
   const handleUserPress = async (userId, username, img) => {
     if (!myId) return;
-  
+
     const chatId = await getStoredChatId(userId);
     if (!chatId) return;
-  
+
     navigation.navigate('Single', {
       userId,
       myId,
@@ -414,24 +401,24 @@ const Home = ({navigation}) => {
       img,
       chatId,
     });
-  
+
     // 🔥 Cập nhật `isSeen` ngay khi vào màn hình chat
     setChatList(prevChats =>
       prevChats.map(chat =>
-        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat
-      )
+        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat,
+      ),
     );
-  
+
     // 🔥 Cập nhật `AsyncStorage` để lưu trạng thái mới
     const storedChats = await AsyncStorage.getItem('chatList');
     if (storedChats) {
       let chatList = JSON.parse(storedChats);
       chatList = chatList.map(chat =>
-        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat
+        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat,
       );
       await AsyncStorage.setItem('chatList', JSON.stringify(chatList));
     }
-  
+
     // 🔥 Cập nhật trạng thái đã đọc lên Firebase
     const messagesRef = ref(db, `chats/${chatId}/messages`);
     const snapshot = await get(messagesRef);
@@ -442,13 +429,12 @@ const Home = ({navigation}) => {
           updates[`/chats/${chatId}/messages/${msgId}/seen/${myId}`] = true;
         }
       });
-  
+
       if (Object.keys(updates).length > 0) {
         await update(ref(db), updates);
       }
     }
   };
-  
 
   const getStoredChatId = async userId => {
     try {
@@ -462,39 +448,6 @@ const Home = ({navigation}) => {
     } catch (error) {
       console.error('❌ Lỗi khi lấy chatId từ local:', error);
       return null;
-    }
-  };
-
-  // Kiểm tra và xóa tin nhắn nếu cả hai đã lưu
-  const checkAndDeleteMessages = async (chatId, userId) => {
-    try {
-      const messagesRef = ref(db, `chats/${chatId}/messages`);
-      const snapshot = await get(messagesRef);
-
-      if (!snapshot.exists()) return;
-
-      const messages = snapshot.val();
-      const updates = {};
-      const myId = auth.currentUser?.uid;
-      if (!myId) return;
-
-      Object.entries(messages).forEach(([messageId, messageData]) => {
-        const savedByUser1 = messageData.saved?.[myId] || false;
-        const savedByUser2 = messageData.saved?.[userId] || false;
-
-        if (savedByUser1 && savedByUser2) {
-          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa messageID hoàn toàn
-        }
-      });
-
-      if (Object.keys(updates).length > 0) {
-        await update(ref(db), updates);
-        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
-      } else {
-        console.log('⏳ Không có tin nhắn nào đủ điều kiện để xóa.');
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
     }
   };
 
@@ -539,7 +492,6 @@ const Home = ({navigation}) => {
             onPress={() => navigation.navigate('Search')}
           />
         </View>
-
 
         <FlatList
           data={sortedChats}
@@ -701,11 +653,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: 20,
-    // width: '100%',
-    // height: '0%',
-    // marginLeft: 12,
-    // backgroundColor: 'black',
-    // borderWidth: 5,
   },
   text_name_AI: {
     fontSize: 20,
