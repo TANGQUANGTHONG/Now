@@ -518,6 +518,9 @@ const Home = ({navigation}) => {
             <TouchableOpacity onPress={() => navigation.navigate('Gemini')}>
               <Icon2 name="google-assistant" size={25} color="white" />
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MapScreen')}>
+              <Icon2 name="google-assistant" size={25} color="blue" />
+            </TouchableOpacity>
           </View>
         </View>
         <View style={styles.inputSearch}>

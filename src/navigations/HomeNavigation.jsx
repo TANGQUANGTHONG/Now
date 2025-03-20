@@ -21,6 +21,7 @@ import SearchMessage from '../Screens/chat/SearchMessage';
 // import GroupChat from '../Screens/chat/groupChat';
 // import CreateGroup from '../Screens/chat/CreateGroup';
 import NearbyFriends from '../Screens/NearbyFriends/NearbyFriends';
+import MapScreen from '../Screens/map/MapScreen';
 
 
 
@@ -114,6 +115,7 @@ const oStackHome = {
   SearchMessage: {name: 'SearchMessage', component: SearchMessage},
   // CreateGroup: {name: 'CreateGroup', component: CreateGroup},
   NearbyFriends: {name: 'NearbyFriends', component: NearbyFriends},
+  MapScreen: {name: 'MapScreen', component: MapScreen},
 };
 
 const StackHome = createNativeStackNavigator();
