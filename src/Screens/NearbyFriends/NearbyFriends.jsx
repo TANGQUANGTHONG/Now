@@ -200,6 +200,10 @@ const NearbyFriendsMap = ({route}) => {
     coordinate={{ latitude: user.latitude, longitude: user.longitude }}
     title={user.name}
     onPress={() => {
+      if (user.id === userId) {
+        console.log("🚫 Bạn đã bấm vào chính mình, không chuyển trang!");
+        return;
+      }
       navigation.navigate('Single', {
         userId: user.id,
         myId: userId,
