@@ -647,8 +647,8 @@ const Single = () => {
     return `${hours}h ${minutes}m ${secs}s`;
   };
 
-  const sendMessage = useCallback(async (customText = null) => {
-    const text = customText || text;
+  const sendMessage = useCallback(async (text) => {
+    // const text = customText || text;
     if (!text.trim() || isSending) return; // Kiểm tra nếu tin nhắn rỗng hoặc đang gửi thì chặn gửi
 
     if (countChat === 0) {
@@ -1858,7 +1858,7 @@ const Single = () => {
           </View>
 
           <TouchableOpacity
-            onPress={() => sendMessage()}
+            onPress={() => sendMessage(text)}
             disabled={!text.trim() || countChat === 0}
             style={[styles.sendButton, countChat === 0 && {opacity: 0.5}]}>
             <Icon
