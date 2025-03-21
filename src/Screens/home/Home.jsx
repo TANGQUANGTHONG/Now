@@ -40,6 +40,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect} from '@react-navigation/native'; // 🔥 Import useFocusEffect
 import NetInfo from '@react-native-community/netinfo';
+import {ActivityIndicator} from 'react-native-paper';
 
 const {width, height} = Dimensions.get('window');
 const Home = ({navigation}) => {
@@ -52,12 +53,29 @@ const Home = ({navigation}) => {
   const [storageChanged, setStorageChanged] = useState(false);
   const myId = auth.currentUser?.uid;
   const lastSelfDestruct = useRef({});
+  const [isLoading, setIsLoading] = useState(true); // 🔥 Thêm trạng thái loading
 
   // const secretKey = generateSecretKey(otherUserId, myId);
 
   // const secretkey = "2ka3an/XJPjljtj0PbSMVAP50Rlv5HWFIwHBCWD4yIM="
 
   // console.log("chatlist",secretKey)
+  //giải mã
+  const safeDecrypt = (encryptedText, secretKey) => {
+    try {
+      if (!encryptedText) return 'Nội dung trống';
+
+      const decryptedText = decryptMessage(encryptedText, secretKey);
+
+      if (!decryptedText || decryptedText === '') {
+        return 'Tin nhắn bị mã hóa';
+      }
+
+      return decryptedText;
+    } catch (error) {
+      return 'Tin nhắn bị mã hóa';
+    }
+  };
 
   useEffect(() => {
     loadPinnedChats(); // Khi component được mount, tải danh sách tin nhắn đã ghim từ AsyncStorage
@@ -94,6 +112,36 @@ const Home = ({navigation}) => {
     setModalVisible(true);
   };
 
+  const deleteChat = async chatId => {
+    try {
+      // 🔹 Đánh dấu chat là đã xóa trên Firebase
+      await update(ref(db, `chats/${chatId}`), {
+        deletedBy: {[myId]: true},
+      });
+
+      // 🔹 Lấy danh sách chat từ AsyncStorage
+      const storedChats = await AsyncStorage.getItem('chatList');
+      let chatList = storedChats ? JSON.parse(storedChats) : [];
+
+      // 🔥 Cập nhật `deletedBy` thay vì xóa hẳn
+      chatList = chatList.map(chat =>
+        chat.chatId === chatId
+          ? {...chat, deletedBy: {...chat.deletedBy, [myId]: true}}
+          : chat,
+      );
+
+      // 🔹 Lưu lại danh sách đã cập nhật vào AsyncStorage
+      await AsyncStorage.setItem('chatList', JSON.stringify(chatList));
+
+      // 🔹 Cập nhật state UI
+      setChatList(chatList);
+      setModalVisible(false);
+      console.log(`✅ Đã đánh dấu xóa chat: ${chatId}`);
+    } catch (error) {
+      console.error('❌ Lỗi khi đánh dấu xóa chat:', error);
+    }
+  };
+
   const sortedChats = [...chatList].sort((a, b) => {
     const aPinned = pinnedChats.includes(a.chatId);
     const bPinned = pinnedChats.includes(b.chatId);
@@ -112,33 +160,35 @@ const Home = ({navigation}) => {
 
   const loadChats = async () => {
     try {
-      // Kiểm tra kết nối mạng
+      setIsLoading(true); // ✅ Bắt đầu tải dữ liệu
+
       const state = await NetInfo.fetch();
       const isConnected = state.isConnected;
 
-      if (!isConnected) {
-        // Nếu không có kết nối, chỉ lấy dữ liệu từ AsyncStorage
-        const storedChats = await AsyncStorage.getItem('chatList');
-        let chatListFromStorage = storedChats ? JSON.parse(storedChats) : [];
-
-        // Sắp xếp danh sách chat theo timestamp khi lấy từ local
-        chatListFromStorage.sort((a, b) => b.timestamp - a.timestamp);
-        setChatList(chatListFromStorage); // Hiển thị danh sách chat từ AsyncStorage
-        return;
-      }
-
-      // Nếu có kết nối, lấy dữ liệu từ Firebase
+      // 🔥 Lấy danh sách chat từ AsyncStorage trước
       const storedChats = await AsyncStorage.getItem('chatList');
       let chatListFromStorage = storedChats ? JSON.parse(storedChats) : [];
 
-      // Tiếp tục như bình thường khi có kết nối mạng
+      // 🔥 Lọc những chat đã bị xóa bởi myId
+      chatListFromStorage = chatListFromStorage.filter(
+        chat => !chat.deletedBy?.[myId],
+      );
+
+      if (!isConnected) {
+        chatListFromStorage.sort((a, b) => b.timestamp - a.timestamp);
+        setChatList(chatListFromStorage);
+        setIsLoading(false); // ✅ Dữ liệu đã tải xong
+        return;
+      }
+
       const currentUserId = auth.currentUser?.uid;
       if (!currentUserId) return;
 
       const chatRef = ref(db, 'chats');
       onValue(chatRef, async snapshot => {
         if (!snapshot.exists()) {
-          setChatList(chatListFromStorage); // Nếu Firebase không có dữ liệu, dùng dữ liệu từ AsyncStorage
+          setChatList(chatListFromStorage);
+          setIsLoading(false);
           return;
         }
 
@@ -147,6 +197,12 @@ const Home = ({navigation}) => {
 
         const chatPromises = chatEntries.map(async ([chatId, chat]) => {
           if (!chat.users || !chat.users[currentUserId]) return null;
+
+          // 🔥 Nếu chat bị xóa, bỏ qua
+          if (chat.deletedBy?.[currentUserId]) {
+            console.log(`🗑 Bỏ qua chat ${chatId} vì đã bị xóa`);
+            return null;
+          }
 
           const otherUserId = Object.keys(chat.users).find(
             uid => uid !== currentUserId,
@@ -176,31 +232,32 @@ const Home = ({navigation}) => {
             const messagesData = messagesSnapshot.val();
             const sortedMessages = Object.entries(messagesData)
               .map(([msgId, msg]) => ({msgId, ...msg}))
-              .filter(msg => !msg.deleted && !(msg.deletedBy && msg.deletedBy[currentUserId])) // 🔥 Lọc tin nhắn bị xóa
+              .filter(
+                msg =>
+                  !msg.deleted &&
+                  !(msg.deletedBy && msg.deletedBy[currentUserId]),
+              ) // 🔥 Lọc tin nhắn bị xóa
               .sort((a, b) => b.timestamp - a.timestamp);
 
-              if (sortedMessages.length > 0) {
-                const latestMessage = sortedMessages[0];
-                lastMessageId = latestMessage.msgId;
-              
-                if (latestMessage.selfDestruct === true ) {
-                  lastMessage = latestMessage.text ? '🔒 Nhấn để mở khóa' : '';
-                } else if (latestMessage.imageUrl) {
-                  lastMessage = '📷 Có ảnh mới';
-                } else if  (latestMessage.selfDestruct === false ) {
-                  lastMessage =
-                    decryptMessage(latestMessage.text, secretKey) || 'Tin nhắn bị mã hóa';
-                } else{
-                  return null;
-                }
-              
+            if (sortedMessages.length > 0) {
+              const latestMessage = sortedMessages[0];
+              lastMessageId = latestMessage.msgId;
+
+              if (latestMessage.imageUrl) {
+                lastMessage = latestMessage.isLockedBy?.[currentUserId]
+                  ? '🔒 Nhấn để mở khóa'
+                  : '📷 Có ảnh mới';
+              } else if (latestMessage.selfDestruct) {
+                lastMessage = '🔒 Nhấn để mở khóa';
+              } else {
+                lastMessage =
+                  decryptMessage(latestMessage.text, secretKey) ||
+                  'Tin nhắn bị mã hóa';
+              }
 
               lastMessageTime = new Date(
                 latestMessage.timestamp,
-              ).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
+              ).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
               lastMessageTimestamp = latestMessage.timestamp;
               isSeen = latestMessage?.seen?.[currentUserId] || false;
 
@@ -211,31 +268,6 @@ const Home = ({navigation}) => {
                       msg.senderId !== currentUserId &&
                       !msg.seen?.[currentUserId],
                   ).length;
-            }
-          } else {
-            if (!messagesSnapshot.exists()) {
-              const localMessage = await getLatestMessageFromLocal(chatId);
-
-              // Nếu không còn tin nhắn hợp lệ, đặt tin nhắn rỗng
-              if (!localMessage.text) {
-                lastMessage = '';
-                lastMessageTime = '';
-                lastMessageTimestamp = 0;
-              } else {
-                lastMessage = localMessage.text;
-                lastMessageTime = localMessage.time;
-                lastMessageTimestamp = localMessage.timestamp;
-              }
-              lastMessage = localMessage.text;
-              lastMessageTime = localMessage.time;
-              lastMessageTimestamp = localMessage.timestamp;
-
-              const storedChats = await AsyncStorage.getItem('chatList');
-              const previousChat = storedChats
-                ? JSON.parse(storedChats).find(chat => chat.chatId === chatId)
-                : null;
-
-              isSeen = previousChat?.isSeen || false;
             }
           }
 
@@ -257,11 +289,16 @@ const Home = ({navigation}) => {
         let filteredChats = resolvedChats
           .filter(Boolean)
           .sort((a, b) => b.timestamp - a.timestamp);
+
+        // 🔥 Lưu danh sách chat đã lọc vào AsyncStorage
         await AsyncStorage.setItem('chatList', JSON.stringify(filteredChats));
+
         setChatList(filteredChats);
+        setIsLoading(false); // ✅ Kết thúc tải dữ liệu
       });
     } catch (error) {
       console.error('❌ Lỗi khi lấy dữ liệu:', error);
+      setIsLoading(false); // ✅ Kết thúc tải nếu lỗi
     }
   };
 
@@ -278,8 +315,6 @@ const Home = ({navigation}) => {
       }
 
       const messages = JSON.parse(storedMessages);
-
-      
 
       if (messages.length === 0) {
         // 🔥 Nếu không có tin nhắn, lấy trạng thái `isSeen` từ chatList trong AsyncStorage
@@ -319,30 +354,10 @@ const Home = ({navigation}) => {
     }
   };
 
-  const updateLocalChatList = async (chatId, newMessage) => {
-    try {
-      const storedChats = await AsyncStorage.getItem('chatList');
-      if (!storedChats) return;
-
-      let chatList = JSON.parse(storedChats);
-      let updatedChats = chatList.map(chat => {
-        if (chat.chatId === chatId) {
-          return {...chat, text: newMessage || '', time: ''};
-        }
-        return chat;
-      });
-
-      await AsyncStorage.setItem('chatList', JSON.stringify(updatedChats));
-      setChatList(updatedChats); // Cập nhật UI
-    } catch (error) {
-      console.error('❌ Lỗi cập nhật chatList:', error);
-    }
-  };
-
   useFocusEffect(
     React.useCallback(() => {
       console.log('🔄 Vào lại Home, cập nhật danh sách chat...');
-      
+
       loadChats().then(async () => {
         // 🔥 Kiểm tra và cập nhật `isSeen` trong `AsyncStorage`
         const storedChats = await AsyncStorage.getItem('chatList');
@@ -356,49 +371,33 @@ const Home = ({navigation}) => {
           setChatList(chatList);
         }
       });
-  
-    }, [])
+    }, []),
   );
-  
 
   useEffect(() => {
-    const appStateListener = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') {
-        console.log('🔄 Ứng dụng vừa mở lại, cập nhật danh sách chat...');
-        loadChats();
-      }
-    });
-  
+    const appStateListener = AppState.addEventListener(
+      'change',
+      nextAppState => {
+        if (nextAppState === 'active') {
+          console.log('🔄 Ứng dụng vừa mở lại, cập nhật danh sách chat...');
+          loadChats();
+        }
+      },
+    );
+
     return () => {
-      appStateListener.remove(); // Dọn dẹp listener khi component unmount
+      appStateListener.remove();
     };
   }, []);
-
-  // Giải mã tin nhắn
-  const safeDecrypt = (encryptedText, secretKey) => {
-    try {
-      if (!encryptedText) return 'Nội dung trống';
-
-      const decryptedText = decryptMessage(encryptedText, secretKey);
-
-      if (!decryptedText || decryptedText === '') {
-        return 'Tin nhắn bị mã hóa';
-      }
-
-      return decryptedText;
-    } catch (error) {
-      return 'Tin nhắn bị mã hóa';
-    }
-  };
 
   // Xử lý nhấn vào người dùng
   // Khi nhấn vào chat, đánh dấu tin nhắn đã seen
   const handleUserPress = async (userId, username, img) => {
     if (!myId) return;
-  
+
     const chatId = await getStoredChatId(userId);
     if (!chatId) return;
-  
+
     navigation.navigate('Single', {
       userId,
       myId,
@@ -406,24 +405,24 @@ const Home = ({navigation}) => {
       img,
       chatId,
     });
-  
+
     // 🔥 Cập nhật `isSeen` ngay khi vào màn hình chat
     setChatList(prevChats =>
       prevChats.map(chat =>
-        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat
-      )
+        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat,
+      ),
     );
-  
+
     // 🔥 Cập nhật `AsyncStorage` để lưu trạng thái mới
     const storedChats = await AsyncStorage.getItem('chatList');
     if (storedChats) {
       let chatList = JSON.parse(storedChats);
       chatList = chatList.map(chat =>
-        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat
+        chat.chatId === chatId ? {...chat, isSeen: true, unreadCount: 0} : chat,
       );
       await AsyncStorage.setItem('chatList', JSON.stringify(chatList));
     }
-  
+
     // 🔥 Cập nhật trạng thái đã đọc lên Firebase
     const messagesRef = ref(db, `chats/${chatId}/messages`);
     const snapshot = await get(messagesRef);
@@ -434,13 +433,12 @@ const Home = ({navigation}) => {
           updates[`/chats/${chatId}/messages/${msgId}/seen/${myId}`] = true;
         }
       });
-  
+
       if (Object.keys(updates).length > 0) {
         await update(ref(db), updates);
       }
     }
   };
-  
 
   const getStoredChatId = async userId => {
     try {
@@ -457,38 +455,20 @@ const Home = ({navigation}) => {
     }
   };
 
-  // Kiểm tra và xóa tin nhắn nếu cả hai đã lưu
-  const checkAndDeleteMessages = async (chatId, userId) => {
-    try {
-      const messagesRef = ref(db, `chats/${chatId}/messages`);
-      const snapshot = await get(messagesRef);
+  // const logLocalChatIds = async () => {
+  //   try {
+  //     const storedChats = await AsyncStorage.getItem('chatList');
+  //     const chatList = storedChats ? JSON.parse(storedChats) : [];
 
-      if (!snapshot.exists()) return;
+  //     console.log('📌 Danh sách chatId trong AsyncStorage:', chatList.map(chat => chat));
+  //   } catch (error) {
+  //     console.error('❌ Lỗi khi lấy danh sách chat từ AsyncStorage:', error);
+  //   }
+  // };
 
-      const messages = snapshot.val();
-      const updates = {};
-      const myId = auth.currentUser?.uid;
-      if (!myId) return;
-
-      Object.entries(messages).forEach(([messageId, messageData]) => {
-        const savedByUser1 = messageData.saved?.[myId] || false;
-        const savedByUser2 = messageData.saved?.[userId] || false;
-
-        if (savedByUser1 && savedByUser2) {
-          updates[`/chats/${chatId}/messages/${messageId}`] = null; // Xóa messageID hoàn toàn
-        }
-      });
-
-      if (Object.keys(updates).length > 0) {
-        await update(ref(db), updates);
-        console.log(`✅ Đã xóa ${Object.keys(updates).length} tin nhắn.`);
-      } else {
-        console.log('⏳ Không có tin nhắn nào đủ điều kiện để xóa.');
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi kiểm tra và xóa tin nhắn:', error);
-    }
-  };
+  // useEffect(() => {
+  //   logLocalChatIds();
+  // }, []);
 
   return (
     <View style={styles.container}>
@@ -532,38 +512,45 @@ const Home = ({navigation}) => {
           />
         </View>
 
-
-        <FlatList
-          data={sortedChats}
-          renderItem={({item}) => (
-            <Item_home_chat
-              data_chat={item}
-              onPress={() =>
-                handleUserPress(
-                  item.id,
-                  item.name,
-                  item.img,
-                  item.chatId,
-                  item.lastMessageId,
-                )
-              }
-              onLongPress={() => handleLongPress(item.chatId)} // 🔥 Đảm bảo truyền đúng
-              isPinned={pinnedChats.includes(item.chatId)} // 🔥 Truyền trạng thái ghim
-              style={[
-                styles.chatItem,
-                item.isSeen ? styles.readMessage : styles.unreadMessage,
-              ]}>
-              {!item.isSeen && (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadText}>{item.unreadCount}</Text>
-                </View>
-              )}
-            </Item_home_chat>
-          )}
-          keyExtractor={item => item.chatId}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{paddingBottom: 150}}
-        />
+        {isLoading ? (
+          <View
+            style={{ justifyContent: 'center', alignItems: 'center',flex:1,top:"50%",bottom:"50%",  }}>
+            <ActivityIndicator size="large" color="#007bff" />
+            <Text>Đang tải danh sách chat...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={sortedChats}
+            renderItem={({item}) => (
+              <Item_home_chat
+                data_chat={item}
+                onPress={() =>
+                  handleUserPress(
+                    item.id,
+                    item.name,
+                    item.img,
+                    item.chatId,
+                    item.lastMessageId,
+                  )
+                }
+                onLongPress={() => handleLongPress(item.chatId)} // 🔥 Đảm bảo truyền đúng
+                isPinned={pinnedChats.includes(item.chatId)} // 🔥 Truyền trạng thái ghim
+                style={[
+                  styles.chatItem,
+                  item.isSeen ? styles.readMessage : styles.unreadMessage,
+                ]}>
+                {!item.isSeen && (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadText}>{item.unreadCount}</Text>
+                  </View>
+                )}
+              </Item_home_chat>
+            )}
+            keyExtractor={item => item.chatId}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{paddingBottom: 150}}
+          />
+        )}
       </View>
       <Modal visible={modalVisible} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
@@ -580,6 +567,15 @@ const Home = ({navigation}) => {
                     ? 'Bỏ ghim'
                     : 'Ghim'}
                 </Text>
+              </TouchableOpacity>
+
+              {/* 🗑 Nút Xóa đoạn chat */}
+              <TouchableOpacity
+                style={[styles.modalButton, {backgroundColor: 'red'}]}
+                onPress={() => {
+                  if (selectedChat) deleteChat(selectedChat);
+                }}>
+                <Text style={styles.modalButtonText}>Xóa</Text>
               </TouchableOpacity>
 
               {/* Nút Hủy */}
@@ -693,11 +689,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: 20,
-    // width: '100%',
-    // height: '0%',
-    // marginLeft: 12,
-    // backgroundColor: 'black',
-    // borderWidth: 5,
   },
   text_name_AI: {
     fontSize: 20,

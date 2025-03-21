@@ -42,6 +42,16 @@ export const getSecretKey = (myId, otherUserId) => {
   return generateSecretKey(otherUserId, myId);
 };
 
+export const decodeChatId = (encodedChatId) => {
+  try {
+    const decodedId = atob(encodedChatId); // Giải mã Base64
+    return decodedId;
+  } catch (error) {
+    console.error("❌ Lỗi khi giải mã chatId:", error);
+    return null;
+  }
+};
+
 
 // // 🔹 Mã hóa userId (Bảo mật ID của người dùng)
 // export const encryptUserId = (userId) => {
