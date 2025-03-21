@@ -1497,16 +1497,36 @@ const Single = () => {
                         {item.imageUrl ? (
                           // ảnh
                           <TouchableOpacity
-                            onPress={() => {
+                          onPress={() => {
+                            if (isSelfDestruct && item.isLockedBy?.[myId]) {
+                              // 🔒 Nếu ảnh đang bị khóa, mở khóa và bắt đầu đếm ngược
+                              handleUnlockAndStartTimer(
+                                item.id,
+                                item.imageUrl,
+                                item.selfDestructTime,
+                              );
+                            } else {
+                              // 🔥 Nếu ảnh đã mở khóa hoặc không phải ảnh tự hủy, mở ảnh full screen
                               setSelectedImage(item.imageUrl);
                               setIsImageModalVisible(true);
-                            }}>
-                            <View style={styles.imageWrapper}>
+                            }
+                          }}>
+                          <View style={styles.imageWrapper}>
+                            {item.isLoading || !item.imageUrl ? (
+                              // 🌀 Hiển thị loading khi ảnh chưa tải xong
+                              <ActivityIndicator
+                                size="large"
+                                color="blue"
+                                style={styles.loadingIndicator}
+                              />
+                            ) : (
+                              // 🖼️ Hiển thị ảnh bình thường
                               <Image
                                 source={{uri: item.imageUrl}}
                                 style={styles.imageMessage}
                               />
-                            </View>
+                            )}
+                          </View>
                             
                             {/* Hiển thị thời gian tự hủy nếu đã mở khóa */}
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
