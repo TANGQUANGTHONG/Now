@@ -1231,9 +1231,9 @@ const Single = () => {
   }, []);
 
   // Gọi khi app mở lại
-  // useEffect(() => {
-  //   checkExpiredMessages();
-  // }, []);
+  useEffect(() => {
+    checkExpiredMessages();
+  }, []);
 
   // ✅ Chạy countdown khi mở khóa
   useEffect(() => {
@@ -1507,6 +1507,13 @@ const Single = () => {
                                 style={styles.imageMessage}
                               />
                             </View>
+                            
+                            {/* Hiển thị thời gian tự hủy nếu đã mở khóa */}
+                            {isSelfDestruct && timeLefts[item.id] > 0 && (
+                              <Text style={styles.selfDestructTimer}>
+                                🕒 {timeLefts[item.id]}s
+                              </Text>
+                            )}
                           </TouchableOpacity>
                         ) : isGoogleMapsLink(item.text) ? (
                           // nếu là link vị trí Google onPress={() => handlePressLocation(item.text)}
@@ -1558,15 +1565,24 @@ const Single = () => {
                             </TouchableOpacity>
                           </View>
                         ) : (
-                          // text bình thường
-                          <Text
-                            style={
-                              isSentByMe
-                                ? styles.SendmessageText
-                                : styles.ReceivedmessageText
-                            }>
-                            {item.text}
-                          </Text>
+                          <>
+                            {/* Hiển thị nội dung tin nhắn */}
+                            <Text
+                              style={
+                                isSentByMe
+                                  ? styles.SendmessageText
+                                  : styles.ReceivedmessageText
+                              }>
+                              {item.text}
+                            </Text>
+
+                            {/* Hiển thị thời gian tự hủy nếu đã mở khóa */}
+                            {isSelfDestruct && timeLefts[item.id] > 0 && (
+                              <Text style={styles.selfDestructTimer}>
+                                🕒 {timeLefts[item.id]}s
+                              </Text>
+                            )}
+                          </>
                         )}
                       </>
                     )}
