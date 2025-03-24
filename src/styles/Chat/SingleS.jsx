@@ -405,6 +405,7 @@ const styles = StyleSheet.create({
       borderRadius: 5,
       fontSize: 12,
     },
+    
   });
   
 

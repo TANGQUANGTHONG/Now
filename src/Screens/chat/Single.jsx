@@ -121,19 +121,20 @@ const Single = () => {
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       let oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
-      // 🔥 Đánh dấu tin nhắn là đã bị xóa thay vì loại bỏ hoàn toàn
-      const updatedMessages = oldMessages.map(msg =>
-        msg.id === messageId ? {...msg, deleted: true} : msg,
-      );
-
+// Đánh dấu tin nhắn là đã bị xóa bởi myId trong deletedBy
+const updatedMessages = oldMessages.map(msg =>
+  msg.id === messageId
+    ? {...msg, deletedBy: {...(msg.deletedBy || {}), [myId]: true}}
+    : msg,
+);
       // 🔥 Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
       await AsyncStorage.setItem(
         `messages_${chatId}`,
         JSON.stringify(updatedMessages),
       );
 
-      console.log(`🗑 Tin nhắn ${messageId} đã bị đánh dấu là deleted.`);
-      setMessages(updatedMessages); // 🔄 Cập nhật UI ngay lập tức
+// Cập nhật UI ngay lập tức, lọc bỏ tin nhắn đã bị xóa bởi myId
+setMessages(updatedMessages.filter(msg => !msg.deletedBy?.[myId]));
     } catch (error) {
       console.error('❌ Lỗi khi cập nhật trạng thái deleted:', error);
     }
@@ -705,21 +706,21 @@ if (!snapshot.exists()) return;
         );
         await chatDeletedRef.remove();
 
-        // 🔥 Cập nhật UI ngay lập tức
-      setMessages(prev => [
-        ...prev,
-        {
-          id: messageId,
-          senderId: myId,
-          text: text, // Hiển thị text chưa mã hóa trong UI
-          timestamp: currentTimestamp,
-          selfDestruct: isSelfDestruct,
-          selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-          seen: {[userId]: false, [myId]: true},
-          isLockedBy: {[userId]: true, [myId]: true},
-          deletedBy: {},
-        },
-      ].sort((a, b) => a.timestamp - b.timestamp));
+     // Cập nhật UI
+    setMessages(prev => [
+      ...prev.filter(msg => msg.id !== messageId), // Loại bỏ trùng lặp
+      {
+        id: messageId,
+        senderId: myId,
+        text: text,
+        timestamp: currentTimestamp,
+        selfDestruct: isSelfDestruct,
+        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
+        seen: {[userId]: false, [myId]: true},
+        isLockedBy: {[userId]: true, [myId]: true},
+        deletedBy: {},
+      },
+    ].sort((a, b) => a.timestamp - b.timestamp));
 
         setText(''); // Xóa nội dung nhập vào sau khi gửi
         await userRef.update({countChat: countChat - 1});
@@ -1741,6 +1742,10 @@ if (!snapshot.exists()) return;
                               onPress={() => handlePressLocation(item.text)}>
                               <Text style={{color: '#fff'}}>Mở Google Maps</Text>
                             </TouchableOpacity>
+                            {/* Thêm countdown cho bản đồ */}
+                            {isSelfDestruct && timeLefts[item.id] > 0 && (
+                              <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
+                            )}
                           </View>
                         ) : item.text ? ( // Chỉ hiển thị text nếu không có videoUrl hoặc imageUrl
                           <>
