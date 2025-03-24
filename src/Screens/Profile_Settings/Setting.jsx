@@ -301,6 +301,12 @@ const pickImage = () => {
                   subtitle="Remove account permanently"
                 />
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate(oStackHome.QRScannerScreen.name)
+                }>
+                <Option icon="scan" title="QR" subtitle="QR scan" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={logOut}>
                 <Option
                   icon="exit-outline"
@@ -309,12 +315,7 @@ const pickImage = () => {
                   color="red"
                 />
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate(oStackHome.QRScannerScreen.name)
-                }>
-                <Option icon="scan" title="QR" subtitle="QR scan" color="red" />
-              </TouchableOpacity>
+       
             </ScrollView>
           </View>
           <Modal
