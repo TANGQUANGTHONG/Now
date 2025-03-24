@@ -47,8 +47,6 @@ import {Animated} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import Clipboard from '@react-native-clipboard/clipboard';
 import RNFS from 'react-native-fs';
-import styles from '../../Styles/Chat/SingleS';
-import ChatLimitModal from '../../components/items/ChatLimitModal';
 const {width, height} = Dimensions.get('window');
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
@@ -96,7 +94,6 @@ const Single = () => {
   const [timeLefts, setTimeLefts] = useState({});
   const [loadingImageUrl, setLoadingImageUrl] = useState(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false); // Quản lý hiển thị menu
-  const [showNotification, setShowNotification] = useState(false);
 
 
   const {RNMediaScanner} = NativeModules;
@@ -427,7 +424,7 @@ const Single = () => {
 
     updateLastActive();
 
-    const interval = setInterval(updateLastActive, 30000);
+    const interval = setInterval(updateLastActive, 60000);
     return () => {
       clearInterval(interval);
     };
@@ -575,31 +572,6 @@ const Single = () => {
     return () => userRef.off();
   }, [myId, database]); //  Thêm dependency
 
-
-  // Lắng nghe sự thay đổi của countChat trên Firebase
-useEffect(() => {
-  const userRef = database().ref(`/users/${myId}/countChat`);
-
-  const onCountChatChange = snapshot => {
-    if (snapshot.exists()) {
-      const newCountChat = snapshot.val();
-      setcountChat(newCountChat);
-
-      // Hiển thị thông báo khi hết lượt chat
-      if (newCountChat === 0) {
-        setShowNotification(true)
-      }
-    }
-  };
-
-  // Lắng nghe thay đổi của countChat
-  userRef.on('value', onCountChatChange);
-
-  // Cleanup để ngừng lắng nghe khi component unmount
-  return () => userRef.off('value', onCountChatChange);
-}, [myId]);
-
-
   const formatCountdown = seconds => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -615,7 +587,7 @@ useEffect(() => {
       if (countChat === 0) {
         Alert.alert('Thông báo', 'Bạn đã hết lượt nhắn tin!');
         return;
-    }
+      }
 
       setIsSending(true); // Đánh dấu trạng thái đang gửi để tránh spam gửi liên tục
 
@@ -665,6 +637,10 @@ useEffect(() => {
 
         // Gửi tin nhắn lên Firebase
         await messageRef.set(messageData);
+
+        const chatDeletedRef = database().ref(`/chats/${chatId}/deletedBy/${myId}`);
+await chatDeletedRef.remove();
+
 
         setText(''); // Xóa nội dung nhập vào sau khi gửi
         await userRef.update({countChat: countChat - 1});
@@ -997,18 +973,6 @@ useEffect(() => {
 
       await chatRef.set(messageData);
       console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
-      // Cập nhật số lượt tin nhắn còn lại sau khi gửi ảnh
-      const userRef = database().ref(`/users/${myId}`);
-      const snapshot = await userRef.once('value');
-      let { countChat = 100 } = snapshot.val();
-      if (countChat === 0) {
-        setShowNotification(true)
-        return;
-    }
-      await userRef.update({ countChat: countChat - 1 });
-      setcountChat(countChat - 1);
-
-
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
@@ -1440,11 +1404,6 @@ useEffect(() => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-      <ChatLimitModal 
-        visible={showNotification} 
-        onClose={() => setShowNotification(false)} 
-        timeReset={formatCountdown(resetCountdown)}
-      />
         <View>
           <View style={styles.header}>
             <TouchableOpacity
@@ -1911,5 +1870,324 @@ useEffect(() => {
   );
 };
 
+const styles = StyleSheet.create({
+  imageWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 200,
+    height: 200,
+  },
+
+  loadingIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{translateX: -15}, {translateY: -15}],
+  },
+
+  statusContainer: {
+    marginLeft: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'green',
+    marginLeft: 5,
+  },
+  userStatus: {
+    marginHorizontal: 5,
+    fontSize: 12,
+    color: '#888',
+  },
+  container: {flex: 1, padding: 0, backgroundColor: '#121212'},
+  username: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  sentWrapper: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  receivedWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+    marginTop: 10,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 8,
+    marginLeft: 10,
+  },
+  usernameText: {
+    fontSize: 14,
+    color: '#007bff',
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  sentContainer: {
+    backgroundColor: '#99F2C8',
+    padding: 12,
+    borderRadius: 20,
+    maxWidth: '70%',
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+  },
+  receivedContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 20,
+    maxWidth: '70%',
+    marginBottom: 10,
+  },
+
+  SendmessageText: {fontSize: 16, color: '#000000'},
+  ReceivedmessageText: {fontSize: 16, color: '#0F1828'},
+  deletedText: {fontSize: 16, color: '#999', fontStyle: 'italic'},
+  Sendtimestamp: {
+    fontSize: 12,
+    color: '#000000',
+    marginTop: 5,
+    alignSelf: 'flex-end',
+  },
+  Revecivedtimestamp: {
+    fontSize: 12,
+    color: '#000000',
+    marginTop: 5,
+    alignSelf: 'flex-end',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: '#F7F7FC',
+    borderRadius: 10,
+    marginRight: 10,
+  },
+  input: {
+    fontSize: 16,
+    color: '#0F1828',
+    padding: 8,
+    backgroundColor: '#F7F7FC',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    justifyContent: 'space-between',
+    backgroundColor: '#000000',
+    width: '100%',
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  headerUsername: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginLeft: 10,
+  },
+  backButton: {
+    padding: 5,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  sendButton: {
+    padding: 10,
+    borderRadius: 20,
+  },
+  typingText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#007bff',
+    marginLeft: 5,
+    alignItems: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    width: '25%',
+    borderRadius: 10,
+    padding: 2,
+  },
+  chatStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  chatCountText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007bff',
+  },
+  resetText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'red',
+  },
+
+  seenStatusContainer: {
+    alignSelf: 'flex-end', // Để căn phải theo tin nhắn
+    marginTop: 2, // Tạo khoảng cách với tin nhắn
+    marginRight: 10, // Đẩy sát mép tin nhắn
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: 'black',
+  },
+  modalOption: {
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  modalText: {
+    color: 'black',
+    fontSize: 16,
+  },
+  modalCancel: {
+    marginTop: 10,
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  selfDestructMessage: {
+    backgroundColor: '#ffcccb', // Màu đỏ nhạt cho tin nhắn tự hủy
+    opacity: 0.8, // Làm mờ tin nhắn để dễ nhận biết
+  },
+  selfDestructTimer: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'red',
+    textAlign: 'right',
+  },
+
+  TextselfDestructTimer: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'black',
+    textAlign: 'right',
+  },
+  imageButton: {
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  imageMessage: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    marginTop: 5,
+  },
+  sentImage: {
+    alignSelf: 'flex-end', // Ảnh gửi đi nằm bên phải
+  },
+  receivedImage: {
+    alignSelf: 'flex-start', // Ảnh nhận nằm bên trái
+  },
+  pinnedMessageContainer: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    margin: 5,
+    borderRadius: 10,
+  },
+  pinnedMessageText: {
+    fontSize: 16,
+    color: 'blue',
+  },
+  pinnedMessageTime: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 5,
+  },
+  pinnedHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    padding: 10,
+    backgroundColor: '#e0e0e0',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain', // Hiển thị ảnh mà không bị méo
+    backgroundColor: 'black', // Tạo nền đen để nhìn rõ hơn
+  },
+  iconWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  }, mainButton: {
+    padding: 10,
+  },
+  menuContainer: {
+    position: 'absolute',
+    top: height - 1100,
+    right:width - 155,
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 100, // Giúp hiển thị menu trên UI
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  menuText: {
+    marginLeft: 10,
+    fontSize: 16,
+  },
+});
 
 export default Single;

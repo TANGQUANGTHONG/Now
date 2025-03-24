@@ -114,33 +114,35 @@ const Home = ({navigation}) => {
 
   const deleteChat = async chatId => {
     try {
-      // 🔹 Đánh dấu chat là đã xóa trên Firebase
+      // 🛑 Đánh dấu chat là đã xóa trên Firebase
       await update(ref(db, `chats/${chatId}`), {
-        deletedBy: {[myId]: true},
+        deletedBy: { [myId]: true },
       });
-
-      // 🔹 Lấy danh sách chat từ AsyncStorage
+  
+      // 🛑 Lấy danh sách chat từ AsyncStorage
       const storedChats = await AsyncStorage.getItem('chatList');
       let chatList = storedChats ? JSON.parse(storedChats) : [];
-
-      // 🔥 Cập nhật `deletedBy` thay vì xóa hẳn
+  
+      // 🛑 Cập nhật deletedBy thay vì xóa hẳn
       chatList = chatList.map(chat =>
-        chat.chatId === chatId
-          ? {...chat, deletedBy: {...chat.deletedBy, [myId]: true}}
-          : chat,
+        chat.chatId === chatId ? { ...chat, deletedBy: { [myId]: true } } : chat
       );
-
-      // 🔹 Lưu lại danh sách đã cập nhật vào AsyncStorage
+  
+      // 🛑 Lưu lại danh sách đã cập nhật vào AsyncStorage
       await AsyncStorage.setItem('chatList', JSON.stringify(chatList));
-
-      // 🔹 Cập nhật state UI
+  
+      // ✅ Cập nhật state UI ngay
       setChatList(chatList);
+      setStorageChanged(prev => !prev); // 🔥 Force re-render Home
+      loadChats(); // 🔥 Gọi lại loadChats() ngay
+  
       setModalVisible(false);
       console.log(`✅ Đã đánh dấu xóa chat: ${chatId}`);
     } catch (error) {
       console.error('❌ Lỗi khi đánh dấu xóa chat:', error);
     }
   };
+  
 
   const sortedChats = [...chatList].sort((a, b) => {
     const aPinned = pinnedChats.includes(a.chatId);
@@ -371,7 +373,7 @@ const Home = ({navigation}) => {
           setChatList(chatList);
         }
       });
-    }, []),
+    }, [storageChanged]),
   );
 
   useEffect(() => {
