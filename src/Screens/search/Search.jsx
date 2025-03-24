@@ -79,16 +79,10 @@ const Search = () => {
     setSearchText(text);
     if (text === '') {
       setFilteredUsers([]);
-    } else if (text.startsWith('@')) {
+    } else {
       // Nếu text bắt đầu bằng @ thì tìm kiếm theo nickname (bỏ ký tự @ khi so sánh)
       const filtered = users.filter(user =>
         user.nickname.toLowerCase().includes(text.toLowerCase()),
-      );
-      setFilteredUsers(filtered);
-    } else {
-      // Ngược lại, tìm kiếm theo username
-      const filtered = users.filter(user =>
-        user.username.toLowerCase().includes(text.toLowerCase()),
       );
       setFilteredUsers(filtered);
     }

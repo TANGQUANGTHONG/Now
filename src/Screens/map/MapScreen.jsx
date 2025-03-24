@@ -18,7 +18,6 @@ export default function MapScreen() {
   const {userId, myId, username, img, messages, externalLocation, isGui} =
     route.params || {};
   const handleSendLocation = () => {
-    console.log('Vị trí đã gửi:', location);
     if (location) {
       navigation.navigate('Single', {
         userId,
