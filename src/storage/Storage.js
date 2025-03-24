@@ -14,17 +14,6 @@ export const saveCurrentUserAsyncStorage = async () => {
     return;
   }
 
-  // Tạo đối tượng user mới từ thông tin đăng nhập
-  const newUser = {
-    uid: user.uid,
-    email: user.email,
-    name: user.displayName || '',
-    nickname: user.displayName || '',
-    image: user.photoURL || '',
-    countChat: 0,
-    createdAt: user.metadata.creationTime || '',
-  };
-
   try {
     const userRef = database().ref(`users/${user.uid}`);
     const snapshot = await userRef.once('value');
@@ -38,19 +27,26 @@ export const saveCurrentUserAsyncStorage = async () => {
       return;
     }
 
+    // Giải mã các trường mã hóa
+    const decryptedEmail = userData.email ? decryptMessage(userData.email) : '';
+    const decryptedName = userData.name ? decryptMessage(userData.name) : '';
+    const decryptedNickname = userData.nickname ? decryptMessage(userData.nickname) : '';
+    const decryptedImage = userData.Image ? decryptMessage(userData.Image) : '';
+
     // Định dạng user mới
     const newUser = {
       uid: user.uid,
-      email: userData.email || '',
-      name: userData.name || '',
-      nickname: userData.nickname || '',
-      image: userData.Image || '',
+      email: decryptedEmail || user.email,
+      name: decryptedName || user.displayName || '',
+      nickname: decryptedNickname || user.displayName || '',
+      image: decryptedImage || user.photoURL || '',
       countChat: userData.countChat || 0,
-      createdAt: userData.createdAt || '',
+      createdAt: userData.createdAt || user.metadata.creationTime || '',
     };
 
     // Ghi đè lên user cũ
     await AsyncStorage.setItem('currentUser', JSON.stringify(newUser));
+    console.log('User data saved to AsyncStorage:', newUser);
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu từ Firebase:', error);
   }

@@ -81,13 +81,12 @@ const Single = () => {
   const [selectedImage, setSelectedImage] = useState(null);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-  // const fadeAnim = useRef(new Animated.Value(0)).current;
   const [lastActive, setLastActive] = useState(null);
 
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSending, setIsSending] = useState(false);
-
+  const [isOnline, setIsOnline] = useState(false);
   const [modal, setModal] = useState(false);
   const [selectedMess, setSelectedMess] = useState(null);
   const [unlockedMessages, setUnlockedMessages] = useState({});
@@ -416,55 +415,50 @@ const Single = () => {
   console.warn = () => {};
 
   //hiển thị trạng thái hoạt động của người dùng
+  // useEffect(() => {
+  //   const updateLastActive = async () => {
+  //     const userRef = database().ref(`/users/${myId}/lastActive`);
+  //     await userRef.set(database.ServerValue.TIMESTAMP);
+  //   };
+
+  //   updateLastActive();
+
+  //   const interval = setInterval(updateLastActive, 60000);
+  //   return () => {
+  //     clearInterval(interval);
+  //   };
+  // }, [myId]);
+// Lắng nghe trạng thái online/offline của người dùng khác
   useEffect(() => {
-    const updateLastActive = async () => {
-      const userRef = database().ref(`/users/${myId}/lastActive`);
-      await userRef.set(database.ServerValue.TIMESTAMP);
-    };
+    const userRef = database().ref(`/users/${userId}`);
 
-    updateLastActive();
-
-    const interval = setInterval(updateLastActive, 60000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, [myId]);
-
-  //lắng nghe thay đổi trạng thái hoạt động của người dùng từ Firebase
-  useEffect(() => {
-    const userRef = database().ref(`/users/${userId}/lastActive`);
-
-    const onUserActiveChange = snapshot => {
+    const onUserStatusChange = (snapshot) => {
       if (snapshot.exists()) {
-        const lastActive = snapshot.val();
-
-        setLastActive(lastActive);
+        const userData = snapshot.val();
+        setIsOnline(userData.isOnline || false); // Lấy trạng thái isOnline
+        setLastActive(userData.lastActive || null); // Vẫn giữ lastActive để hiển thị thời gian offline
       }
     };
 
-    userRef.on('value', onUserActiveChange);
+    userRef.on('value', onUserStatusChange);
 
-    return () => userRef.off('value', onUserActiveChange);
+    return () => userRef.off('value', onUserStatusChange);
   }, [userId]);
 
+  // Hàm hiển thị trạng thái
   const getStatusText = () => {
-    if (!lastActive) return 'Đang hoạt động';
+    if (isOnline) {
+      return 'Đang hoạt động';
+    } else if (lastActive) {
+      const now = Date.now();
+      const diff = now - lastActive;
 
-    const now = Date.now();
-
-    const diff = now - lastActive;
-
-    if (diff < 10000) return 'Đang hoạt động';
-
-    if (diff < 60000) return 'Vừa mới truy cập';
-
-    if (diff < 3600000)
-      return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
-
-    if (diff < 86400000)
-      return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
-
-    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+      if (diff < 60000) return 'Vừa mới truy cập';
+      if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+      if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+      return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+    }
+    return '';
   };
 
   // lấy dữ liệu từ firebase về để show lên
@@ -2027,14 +2021,19 @@ const styles = StyleSheet.create({
   },
   typingText: {
     fontSize: 14,
-    fontStyle: 'italic',
-    color: '#007bff',
-    marginLeft: 5,
-    alignItems: 'flex-end',
-    backgroundColor: '#FFFFFF',
-    width: '25%',
-    borderRadius: 10,
-    padding: 2,
+    color: '#007bff', 
+    marginLeft: 15,   
+    marginBottom: 5, 
+    paddingVertical: 4, 
+    paddingHorizontal: 10, 
+    backgroundColor: '#e6f0ff', 
+    borderRadius: 12,   
+    alignSelf: 'flex-start',
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2, 
   },
   chatStatus: {
     flexDirection: 'row',
