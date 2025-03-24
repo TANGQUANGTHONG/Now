@@ -129,12 +129,10 @@ const styles = StyleSheet.create({
     inputContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: '#ccc',
-      padding: width * 0.025,
-      borderRadius: width * 0.03, 
-      marginTop: height * 0.015, 
-      backgroundColor: '#FFFFFF',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      backgroundColor: '#f0f0f0',
+      position: 'relative', // Để các phần tử con absolute hoạt động đúng
     },
   
     inputWrapper: {
@@ -361,28 +359,51 @@ const styles = StyleSheet.create({
   
     menuContainer: {
       position: 'absolute',
-      top: height - 900,
-      right: width - 145, 
-      backgroundColor: 'white',
-      padding: width * 0.025, 
-      borderRadius: width * 0.025, 
-      shadowColor: '#000',
+      bottom: 50, // Khoảng cách từ bottom của inputContainer
+      right: 10, // Đặt menu gần nút 3 chấm
+      backgroundColor: '#fff',
+      borderRadius: 8,
+      padding: 10,
+      elevation: 5, // Shadow cho Android
+      shadowColor: '#000', // Shadow cho iOS
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
+      shadowOpacity: 0.3,
       shadowRadius: 4,
-      elevation: 5,
-      zIndex: 1,
     },
   
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: height * 0.01,
-    },
+      paddingVertical: 8,
+        },
   
     menuText: {
       marginLeft:  width * 0.025,
       fontSize: width * 0.04,
+    },
+    videoWrapper: {
+      borderRadius: 10,
+      overflow: 'hidden',
+      marginVertical: 5,
+    },
+    videoMessage: {
+      width: 250,
+      height: 300,
+      backgroundColor: 'black',
+    },
+    loadingIndicator: {
+      alignSelf: 'center',
+      marginVertical: 10,
+    },
+    selfDestructTimer: {
+      position: 'absolute',
+      bottom: 5,
+      right: 5,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      color: 'white',
+      padding: 5,
+      borderRadius: 5,
+      fontSize: 12,
     },
   });
   
