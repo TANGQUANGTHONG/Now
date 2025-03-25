@@ -3,25 +3,57 @@ import { StyleSheet, Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
+    modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    width: '90%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: 'gray',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    fontSize: 16,
+    color: 'black',
+    marginBottom: 10,
+  },
+  modalButton: {
+    marginTop: 10,
+  },
   container: {
     flex: 1,
     backgroundColor: '#121212',
   },
   content: {
-    justifyContent: 'center',
     paddingHorizontal: width * 0.05,
+    paddingBottom: height * 0.02,
   },
   backButton: {
-    position: 'absolute',
-    top: height * 0.03,
-    left: width * 0.05,
+    width: width * 0.15,
+    height: width * 0.15,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: width * 0.06,
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#002DE3',
-    marginTop: height * 0.07,
   },
   subtitle: {
     fontSize: width * 0.045,
@@ -33,18 +65,35 @@ export const styles = StyleSheet.create({
     marginTop: height * 0.03,
   },
   validText: {
-    color: '#002DE3',
+    color: 'gray',
     fontWeight: 'bold',
+    marginTop: 5,
+    fontSize: width * 0.035,
   },
   input: {
     width: '100%',
-    backgroundColor: '#e4e2de',
+    backgroundColor: '#1E1E1E', // Màu nền tối hơn, hiện đại
     height: height * 0.07,
     borderWidth: 1,
-    borderRadius: width * 0.03,
-    borderColor: '#CDD1D0',
+    borderRadius: width * 0.04, // Bo góc mềm mại hơn
+    borderColor: '#4A4A4A', // Viền màu xám nhạt
     fontSize: width * 0.045,
-    paddingHorizontal: width * 0.03,
+    paddingHorizontal: width * 0.04,
+    color: '#FFFFFF', // Chữ màu trắng
+    shadowColor: '#000', // Thêm bóng
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5, // Bóng cho Android
+  },
+  errorInput: {
+    borderColor: '#FF4D4D', // Viền đỏ khi có lỗi
+    borderWidth: 2, // Viền đậm hơn khi có lỗi
+    shadowColor: '#FF4D4D', // Hiệu ứng bóng đỏ khi có lỗi
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 5,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -55,32 +104,36 @@ export const styles = StyleSheet.create({
     right: width * 0.03,
   },
   bottomContainer: {
-    marginVertical : width * 0.2,
     paddingHorizontal: width * 0.05,
+    paddingBottom: height * 0.03, // Tăng padding dưới để nút không sát đáy
   },
   loginButton: {
-    padding: height * 0.02,
+    paddingVertical: height * 0.02, // Padding dọc cân đối
+    paddingHorizontal: width * 0.04, // Padding ngang
     alignItems: 'center',
-    borderRadius: width * 0.03,
-    marginBottom: height * 0.03,
+    borderRadius: width * 0.04, // Bo góc mềm mại hơn
+    shadowColor: '#000', // Thêm bóng cho nút
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 6, // Bóng cho Android
   },
   loginText: {
     color: '#fff',
     fontWeight: 'bold',
-    flexDirection: 'row',
-    alignItems: 'center'
+    fontSize: width * 0.045, // Tăng kích thước chữ
   },
   forgotPassword: {
     textAlign: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
-  textforgotPassword:{
-    color: '#002DE3',
+  textforgotPassword: {
+    color: '#fff',
     fontWeight: 'bold',
   },
-  textforgotPassword2:{
+  textforgotPassword2: {
     fontWeight: 'bold',
     color: 'gray',
   },
@@ -107,7 +160,9 @@ export const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'black',
   },
-  errorText:{
-    color: 'red'
-  }
+  errorText: {
+    color: '#FF4D4D', // Màu đỏ cho thông báo lỗi
+    fontSize: width * 0.035,
+    marginTop: 5,
+  },
 });
