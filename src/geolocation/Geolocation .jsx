@@ -23,7 +23,7 @@ export default function GetCurrentLocation() {
         error => {
           console.log("không lấy được định vị",error);
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 },
       );
     };
 
