@@ -51,8 +51,6 @@ import styles from '../../Styles/Chat/SingleS';
 import ChatLimitModal from '../../components/items/ChatLimitModal';
 import Video from 'react-native-video';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player'; // Thêm import
-
-
 const {width, height} = Dimensions.get('window');
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
@@ -107,6 +105,7 @@ const Single = () => {
   const [isRecording, setIsRecording] = useState(false); // Trạng thái đang ghi âm
   const [audioPath, setAudioPath] = useState(''); // Đường dẫn tệp âm thanh
   const audioRecorderPlayer = useRef(new AudioRecorderPlayer()).current;
+  const [audioStates, setAudioStates] = useState({}); // Lưu trạng thái âm thanh cho từng tin nhắn
 
   const {RNMediaScanner} = NativeModules;
 
@@ -122,7 +121,7 @@ const Single = () => {
     {label: 'Tắt tự hủy', value: null},
   ];
 
-  const [audioStates, setAudioStates] = useState({}); // Lưu trạng thái âm thanh cho từng tin nhắn
+  
 
 
   const requestAudioPermission = async () => {
@@ -297,33 +296,93 @@ const Single = () => {
   };
 
   const toggleAudio = async (messageId, audioUrl) => {
+    const currentState = audioStates[messageId] || { isPlaying: false, duration: 0, currentTime: 0 };
+  
     try {
-      if (playingAudioId === messageId) {
-        // Nếu đang phát, tạm dừng
+      if (currentState.isPlaying) {
         await audioRecorderPlayer.pausePlayer();
-        setPlayingAudioId(null); // Reset trạng thái
+        setAudioStates(prev => ({
+          ...prev,
+          [messageId]: { ...prev[messageId], isPlaying: false },
+        }));
+        setPlayingAudioId(null);
         console.log('⏸ Tạm dừng âm thanh:', audioUrl);
       } else {
-        // Nếu không phát hoặc phát tin nhắn khác, dừng cái cũ (nếu có) và phát cái mới
-        if (playingAudioId) {
+        if (playingAudioId && playingAudioId !== messageId) {
           await audioRecorderPlayer.stopPlayer();
+          setAudioStates(prev => ({
+            ...prev,
+            [playingAudioId]: { ...prev[playingAudioId], isPlaying: false, currentTime: 0 },
+          }));
         }
+  
         await audioRecorderPlayer.startPlayer(audioUrl);
-        setPlayingAudioId(messageId); // Đặt tin nhắn hiện tại là đang phát
-        console.log('▶️ Phát âm thanh:', audioUrl);
-
-        // Lắng nghe khi âm thanh kết thúc
+        setPlayingAudioId(messageId);
+  
         audioRecorderPlayer.addPlayBackListener((e) => {
-          if (e.currentPosition === e.duration) {
+          const duration = e.duration / 1000;
+          const currentTime = e.currentPosition / 1000;
+  
+          setAudioStates(prev => ({
+            ...prev,
+            [messageId]: {
+              isPlaying: true,
+              duration: duration || prev[messageId]?.duration || 0,
+              currentTime,
+            },
+          }));
+  
+          if (currentTime >= duration) {
             audioRecorderPlayer.stopPlayer();
-            setPlayingAudioId(null); // Reset khi hết âm thanh
+            setAudioStates(prev => ({
+              ...prev,
+              [messageId]: { ...prev[messageId], isPlaying: false, currentTime: 0 },
+            }));
+            setPlayingAudioId(null);
             console.log('🏁 Âm thanh kết thúc:', audioUrl);
           }
         });
+  
+        console.log('▶️ Phát âm thanh:', audioUrl);
       }
     } catch (error) {
       console.error('❌ Lỗi khi xử lý âm thanh:', error);
-      setPlayingAudioId(null); // Reset nếu có lỗi
+      setPlayingAudioId(null);
+      setAudioStates(prev => ({
+        ...prev,
+        [messageId]: { ...prev[messageId], isPlaying: false },
+      }));
+    }
+  };
+  
+  // Cleanup khi component unmount
+  useEffect(() => {
+    return () => {
+      audioRecorderPlayer.stopPlayer();
+      audioRecorderPlayer.removePlayBackListener();
+    };
+  }, []);
+
+  const getAudioDuration = async (audioUrl, messageId) => {
+    try {
+      await audioRecorderPlayer.startPlayer(audioUrl);
+      audioRecorderPlayer.addPlayBackListener((e) => {
+        const duration = e.duration / 1000; // Chuyển từ ms sang giây
+        setAudioStates(prev => ({
+          ...prev,
+          [messageId]: {
+            ...prev[messageId],
+            duration: duration || prev[messageId]?.duration || 0,
+            isPlaying: false,
+            currentTime: 0,
+          },
+        }));
+        audioRecorderPlayer.stopPlayer(); // Dừng ngay lập tức sau khi lấy duration
+      });
+      console.log(`⏱ Lấy duration cho ${messageId}: ${audioUrl}`);
+    } catch (error) {
+      console.error('❌ Lỗi khi lấy duration:', error);
+      return 0;
     }
   };
 
@@ -760,7 +819,12 @@ if (!snapshot.exists()) return;
           .filter(msg => !(msg.deletedBy && msg.deletedBy[myId]) || !msg.id)
           .sort((a, b) => a.timestamp - b.timestamp);
 
-        console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
+          // Lấy duration cho các tin nhắn có audioUrl
+      for (const msg of newMessages) {
+        if (msg.audioUrl && !audioStates[msg.id]?.duration) {
+          await getAudioDuration(msg.audioUrl, msg.id);
+        }
+      }
 
         // 🛑 Lọc các tin nhắn bị xóa (chỉ sau khi cập nhật AsyncStorage)
         const messagesToDelete = newMessages.filter(
@@ -1896,21 +1960,31 @@ if (!snapshot.exists()) return;
                       <>
                         {/* Nếu tin nhắn là âm thanh */}
                         {item.audioUrl ? (
-                          <View style={styles.audioWrapper}>
-                            {item.isLoading ? (
-                              <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
-                            ) : (
-                              <Ionicons
-                                name={isPlaying ? "pause-circle" : "play-circle"}
-                                size={40}
-                                color="#007bff"
-                              />
-                            )}
-                            {isSelfDestruct && timeLefts[item.id] > 0 && (
-                              <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
-                            )}
-                          </View>
-                        ) : item.videoUrl ? (
+  <View style={styles.audioWrapper}>
+    {item.isLoading ? (
+      <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
+    ) : (
+      <>
+        <TouchableOpacity
+          onPress={() => toggleAudio(item.id, item.audioUrl)}
+          style={styles.playButton}>
+          <Ionicons
+            name={audioStates[item.id]?.isPlaying ? "pause-circle" : "play-circle"}
+            size={40}
+            color="#007bff"
+          />
+        </TouchableOpacity>
+        <Text style={styles.audioTimer}>
+          {Math.floor(audioStates[item.id]?.currentTime || 0)}s /{' '}
+          {Math.floor(audioStates[item.id]?.duration || 0)}s
+        </Text>
+      </>
+    )}
+    {isSelfDestruct && timeLefts[item.id] > 0 && (
+      <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
+    )}
+  </View>
+) : item.videoUrl ? (
                           <View style={styles.videoWrapper}>
                             {item.isLoading ? (
                               <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />

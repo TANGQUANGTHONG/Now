@@ -400,11 +400,8 @@ const styles = StyleSheet.create({
       fontSize: 13, // Kích thước chữ dễ đọc
       fontWeight: '500', // Độ đậm trung bình
     },
-    
-    audioWrapper: {
-      flexDirection: 'column', // Đổi thành column để timer nằm dưới icon
-      alignItems: 'center',
-      padding: 5,
+    playButton: {
+      marginRight: 10,
     },
     audioWrapper: {
       flexDirection: 'column', // Xếp dọc: icon, timer, waveform
