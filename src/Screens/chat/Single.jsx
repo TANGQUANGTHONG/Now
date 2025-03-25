@@ -245,11 +245,35 @@ const Single = () => {
   // Hàm gửi tin nhắn âm thanh lên Firebase
   const sendAudioMessage = async (audioUrl, tempMessageId) => {
     if (!audioUrl || isSending) return;
-
+  
     try {
       const chatRef = database().ref(`/chats/${chatId}/messages`).push();
       const timestamp = Date.now();
-
+  
+      // Kiểm tra sự tồn tại của chat và users
+      const chatParentRef = database().ref(`/chats/${chatId}`);
+      const chatSnapshot = await chatParentRef.once('value');
+      if (!chatSnapshot.exists() || !chatSnapshot.val().users) {
+        await chatParentRef.set({ users: { [userId]: true, [myId]: true } });
+        console.log(`✅ Tạo mới chat ${chatId} với users: ${myId}, ${userId}`);
+      } else {
+        const existingUsers = chatSnapshot.val().users || {};
+        if (!existingUsers[myId] || !existingUsers[userId]) {
+          await chatParentRef.update({
+            users: { ...existingUsers, [myId]: true, [userId]: true },
+          });
+          console.log(`✅ Cập nhật users trong chat ${chatId}`);
+        }
+      }
+  
+      // Xóa trạng thái deletedBy[myId] nếu có
+      const chatDeletedRef = database().ref(`/chats/${chatId}/deletedBy/${myId}`);
+      const deletedSnapshot = await chatDeletedRef.once('value');
+      if (deletedSnapshot.exists()) {
+        await chatDeletedRef.remove();
+        console.log('✅ Đã xóa trạng thái deletedBy[myId] khi gửi tin nhắn thoại');
+      }
+  
       const messageData = {
         senderId: myId,
         audioUrl: audioUrl,
@@ -260,10 +284,26 @@ const Single = () => {
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
         isLockedBy: isSelfDestruct ? { [myId]: true, [userId]: true } : {},
       };
-
+  
       await chatRef.set(messageData);
       console.log('✅ Tin nhắn thoại đã gửi:', audioUrl);
-
+  
+      setMessages(prev => [
+        ...prev.filter(msg => msg.id !== chatRef.key),
+        {
+          id: chatRef.key,
+          senderId: myId,
+          audioUrl: audioUrl,
+          text: '🎙 Tin nhắn thoại',
+          timestamp: timestamp,
+          selfDestruct: isSelfDestruct,
+          selfDestructTime: isSelfDestruct ? selfDestructTime : null,
+          seen: { [myId]: true, [userId]: false },
+          isLockedBy: isSelfDestruct ? { [myId]: true, [userId]: true } : {},
+          deletedBy: {},
+        },
+      ].sort((a, b) => a.timestamp - b.timestamp));
+  
       const userRef = database().ref(`/users/${myId}`);
       const snapshot = await userRef.once('value');
       let { countChat: currentCount = 100 } = snapshot.val();
@@ -1256,29 +1296,68 @@ if (!snapshot.exists()) return;
       const chatRef = database().ref(`/chats/${chatId}/messages`).push();
       const timestamp = Date.now();
   
+      // Kiểm tra sự tồn tại của chat và users
+      const chatParentRef = database().ref(`/chats/${chatId}`);
+      const chatSnapshot = await chatParentRef.once('value');
+      if (!chatSnapshot.exists() || !chatSnapshot.val().users) {
+        await chatParentRef.set({ users: { [userId]: true, [myId]: true } });
+        console.log(`✅ Tạo mới chat ${chatId} với users: ${myId}, ${userId}`);
+      } else {
+        const existingUsers = chatSnapshot.val().users || {};
+        if (!existingUsers[myId] || !existingUsers[userId]) {
+          await chatParentRef.update({
+            users: { ...existingUsers, [myId]: true, [userId]: true },
+          });
+          console.log(`✅ Cập nhật users trong chat ${chatId}`);
+        }
+      }
+  
+      // Xóa trạng thái deletedBy[myId] nếu có
+      const chatDeletedRef = database().ref(`/chats/${chatId}/deletedBy/${myId}`);
+      const deletedSnapshot = await chatDeletedRef.once('value');
+      if (deletedSnapshot.exists()) {
+        await chatDeletedRef.remove();
+        console.log(`✅ Đã xóa trạng thái deletedBy[myId] khi gửi ${fileType}`);
+      }
+  
       const messageData = {
         senderId: myId,
         [`${fileType}Url`]: mediaUrl,
-        text: fileType === 'video' ? encryptMessage(' Video mới', secretKey) : null, // Thêm text cho video
+        text: fileType === 'video' ? encryptMessage(' Video mới', secretKey) : null,
         timestamp: timestamp,
-        seen: {[myId]: true, [userId]: false},
+        seen: { [myId]: true, [userId]: false },
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
-        isLockedBy: isSelfDestruct ? {[myId]: true} : undefined,
+        isLockedBy: isSelfDestruct ? { [myId]: true } : undefined,
       };
   
       await chatRef.set(messageData);
       console.log(`✅ ${fileType} đã gửi vào Firebase:`, mediaUrl);
   
-      // Cập nhật số lượt chat còn lại
+      setMessages(prev => [
+        ...prev.filter(msg => msg.id !== chatRef.key),
+        {
+          id: chatRef.key,
+          senderId: myId,
+          [`${fileType}Url`]: mediaUrl,
+          text: fileType === 'video' ? ' Video mới' : null,
+          timestamp: timestamp,
+          selfDestruct: isSelfDestruct,
+          selfDestructTime: isSelfDestruct ? selfDestructTime : null,
+          seen: { [myId]: true, [userId]: false },
+          isLockedBy: isSelfDestruct ? { [myId]: true } : undefined,
+          deletedBy: {},
+        },
+      ].sort((a, b) => a.timestamp - b.timestamp));
+  
       const userRef = database().ref(`/users/${myId}`);
       const snapshot = await userRef.once('value');
-      let {countChat = 100} = snapshot.val();
+      let { countChat = 100 } = snapshot.val();
       if (countChat === 0) {
         setShowNotification(true);
         return;
       }
-      await userRef.update({countChat: countChat - 1});
+      await userRef.update({ countChat: countChat - 1 });
       setcountChat(countChat - 1);
   
       setIsSending(false);
