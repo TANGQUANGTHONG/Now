@@ -406,6 +406,11 @@ const styles = StyleSheet.create({
       fontSize: 12,
     },
     
+    audioWrapper: {
+      flexDirection: 'column', // Đổi thành column để timer nằm dưới icon
+      alignItems: 'center',
+      padding: 5,
+    },
   });
   
 

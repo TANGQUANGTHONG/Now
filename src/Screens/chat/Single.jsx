@@ -50,6 +50,7 @@ import RNFS from 'react-native-fs';
 import styles from '../../Styles/Chat/SingleS';
 import ChatLimitModal from '../../components/items/ChatLimitModal';
 import Video from 'react-native-video';
+import AudioRecorderPlayer from 'react-native-audio-recorder-player'; // Thêm import
 const {width, height} = Dimensions.get('window');
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
@@ -100,6 +101,11 @@ const Single = () => {
   const [isMenuVisible, setIsMenuVisible] = useState(false); // Quản lý hiển thị menu
   const [showNotification, setShowNotification] = useState(false);
 
+  const [playingAudioId, setPlayingAudioId] = useState(null); // Theo dõi tin nhắn nào đang phát
+  const [isRecording, setIsRecording] = useState(false); // Trạng thái đang ghi âm
+  const [audioPath, setAudioPath] = useState(''); // Đường dẫn tệp âm thanh
+  const audioRecorderPlayer = useRef(new AudioRecorderPlayer()).current;
+
   const {RNMediaScanner} = NativeModules;
 
   const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
@@ -113,6 +119,209 @@ const Single = () => {
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
+
+
+  const requestAudioPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Quyền truy cập microphone',
+            message: 'Ứng dụng cần quyền để ghi âm tin nhắn thoại.',
+            buttonPositive: 'Cho phép',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.error('❌ Lỗi khi xin quyền:', err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const startRecording = async () => {
+    const hasPermission = await requestAudioPermission();
+    if (!hasPermission) {
+      Alert.alert('Lỗi', 'Bạn cần cấp quyền microphone để ghi âm.');
+      return;
+    }
+
+    if (isRecording) {
+      console.log('🎙 Đã ghi âm rồi, bỏ qua...');
+      return;
+    }
+
+    const path = `${RNFS.DocumentDirectoryPath}/voice_${Date.now()}.mp4`;
+    try {
+      await audioRecorderPlayer.startRecorder(path);
+      setIsRecording(true);
+      setAudioPath(path);
+      console.log('🎙 Bắt đầu ghi âm:', path);
+    } catch (error) {
+      console.error('❌ Lỗi khi bắt đầu ghi âm:', error);
+    }
+  };
+
+  const stopRecordingAndSend = async () => {
+    if (!isRecording) {
+      console.log('🎙 Chưa ghi âm, không thể dừng.');
+      return;
+    }
+
+    try {
+      const result = await audioRecorderPlayer.stopRecorder();
+      setIsRecording(false);
+      console.log('🎙 Đã dừng ghi âm:', result);
+      if (audioPath) {
+        await uploadAudioToCloudinary(audioPath);
+      } else {
+        console.error('❌ Không có đường dẫn âm thanh để tải lên');
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi dừng ghi âm:', error);
+    }
+  };
+
+  const uploadAudioToCloudinary = async (audioUri) => {
+    if (!audioUri || isSending) {
+      console.log('❌ Không có audioUri hoặc đang gửi');
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      const fileExists = await RNFS.exists(audioUri);
+      if (!fileExists) {
+        throw new Error('Tệp âm thanh không tồn tại');
+      }
+
+      const tempMessageId = `temp-${Date.now()}`;
+      setMessages(prev => [
+        ...prev,
+        { id: tempMessageId, senderId: myId, audioUrl: audioUri, timestamp: Date.now(), isLoading: true },
+      ]);
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: Platform.OS === 'android' ? `file://${audioUri}` : audioUri,
+        type: 'audio/mp4',
+        name: `voice_${Date.now()}.mp4`,
+      });
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+
+      console.log('📤 Đang tải lên Cloudinary:', audioUri);
+
+      const response = await fetch(CLOUDINARY_URL, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const data = await response.json();
+      if (!data.secure_url) {
+        throw new Error(`Lỗi Cloudinary: ${data.error?.message || 'Không rõ nguyên nhân'}`);
+      }
+
+      console.log('✅ Tải lên thành công:', data.secure_url);
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempMessageId ? { ...msg, audioUrl: data.secure_url, isLoading: false } : msg
+        )
+      );
+      await sendAudioMessage(data.secure_url, tempMessageId);
+    } catch (error) {
+      console.error('❌ Lỗi khi tải âm thanh:', error);
+      Alert.alert('Lỗi', 'Không thể gửi tin nhắn thoại.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Hàm gửi tin nhắn âm thanh lên Firebase
+  const sendAudioMessage = async (audioUrl, tempMessageId) => {
+    if (!audioUrl || isSending) return;
+
+    try {
+      const chatRef = database().ref(`/chats/${chatId}/messages`).push();
+      const timestamp = Date.now();
+
+      const messageData = {
+        senderId: myId,
+        audioUrl: audioUrl,
+        text: encryptMessage('🎙 Tin nhắn thoại', secretKey),
+        timestamp: timestamp,
+        seen: { [myId]: true, [userId]: false },
+        selfDestruct: isSelfDestruct,
+        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
+        isLockedBy: isSelfDestruct ? { [myId]: true, [userId]: true } : {},
+      };
+
+      await chatRef.set(messageData);
+      console.log('✅ Tin nhắn thoại đã gửi:', audioUrl);
+
+      const userRef = database().ref(`/users/${myId}`);
+      const snapshot = await userRef.once('value');
+      let { countChat: currentCount = 100 } = snapshot.val();
+      if (currentCount === 0) {
+        setShowNotification(true);
+        return;
+      }
+      await userRef.update({ countChat: currentCount - 1 });
+      setcountChat(currentCount - 1);
+    } catch (error) {
+      console.error('❌ Lỗi khi gửi tin nhắn thoại:', error);
+      Alert.alert('Lỗi', 'Không thể lưu tin nhắn thoại vào Firebase.');
+    }
+  };
+
+  const playAudio = async (audioUrl) => {
+    try {
+      await audioRecorderPlayer.startPlayer(audioUrl);
+      audioRecorderPlayer.addPlayBackListener((e) => {
+        if (e.currentPosition === e.duration) {
+          audioRecorderPlayer.stopPlayer();
+        }
+      });
+    } catch (error) {
+      console.error('❌ Lỗi khi phát âm thanh:', error);
+    }
+  };
+
+  const toggleAudio = async (messageId, audioUrl) => {
+    try {
+      if (playingAudioId === messageId) {
+        // Nếu đang phát, tạm dừng
+        await audioRecorderPlayer.pausePlayer();
+        setPlayingAudioId(null); // Reset trạng thái
+        console.log('⏸ Tạm dừng âm thanh:', audioUrl);
+      } else {
+        // Nếu không phát hoặc phát tin nhắn khác, dừng cái cũ (nếu có) và phát cái mới
+        if (playingAudioId) {
+          await audioRecorderPlayer.stopPlayer();
+        }
+        await audioRecorderPlayer.startPlayer(audioUrl);
+        setPlayingAudioId(messageId); // Đặt tin nhắn hiện tại là đang phát
+        console.log('▶️ Phát âm thanh:', audioUrl);
+
+        // Lắng nghe khi âm thanh kết thúc
+        audioRecorderPlayer.addPlayBackListener((e) => {
+          if (e.currentPosition === e.duration) {
+            audioRecorderPlayer.stopPlayer();
+            setPlayingAudioId(null); // Reset khi hết âm thanh
+            console.log('🏁 Âm thanh kết thúc:', audioUrl);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi xử lý âm thanh:', error);
+      setPlayingAudioId(null); // Reset nếu có lỗi
+    }
+  };
 
   //xóa tin nhắn ở local
   const deleteMessageLocally = async messageId => {
@@ -533,6 +742,7 @@ if (!snapshot.exists()) return;
             id,
             senderId: data.senderId,
             text: data.text ? decryptMessage(data.text, secretKey) : null, // Chỉ xử lý text nếu có
+            audioUrl: data.audioUrl || null, 
             imageUrl: data.imageUrl || null,
             videoUrl: data.videoUrl || null,
             timestamp: data.timestamp,
@@ -1635,7 +1845,8 @@ if (!snapshot.exists()) return;
           onEndReached={() => setShouldAutoScroll(true)}
           keyExtractor={item => item.id}
           renderItem={({item}) => {
-            // console.log('📋 Dữ liệu item:', item); // Log dữ liệu của mỗi tin nhắn
+            // console.log('📋 Dữ liệu tin nhắn:', item);
+            const isPlaying = playingAudioId === item.id; // Kiểm tra tin nhắn này có đang phát không
             const isSentByMe = item.senderId === myId;
             const isSelfDestruct = item.selfDestruct;
             // console.log('Video URL:', item.videoUrl);
@@ -1654,12 +1865,18 @@ if (!snapshot.exists()) return;
             };
 
             return (
-              <View style={{flexDirection: 'column'}}>
+              <View style={{ flexDirection: 'column' }}>
                 <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
-                  {!isSentByMe && <Image source={{uri: img}} style={styles.avatar} />}
+                  {!isSentByMe && <Image source={{ uri: img }} style={styles.avatar} />}
                   <TouchableOpacity
                     onPress={() => {
-                      if (isSelfDestruct && item.isLockedBy?.[myId]) {
+                      if (item.audioUrl) {
+                        if (!isSelfDestruct || !item.isLockedBy?.[myId]) {
+                          toggleAudio(item.id, item.audioUrl); // Gọi hàm toggleAudio thay vì playAudio
+                        } else {
+                          handleUnlockMessage(item.id, item.selfDestructTime);
+                        }
+                      } else if (isSelfDestruct && item.isLockedBy?.[myId]) {
                         handleUnlockMessage(item.id, item.selfDestructTime);
                       }
                     }}
@@ -1673,8 +1890,23 @@ if (!snapshot.exists()) return;
                       <Text style={styles.lockedMessage}>🔒 Nhấn để mở khóa</Text>
                     ) : (
                       <>
-                        {/* Nếu tin nhắn là video */}
-                        {item.videoUrl ? (
+                        {/* Nếu tin nhắn là âm thanh */}
+                        {item.audioUrl ? (
+                          <View style={styles.audioWrapper}>
+                            {item.isLoading ? (
+                              <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
+                            ) : (
+                              <Ionicons
+                                name={isPlaying ? "pause-circle" : "play-circle"}
+                                size={40}
+                                color="#007bff"
+                              />
+                            )}
+                            {isSelfDestruct && timeLefts[item.id] > 0 && (
+                              <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
+                            )}
+                          </View>
+                        ) : item.videoUrl ? (
                           <View style={styles.videoWrapper}>
                             {item.isLoading ? (
                               <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
@@ -1706,7 +1938,7 @@ if (!snapshot.exists()) return;
                               {item.isLoading || !item.imageUrl ? (
                                 <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
                               ) : (
-                                <Image source={{uri: item.imageUrl}} style={styles.imageMessage} />
+                                <Image source={{ uri: item.imageUrl }} style={styles.imageMessage} />
                               )}
                             </View>
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
@@ -1714,7 +1946,7 @@ if (!snapshot.exists()) return;
                             )}
                           </TouchableOpacity>
                         ) : isGoogleMapsLink(item.text) ? (
-                          <View style={{alignItems: 'center'}}>
+                          <View style={{ alignItems: 'center' }}>
                             <MapView
                               style={{ width: 200, height: 120, borderRadius: 10 }}
                               initialRegion={{
@@ -1740,14 +1972,13 @@ if (!snapshot.exists()) return;
                                 borderRadius: 8,
                               }}
                               onPress={() => handlePressLocation(item.text)}>
-                              <Text style={{color: '#fff'}}>Mở Google Maps</Text>
+                              <Text style={{ color: '#fff' }}>Mở Google Maps</Text>
                             </TouchableOpacity>
-                            {/* Thêm countdown cho bản đồ */}
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
                               <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
                             )}
                           </View>
-                        ) : item.text ? ( // Chỉ hiển thị text nếu không có videoUrl hoặc imageUrl
+                        ) : item.text ? (
                           <>
                             <Text
                               style={
@@ -1777,7 +2008,7 @@ if (!snapshot.exists()) return;
             );
           }}
           inverted
-          contentContainerStyle={{flexGrow: 1, justifyContent: 'flex-end'}}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
         />
 
         <FlatList
@@ -1791,6 +2022,16 @@ if (!snapshot.exists()) return;
           {/*chon anh */}
           <TouchableOpacity onPress={pickMedia} style={styles.imageButton}>
             <Ionicons name="image" size={24} color="#007bff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPressIn={startRecording}
+            onPressOut={stopRecordingAndSend}
+            style={[styles.audioButton, isRecording && styles.recordingButton]}>
+            <Ionicons
+              name={isRecording ? "mic" : "mic-outline"}
+              size={24}
+              color={isRecording ? "red" : "#007bff"}
+            />
           </TouchableOpacity>
 
           {/* Bọc icon trong một container riêng */}
