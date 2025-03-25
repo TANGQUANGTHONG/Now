@@ -83,7 +83,7 @@ const Single = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
   const [lastActive, setLastActive] = useState(null);
-
+  const [isOnline, setIsOnline] = useState(false); // Trạng thái online/offline của người dùng
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSending, setIsSending] = useState(false);
@@ -417,56 +417,37 @@ const Single = () => {
 
   //hiển thị trạng thái hoạt động của người dùng
   useEffect(() => {
-    const updateLastActive = async () => {
-      const userRef = database().ref(`/users/${myId}/lastActive`);
-      await userRef.set(database.ServerValue.TIMESTAMP);
-    };
+    const userRef = database().ref(`/users/${userId}`);
 
-    updateLastActive();
-
-    const interval = setInterval(updateLastActive, 60000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, [myId]);
-
-  //lắng nghe thay đổi trạng thái hoạt động của người dùng từ Firebase
-  useEffect(() => {
-    const userRef = database().ref(`/users/${userId}/lastActive`);
-
-    const onUserActiveChange = snapshot => {
+    const onUserStatusChange = (snapshot) => {
       if (snapshot.exists()) {
-        const lastActive = snapshot.val();
-
-        setLastActive(lastActive);
+        const userData = snapshot.val();
+        setIsOnline(userData.isOnline || false); // Lấy trạng thái isOnline
+        setLastActive(userData.lastActive || null); // Vẫn giữ lastActive để hiển thị thời gian offline
       }
     };
 
-    userRef.on('value', onUserActiveChange);
+    userRef.on('value', onUserStatusChange);
 
-    return () => userRef.off('value', onUserActiveChange);
+    return () => userRef.off('value', onUserStatusChange);
   }, [userId]);
 
+  // Hàm hiển thị trạng thái
   const getStatusText = () => {
-    if (!lastActive) return 'Đang hoạt động';
+    if (isOnline) {
+      return 'Đang hoạt động';
+    } else if (lastActive) {
+      const now = Date.now();
+      const diff = now - lastActive;
 
-    const now = Date.now();
-
-    const diff = now - lastActive;
-
-    if (diff < 10000) return 'Đang hoạt động';
-
-    if (diff < 60000) return 'Vừa mới truy cập';
-
-    if (diff < 3600000)
-      return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
-
-    if (diff < 86400000)
-      return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
-
-    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+      if (diff < 60000) return 'Vừa mới truy cập';
+      if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+      if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+      return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+    }
+    return '';
   };
-
+  
   // lấy dữ liệu từ firebase về để show lên
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);

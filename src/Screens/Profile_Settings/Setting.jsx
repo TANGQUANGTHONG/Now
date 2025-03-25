@@ -157,11 +157,10 @@ const pickImage = () => {
 
   const logOut = async () => {
     try {
-      // Lấy userId của người dùng hiện tại
       const currentUser = auth().currentUser;
       const userId = currentUser?.uid;
-  
-      // Cập nhật trạng thái isOnline thành false trên Firebase
+
+      // Cập nhật trạng thái offline trước khi đăng xuất
       if (userId) {
         await database()
           .ref(`/users/${userId}`)
@@ -171,12 +170,11 @@ const pickImage = () => {
           });
         console.log(`User ${userId} is now offline`);
       }
-  
+
       // Đăng xuất khỏi Google và Firebase
       await GoogleSignin.signOut();
       await auth().signOut();
-  
-      // Xóa thông tin người dùng khỏi storage
+
       removeCurrentUserFromStorage();
       console.log('Đã đăng xuất khỏi Google và Firebase.');
     } catch (error) {
