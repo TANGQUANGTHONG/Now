@@ -12,6 +12,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
@@ -249,9 +250,11 @@ const pickImage = () => {
                   }
                   style={styles.avatar}
                 />
-                <View style={{position: 'absolute', right: 5, bottom: 0}}>
-                <Icon name="camera-reverse-outline" size={20} color="black" />
+
+                <View style={{position: 'absolute', right: 10, bottom: 0, backgroundColor: 'white', borderRadius : 15, padding: 2, borderWidth: 1, borderColor: 'gray'}}>
+                <Icon name="camera-reverse" size={18} color="black" />
                 </View>
+
               </Pressable>
               <View style={styles.profileInfo}>
                 <Text style={styles.name}>{myUser?.name}</Text>

@@ -47,9 +47,12 @@ import {Animated} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import Clipboard from '@react-native-clipboard/clipboard';
 import RNFS from 'react-native-fs';
+import ChatLimitModal from '../../components/items/ChatLimitModal';
+import Video from 'react-native-video';
 const {width, height} = Dimensions.get('window');
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
+
 const Single = () => {
   const route = useRoute();
   const {
@@ -93,6 +96,7 @@ const Single = () => {
   const [unlockedMessages, setUnlockedMessages] = useState({});
   const [timeLefts, setTimeLefts] = useState({});
   const [loadingImageUrl, setLoadingImageUrl] = useState(null);
+  const [loadingVideoUrl, setLoadingVideoUrl] = useState(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false); // Quản lý hiển thị menu
 
 
@@ -117,19 +121,20 @@ const Single = () => {
       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
       let oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
-      // 🔥 Đánh dấu tin nhắn là đã bị xóa thay vì loại bỏ hoàn toàn
-      const updatedMessages = oldMessages.map(msg =>
-        msg.id === messageId ? {...msg, deleted: true} : msg,
-      );
-
+// Đánh dấu tin nhắn là đã bị xóa bởi myId trong deletedBy
+const updatedMessages = oldMessages.map(msg =>
+  msg.id === messageId
+    ? {...msg, deletedBy: {...(msg.deletedBy || {}), [myId]: true}}
+    : msg,
+);
       // 🔥 Lưu lại danh sách tin nhắn đã cập nhật vào AsyncStorage
       await AsyncStorage.setItem(
         `messages_${chatId}`,
         JSON.stringify(updatedMessages),
       );
 
-      console.log(`🗑 Tin nhắn ${messageId} đã bị đánh dấu là deleted.`);
-      setMessages(updatedMessages); // 🔄 Cập nhật UI ngay lập tức
+// Cập nhật UI ngay lập tức, lọc bỏ tin nhắn đã bị xóa bởi myId
+setMessages(updatedMessages.filter(msg => !msg.deletedBy?.[myId]));
     } catch (error) {
       console.error('❌ Lỗi khi cập nhật trạng thái deleted:', error);
     }
@@ -388,6 +393,15 @@ const Single = () => {
   useEffect(() => {
     const loadMessagesFromStorage = async () => {
       try {
+        // 🔥 Kiểm tra trạng thái deletedBy từ Firebase
+        const chatRef = database().ref(`/chats/${chatId}`);
+        const chatSnapshot = await chatRef.once('value');
+        if (chatSnapshot.exists() && chatSnapshot.val().deletedBy?.[myId]) {
+          console.log(`🚫 Chat ${chatId} đã bị xóa, không tải tin nhắn từ local`);
+          setMessages([]);
+          return;
+        }
+
         const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
         let messages = storedMessages ? JSON.parse(storedMessages) : [];
 
@@ -452,6 +466,7 @@ const Single = () => {
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
     const messagesRef = database().ref(`/chats/${chatId}/messages`);
+    const chatRef = database().ref(`/chats/${chatId}`);
 
     // Lắng nghe trạng thái đang nhập
     const onTypingChange = snapshot => {
@@ -465,22 +480,47 @@ const Single = () => {
 
     // Lắng nghe tin nhắn mới
     const onMessageChange = async snapshot => {
-      if (!snapshot.exists()) return;
+const chatSnapshot = await chatRef.once('value');
+  // const isChatDeletedByMe = chatSnapshot.exists() && chatSnapshot.val().deletedBy?.[myId];
+
+// 🔥 Nếu chat không tồn tại trên Firebase (bị xóa hoàn toàn)
+if (!chatSnapshot.exists()) {
+  console.log(`🚫 Chat ${chatId} không tồn tại trên Firebase, xóa dữ liệu local`);
+  
+  // Xóa messages_${chatId} trong AsyncStorage
+  await AsyncStorage.removeItem(`messages_${chatId}`);
+  
+  // Xóa chatId khỏi chatList trong AsyncStorage
+  const storedChats = await AsyncStorage.getItem('chatList');
+  let chatList = storedChats ? JSON.parse(storedChats) : [];
+  chatList = chatList.filter(chat => chat.chatId !== chatId);
+  await AsyncStorage.setItem('chatList', JSON.stringify(chatList));
+  
+  // Đặt messages về rỗng trong UI
+  setMessages([]);
+  return;
+}
+// Logic hiện tại cho chat còn tồn tại
+const isChatDeletedByMe = chatSnapshot.val().deletedBy?.[myId];
+
+if (!snapshot.exists()) return;
 
       try {
         const firebaseMessages = snapshot.val();
         if (!firebaseMessages) return;
+
         const newMessages = Object.entries(firebaseMessages)
           .map(([id, data]) => ({
             id,
             senderId: data.senderId,
-            text: data.text ? decryptMessage(data.text, secretKey) : ' Ảnh mới',
+            text: data.text ? decryptMessage(data.text, secretKey) : null, // Chỉ xử lý text nếu có
             imageUrl: data.imageUrl || null,
+            videoUrl: data.videoUrl || null,
             timestamp: data.timestamp,
             selfDestruct: data.selfDestruct || false,
             selfDestructTime: data.selfDestructTime || null,
             seen: data.seen || {},
-            deletedBy: {},
+            deletedBy: data.deletedBy || {}, // Giữ trạng thái deletedBy từ Firebase
             isLockedBy: data.isLockedBy || {[myId]: true}, // 🔥 Lấy từ Firebase
             TimeLeft: data.TimeLeft || {},
           }))
@@ -539,19 +579,23 @@ const Single = () => {
   // Lắng nghe sự kiện khi người dùng đang nhập tin nhắn
   useEffect(() => {
     if (!myId) return;
-
+  
     const userRef = database().ref(`/users/${myId}/countChat`);
     const fetchUserData = async () => {
       const snapshot = await userRef.once('value');
       if (snapshot.exists()) {
         setcountChat(snapshot.val());
+      } else {
+        // Nếu countChat không tồn tại, gán mặc định là 100 và lưu vào Firebase
+        await database().ref(`/users/${myId}`).update({ countChat: 100 });
+        setcountChat(100);
       }
     };
-
+  
     fetchUserData();
-
+  
     return () => userRef.off();
-  }, [myId, database]); //  Thêm dependency
+  }, [myId, database]);
 
   const formatCountdown = seconds => {
     const hours = Math.floor(seconds / 3600);
@@ -622,6 +666,22 @@ const Single = () => {
         const chatDeletedRef = database().ref(`/chats/${chatId}/deletedBy/${myId}`);
 await chatDeletedRef.remove();
 
+
+     // Cập nhật UI
+    setMessages(prev => [
+      ...prev.filter(msg => msg.id !== messageId), // Loại bỏ trùng lặp
+      {
+        id: messageId,
+        senderId: myId,
+        text: text,
+        timestamp: currentTimestamp,
+        selfDestruct: isSelfDestruct,
+        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
+        seen: {[userId]: false, [myId]: true},
+        isLockedBy: {[userId]: true, [myId]: true},
+        deletedBy: {},
+      },
+    ].sort((a, b) => a.timestamp - b.timestamp));
 
         setText(''); // Xóa nội dung nhập vào sau khi gửi
         await userRef.update({countChat: countChat - 1});
@@ -862,9 +922,9 @@ await chatDeletedRef.remove();
     }
   };
 
-  const pickImage = () => {
+  const pickMedia = () => {
     const options = {
-      mediaType: 'photo',
+      mediaType: 'mixed',
       quality: 1,
     };
 
@@ -876,21 +936,24 @@ await chatDeletedRef.remove();
       }
 
       if (response.assets && response.assets.length > 0) {
-        const imageUri = response.assets[0].uri;
-        uploadImageToCloudinary(imageUri);
+        const selectedMedia = response.assets[0];
+        uploadMediaToCloudinary(selectedMedia.uri, selectedMedia.type);
       }
     });
   };
 
-  const uploadImageToCloudinary = async imageUri => {
+  const uploadMediaToCloudinary = async (mediaUri, mediaType) => {
     try {
-      setLoadingImageUrl(imageUri);
+      const isImage = mediaType.startsWith('image');
+      const fileType = isImage ? 'image' : 'video';
+      console.log('📤 Media type:', mediaType, 'File type:', fileType); // Log loại media
+      isImage ? setLoadingImageUrl(mediaUri) : setLoadingVideoUrl(mediaUri);
 
       const tempMessageId = `temp-${Date.now()}`;
       const tempMessage = {
         id: tempMessageId,
         senderId: myId,
-        imageUrl: imageUri,
+        [`${fileType}Url`]: mediaUri,
         timestamp: Date.now(),
         isLoading: true,
       };
@@ -898,11 +961,13 @@ await chatDeletedRef.remove();
 
       const formData = new FormData();
       formData.append('file', {
-        uri: imageUri,
-        type: 'image/jpeg',
-        name: 'upload.jpg',
+        uri: mediaUri,
+        type: mediaType,
+        name: `upload_${Date.now()}.${mediaType.split('/')[1]}`,
       });
       formData.append('upload_preset', CLOUDINARY_PRESET);
+
+      console.log(`📤 Đang tải ${fileType} lên Cloudinary...`);
 
       const response = await fetch(CLOUDINARY_URL, {
         method: 'POST',
@@ -910,62 +975,159 @@ await chatDeletedRef.remove();
       });
 
       const data = await response.json();
-      if (data.secure_url) {
-        console.log('✅ Ảnh đã tải lên Cloudinary:', data.secure_url);
+      console.log(`✅ Phản hồi từ Cloudinary:`, data);
 
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === tempMessageId
-              ? {...msg, imageUrl: data.secure_url, isLoading: false}
-              : msg,
-          ),
+      if (!data.secure_url) {
+        throw new Error(
+          `Lỗi Cloudinary: ${data.error?.message || 'Không rõ nguyên nhân'}`,
         );
-
-        sendImageMessage(data.secure_url, tempMessageId);
-      } else {
-        throw new Error('Lỗi khi tải ảnh lên Cloudinary');
       }
+
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempMessageId
+            ? {...msg, [`${fileType}Url`]: data.secure_url, isLoading: false}
+            : msg,
+        ),
+      );
+
+      sendMediaMessage(data.secure_url, tempMessageId, fileType);
     } catch (error) {
-      console.error('❌ Lỗi khi upload ảnh:', error);
+      console.error(`❌ Lỗi khi upload ${mediaType}:`, error);
     } finally {
-      setLoadingImageUrl(null);
+      isImage ? setLoadingImageUrl(null) : setLoadingVideoUrl(null);
     }
   };
 
-  // Hàm gửi tin nhắn ảnh
-  const sendImageMessage = async imageUrl => {
-    if (!imageUrl || isSending) return;
+  const sendMediaMessage = async (mediaUrl, tempMessageId, fileType) => {
+    if (!mediaUrl || isSending) return;
     setIsSending(true);
-
+  
     try {
       const chatRef = database().ref(`/chats/${chatId}/messages`).push();
       const timestamp = Date.now();
-
+  
       const messageData = {
         senderId: myId,
-        imageUrl: imageUrl,
+        [`${fileType}Url`]: mediaUrl,
+        text: fileType === 'video' ? encryptMessage(' Video mới', secretKey) : null, // Thêm text cho video
         timestamp: timestamp,
         seen: {[myId]: true, [userId]: false},
         selfDestruct: isSelfDestruct,
         selfDestructTime: isSelfDestruct ? selfDestructTime : null,
         isLockedBy: isSelfDestruct ? {[myId]: true} : undefined,
-        TimeLeft: undefined, // 🚀 Không đặt TimeLeft ngay lập tức
       };
-
+  
       await chatRef.set(messageData);
-      console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
-      const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
-      const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
-
-      await chatRef.set(messageData);
-
+      console.log(`✅ ${fileType} đã gửi vào Firebase:`, mediaUrl);
+  
+      // Cập nhật số lượt chat còn lại
+      const userRef = database().ref(`/users/${myId}`);
+      const snapshot = await userRef.once('value');
+      let {countChat = 100} = snapshot.val();
+      if (countChat === 0) {
+        setShowNotification(true);
+        return;
+      }
+      await userRef.update({countChat: countChat - 1});
+      setcountChat(countChat - 1);
+  
       setIsSending(false);
     } catch (error) {
-      console.error('❌ Lỗi khi gửi ảnh:', error);
+      console.error(`❌ Lỗi khi gửi ${fileType}:`, error);
     } finally {
       setTimeout(() => setIsSending(false), 1000);
     }
   };
+
+  //   // Hàm gửi tin nhắn video lên Firebase
+  //   const sendVideoMessage = async videoUrl => {
+  //     if (!videoUrl || isSending) return;
+  //     setIsSending(true);
+
+  //     try {
+  //       const chatRef = database().ref(`/chats/${chatId}/messages`).push();
+  //       const timestamp = Date.now();
+
+  //       const messageData = {
+  //         id: tempMessageId,
+  //         senderId: myId,
+  //         imageUrl: videoUrl,
+  //         timestamp: Date.now(),
+  //         isLoading: true,
+  //       };
+
+  //       await chatRef.set(messageData);
+  //       console.log('✅ Video đã gửi vào Firebase:', videoUrl);
+
+  //       // Cập nhật số lượt tin nhắn còn lại
+  //       const userRef = database().ref(`/users/${myId}`);
+  //       const snapshot = await userRef.once('value');
+  //       let {countChat = 100} = snapshot.val();
+  //       if (countChat === 0) {
+  //         setShowNotification(true);
+  //         return;
+  //       }
+  //       await userRef.update({countChat: countChat - 1});
+  //       setcountChat(countChat - 1);
+
+  //       const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+  //       const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+
+  //       await chatRef.set(messageData);
+
+  //       setIsSending(false);
+  //     } catch (error) {
+  //       console.error('❌ Lỗi khi gửi video:', error);
+  //     } finally {
+  //       setTimeout(() => setIsSending(false), 1000);
+  //     }
+  //   };
+  // // Hàm gửi tin nhắn ảnh
+  // const sendImageMessage = async imageUrl => {
+  //   if (!imageUrl || isSending) return;
+  //   setIsSending(true);
+
+  //   try {
+  //     const chatRef = database().ref(`/chats/${chatId}/messages`).push();
+  //     const timestamp = Date.now();
+
+  //     const messageData = {
+  //       senderId: myId,
+  //       imageUrl: imageUrl,
+  //       timestamp: timestamp,
+  //       seen: {[myId]: true, [userId]: false},
+  //       selfDestruct: isSelfDestruct,
+  //       selfDestructTime: isSelfDestruct ? selfDestructTime : null,
+  //       isLockedBy: isSelfDestruct ? {[myId]: true} : undefined,
+  //       TimeLeft: undefined, // 🚀 Không đặt TimeLeft ngay lập tức
+  //     };
+
+  //     await chatRef.set(messageData);
+  //     console.log('✅ Ảnh đã gửi vào Firebase:', imageUrl);
+  //     // Cập nhật số lượt tin nhắn còn lại sau khi gửi ảnh
+  //     const userRef = database().ref(`/users/${myId}`);
+  //     const snapshot = await userRef.once('value');
+  //     let {countChat = 100} = snapshot.val();
+  //     if (countChat === 0) {
+  //       setShowNotification(true);
+  //       return;
+  //     }
+  //     await userRef.update({countChat: countChat - 1});
+  //     setcountChat(countChat - 1);
+
+  //     const storedMessages = await AsyncStorage.getItem(`messages_${chatId}`);
+  //     const oldMessages = storedMessages ? JSON.parse(storedMessages) : [];
+
+  //     await chatRef.set(messageData);
+
+  //     setIsSending(false);
+  //   } catch (error) {
+  //     console.error('❌ Lỗi khi gửi ảnh:', error);
+  //   } finally {
+  //     setTimeout(() => setIsSending(false), 1000);
+  //   }
+  // };
 
   const requestStoragePermission = async () => {
     if (Platform.OS === 'android') {
@@ -1429,8 +1591,10 @@ await chatDeletedRef.remove();
           onEndReached={() => setShouldAutoScroll(true)}
           keyExtractor={item => item.id}
           renderItem={({item}) => {
+            // console.log('📋 Dữ liệu item:', item); // Log dữ liệu của mỗi tin nhắn
             const isSentByMe = item.senderId === myId;
             const isSelfDestruct = item.selfDestruct;
+            // console.log('Video URL:', item.videoUrl);
 
             const isGoogleMapsLink = text => {
               return /^https:\/\/www\.google\.com\/maps\?q=/.test(text);
@@ -1447,14 +1611,8 @@ await chatDeletedRef.remove();
 
             return (
               <View style={{flexDirection: 'column'}}>
-                <View
-                  style={
-                    isSentByMe ? styles.sentWrapper : styles.receivedWrapper
-                  }>
-                  {!isSentByMe && (
-                    <Image source={{uri: img}} style={styles.avatar} />
-                  )}
-
+                <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
+                  {!isSentByMe && <Image source={{uri: img}} style={styles.avatar} />}
                   <TouchableOpacity
                     onPress={() => {
                       if (isSelfDestruct && item.isLockedBy?.[myId]) {
@@ -1463,98 +1621,72 @@ await chatDeletedRef.remove();
                     }}
                     onLongPress={() => handleLongPress(item)}
                     style={[
-                      isSentByMe
-                        ? styles.sentContainer
-                        : styles.receivedContainer,
+                      isSentByMe ? styles.sentContainer : styles.receivedContainer,
                       isSelfDestruct && styles.selfDestructMessage,
                     ]}>
-                    {!isSentByMe && (
-                      <Text style={styles.usernameText}>{username}</Text>
-                    )}
-
+                    {!isSentByMe && <Text style={styles.usernameText}>{username}</Text>}
                     {isSelfDestruct && item.isLockedBy?.[myId] ? (
-                      <Text style={styles.lockedMessage}>
-                        🔒 Nhấn để mở khóa
-                      </Text>
+                      <Text style={styles.lockedMessage}>🔒 Nhấn để mở khóa</Text>
                     ) : (
                       <>
-                        {/* Nếu tin nhắn là ảnh */}
-                        {item.imageUrl ? (
-                          // ảnh
-                          <TouchableOpacity
-                          onPress={() => {
-                            if (isSelfDestruct && item.isLockedBy?.[myId]) {
-                              // 🔒 Nếu ảnh đang bị khóa, mở khóa và bắt đầu đếm ngược
-                              handleUnlockAndStartTimer(
-                                item.id,
-                                item.imageUrl,
-                                item.selfDestructTime,
-                              );
-                            } else {
-                              // 🔥 Nếu ảnh đã mở khóa hoặc không phải ảnh tự hủy, mở ảnh full screen
-                              setSelectedImage(item.imageUrl);
-                              setIsImageModalVisible(true);
-                            }
-                          }}>
-                          <View style={styles.imageWrapper}>
-                            {item.isLoading || !item.imageUrl ? (
-                              // 🌀 Hiển thị loading khi ảnh chưa tải xong
-                              <ActivityIndicator
-                                size="large"
-                                color="blue"
-                                style={styles.loadingIndicator}
-                              />
+                        {/* Nếu tin nhắn là video */}
+                        {item.videoUrl ? (
+                          <View style={styles.videoWrapper}>
+                            {item.isLoading ? (
+                              <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
                             ) : (
-                              // 🖼️ Hiển thị ảnh bình thường
-                              <Image
-                                source={{uri: item.imageUrl}}
-                                style={styles.imageMessage}
+                              <Video
+                                source={{ uri: item.videoUrl }}
+                                style={{ width: 300, height: 200, backgroundColor: 'black' }}
+                                controls
+                                resizeMode="cover"
+                                onError={e => console.log('🔥 Video error:', e)}
+                                onLoad={() => console.log('✅ Video loaded:', item.videoUrl)}
                               />
                             )}
-                          </View>
-                            
-                            {/* Hiển thị thời gian tự hủy nếu đã mở khóa */}
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
-                              <Text style={styles.selfDestructTimer}>
-                                🕒 {timeLefts[item.id]}s
-                              </Text>
+                              <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
+                            )}
+                          </View>
+                        ) : item.imageUrl ? (
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (isSelfDestruct && item.isLockedBy?.[myId]) {
+                                handleUnlockAndStartTimer(item.id, item.imageUrl, item.selfDestructTime);
+                              } else {
+                                setSelectedImage(item.imageUrl);
+                                setIsImageModalVisible(true);
+                              }
+                            }}>
+                            <View style={styles.imageWrapper}>
+                              {item.isLoading || !item.imageUrl ? (
+                                <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
+                              ) : (
+                                <Image source={{uri: item.imageUrl}} style={styles.imageMessage} />
+                              )}
+                            </View>
+                            {isSelfDestruct && timeLefts[item.id] > 0 && (
+                              <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
                             )}
                           </TouchableOpacity>
                         ) : isGoogleMapsLink(item.text) ? (
-                          // nếu là link vị trí Google onPress={() => handlePressLocation(item.text)}
                           <View style={{alignItems: 'center'}}>
-                            {/* Mini Map */}
                             <MapView
-                              style={{
-                                width: 200,
-                                height: 120,
-                                borderRadius: 10,
-                              }}
+                              style={{ width: 200, height: 120, borderRadius: 10 }}
                               initialRegion={{
-                                latitude: parseFloat(
-                                  item.text.split('q=')[1].split(',')[0],
-                                ),
-                                longitude: parseFloat(
-                                  item.text.split('q=')[1].split(',')[1],
-                                ),
+                                latitude: parseFloat(item.text.split('q=')[1].split(',')[0]),
+                                longitude: parseFloat(item.text.split('q=')[1].split(',')[1]),
                                 latitudeDelta: 0.01,
                                 longitudeDelta: 0.01,
                               }}
-                              pointerEvents="none" // chặn tương tác map mini
-                            >
+                              pointerEvents="none">
                               <Marker
                                 coordinate={{
-                                  latitude: parseFloat(
-                                    item.text.split('q=')[1].split(',')[0],
-                                  ),
-                                  longitude: parseFloat(
-                                    item.text.split('q=')[1].split(',')[1],
-                                  ),
+                                  latitude: parseFloat(item.text.split('q=')[1].split(',')[0]),
+                                  longitude: parseFloat(item.text.split('q=')[1].split(',')[1]),
                                 }}
                               />
                             </MapView>
-
-                            {/* Nút mở Google Maps */}
                             <TouchableOpacity
                               style={{
                                 marginTop: 5,
@@ -1564,45 +1696,37 @@ await chatDeletedRef.remove();
                                 borderRadius: 8,
                               }}
                               onPress={() => handlePressLocation(item.text)}>
-                              <Text style={{color: '#fff'}}>
-                                Mở Google Maps
-                              </Text>
+                              <Text style={{color: '#fff'}}>Mở Google Maps</Text>
                             </TouchableOpacity>
+                            {/* Thêm countdown cho bản đồ */}
+                            {isSelfDestruct && timeLefts[item.id] > 0 && (
+                              <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
+                            )}
                           </View>
-                        ) : (
+                        ) : item.text ? ( // Chỉ hiển thị text nếu không có videoUrl hoặc imageUrl
                           <>
-                            {/* Hiển thị nội dung tin nhắn */}
                             <Text
                               style={
-                                isSentByMe
-                                  ? styles.SendmessageText
-                                  : styles.ReceivedmessageText
+                                isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText
                               }>
                               {item.text}
                             </Text>
-
-                            {/* Hiển thị thời gian tự hủy nếu đã mở khóa */}
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
-                              <Text style={styles.selfDestructTimer}>
-                                🕒 {timeLefts[item.id]}s
-                              </Text>
+                              <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
                             )}
                           </>
-                        )}
+                        ) : null}
+                        <Text
+                          style={
+                            isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp
+                          }>
+                          {new Date(item.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </Text>
                       </>
                     )}
-
-                    <Text
-                      style={
-                        isSentByMe
-                          ? styles.Sendtimestamp
-                          : styles.Revecivedtimestamp
-                      }>
-                      {new Date(item.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1620,9 +1744,8 @@ await chatDeletedRef.remove();
 
         {isTyping && <Text style={styles.typingText}>Đang nhập...</Text>}
         <View style={styles.inputContainer}>
-          
-{/*chon anh */}
-          <TouchableOpacity onPress={pickImage} style={styles.imageButton}>
+          {/*chon anh */}
+          <TouchableOpacity onPress={pickMedia} style={styles.imageButton}>
             <Ionicons name="image" size={24} color="#007bff" />
           </TouchableOpacity>
 

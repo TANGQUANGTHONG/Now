@@ -7,7 +7,6 @@ import Boarding from '../Screens/auth/Boarding';
 import SignUp from '../Screens/auth/SignUp';
 import ForgotPassword from '../Screens/auth/ForgotPassword';
 import DashBoard from '../Screens/auth/DashBoard';
-import Home from '../Screens/home/Home';
 import HomeNavigation from './HomeNavigation';
 const UserNavigation = () => {
   return (

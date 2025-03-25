@@ -11,10 +11,10 @@ const AppNavigation = () => {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
   const [isEmailVerified, setIsEmailVerified] = useState(null);
+  const [isCompleteNickname, setIsCompleteNickname] = useState(null); // Thêm state mới
   const [isSplashVisible, setSplashVisible] = useState(true);
-  const [previousUserId, setPreviousUserId] = useState(null); // Lưu userId của tài khoản trước đó
+  const [previousUserId, setPreviousUserId] = useState(null);
 
-  // Hàm cập nhật trạng thái online/offline
   const updateUserStatus = async (userId, isOnline) => {
     if (!userId) return;
     try {
@@ -30,7 +30,6 @@ const AppNavigation = () => {
     }
   };
 
-  // Xử lý khi app chuyển trạng thái (foreground/background/terminated)
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
       if (user) {
@@ -43,10 +42,7 @@ const AppNavigation = () => {
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, [user]);
 
   useEffect(() => {
@@ -58,35 +54,51 @@ const AppNavigation = () => {
 
   useEffect(() => {
     const subscriber = auth().onAuthStateChanged(async (user) => {
+      console.log('Auth state changed:', user ? `User logged in: ${user.email}` : 'No user logged in');
       if (user) {
-        console.log('User đăng nhập:', user.email);
-        // Nếu có tài khoản trước đó, đặt trạng thái offline cho tài khoản đó
         if (previousUserId && previousUserId !== user.uid) {
           await updateUserStatus(previousUserId, false);
         }
-        // Đặt trạng thái online cho tài khoản hiện tại
         await updateUserStatus(user.uid, true);
         await checkEmailVerification(user);
-        setPreviousUserId(user.uid); // Cập nhật userId của tài khoản hiện tại
+        await checkNicknameStatus(user.uid); // Kiểm tra isCompleteNickname
+        setPreviousUserId(user.uid);
       } else {
-        console.log('Không có user đăng nhập');
-        // Khi đăng xuất, đặt trạng thái offline cho tài khoản trước đó
         if (previousUserId) {
           await updateUserStatus(previousUserId, false);
         }
-        setPreviousUserId(null); // Xóa userId của tài khoản trước đó
+        setPreviousUserId(null);
         setIsEmailVerified(null);
+        setIsCompleteNickname(null); // Reset state
       }
       setUser(user);
       setInitializing(false);
     });
 
     return subscriber;
-  }, [previousUserId]); // Thêm previousUserId vào dependency để đảm bảo logic chạy lại khi userId thay đổi
+  }, [previousUserId]);
 
   const checkEmailVerification = async (user) => {
     await user.reload();
     setIsEmailVerified(user.emailVerified);
+    console.log('Email verified:', user.emailVerified);
+  };
+
+  const checkNicknameStatus = async (userId) => {
+    try {
+      const userRef = database().ref(`/users/${userId}`);
+      const snapshot = await userRef.once('value');
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        setIsCompleteNickname(userData.isCompleteNickname || false);
+        console.log('isCompleteNickname:', userData.isCompleteNickname || false);
+      } else {
+        setIsCompleteNickname(false);
+      }
+    } catch (error) {
+      console.error('Error checking nickname status:', error);
+      setIsCompleteNickname(false);
+    }
   };
 
   if (initializing) return null;
@@ -95,14 +107,13 @@ const AppNavigation = () => {
     return <Splash />;
   }
 
+
   return (
     <>
-      {!user ? (
-        <UserNavigation />
+      {!user || isCompleteNickname === false ? (
+        <UserNavigation /> // Nếu chưa có nickname, giữ ở UserNavigation
       ) : isEmailVerified === false ? (
-        <DashBoard
-          checkEmailVerification={() => checkEmailVerification(user)}
-        />
+        <DashBoard checkEmailVerification={() => checkEmailVerification(user)} />
       ) : (
         <HomeNavigation />
       )}

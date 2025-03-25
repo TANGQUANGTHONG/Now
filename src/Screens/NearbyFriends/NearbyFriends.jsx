@@ -49,28 +49,51 @@ const NearbyFriendsMap = ({route}) => {
     }
   };
 
-  const getLocation = async () => {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) return;
+const getLocation = async () => {
+  const hasPermission = await requestLocationPermission();
+  if (!hasPermission) return;
 
-    Geolocation.getCurrentPosition(
-      position => {
-        const {latitude, longitude} = position.coords;
-        setLocation({latitude, longitude});
-
-        if (userId) {
-          database()
-            .ref(`/users/${userId}`)
-            .update({latitude, longitude})
-            .then(() => console.log('✅ Đã cập nhật vị trí lên Firebase'))
-            .catch(err => console.log('❌ Lỗi khi cập nhật vị trí:', err));
-        }
-      },
-      error => console.log('❌ Lỗi khi lấy vị trí:', error),
-      {enableHighAccuracy: true, timeout: 10000, maximumAge: 10000},
-    );
+  const tryGetLocation = (highAccuracy, timeout) => {
+    return new Promise((resolve, reject) => {
+      Geolocation.getCurrentPosition(
+        position => resolve(position),
+        error => reject(error),
+        {enableHighAccuracy: highAccuracy, timeout: timeout, maximumAge: 10000},
+      );
+    });
   };
+  try {
+    // Thử lại với Wi-Fi/mạng di động
+    const position = await tryGetLocation(false, 15000);
+    const {latitude, longitude} = position.coords;
+    setLocation({latitude, longitude});
+    updateFirebase(latitude, longitude);
+  } catch (fallbackError) {
+    console.log('❌ Lỗi khi lấy vị trí bằng Wi-Fi/mạng di động:', fallbackError);
+    alert('Không thể lấy vị trí. Vui lòng kiểm tra kết nối hoặc ra ngoài để tín hiệu tốt hơn.');
+  }
+  try {
+    // Thử với GPS trước
+    const position = await tryGetLocation(true, 15000);
+    const {latitude, longitude} = position.coords;
+    setLocation({latitude, longitude});
+    updateFirebase(latitude, longitude);
+  } catch (error) {
+    console.log('❌ Lỗi khi lấy vị trí bằng GPS:', error);
+   
+  }
+};
 
+const updateFirebase = (latitude, longitude) => {
+  if (userId) {
+    database()
+      .ref(`/users/${userId}`)
+      .update({latitude, longitude})
+      .then(() => console.log('✅ Đã cập nhật vị trí lên Firebase'))
+      .catch(err => console.log('❌ Lỗi khi cập nhật vị trí:', err));
+  }
+};
+  
   const fetchUsers = async () => {
     setIsLoading(true);
 
