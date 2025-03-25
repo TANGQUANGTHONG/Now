@@ -51,6 +51,8 @@ import styles from '../../Styles/Chat/SingleS';
 import ChatLimitModal from '../../components/items/ChatLimitModal';
 import Video from 'react-native-video';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player'; // Thêm import
+
+
 const {width, height} = Dimensions.get('window');
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
@@ -119,6 +121,8 @@ const Single = () => {
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
+
+  const [audioStates, setAudioStates] = useState({}); // Lưu trạng thái âm thanh cho từng tin nhắn
 
 
   const requestAudioPermission = async () => {
@@ -1872,7 +1876,7 @@ if (!snapshot.exists()) return;
                     onPress={() => {
                       if (item.audioUrl) {
                         if (!isSelfDestruct || !item.isLockedBy?.[myId]) {
-                          toggleAudio(item.id, item.audioUrl); // Gọi hàm toggleAudio thay vì playAudio
+                          toggleAudio(item.id, item.audioUrl);
                         } else {
                           handleUnlockMessage(item.id, item.selfDestructTime);
                         }
@@ -1991,21 +1995,24 @@ if (!snapshot.exists()) return;
                             )}
                           </>
                         ) : null}
-                        <Text
-                          style={
-                            isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp
-                          }>
-                          {new Date(item.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
+                        {/* Chỉ hiển thị timestamp nếu không phải tin nhắn tự động xóa */}
+                        {!isSelfDestruct && (
+                          <Text
+                            style={
+                              isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp
+                            }>
+                            {new Date(item.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </Text>
+                        )}
                       </>
                     )}
                   </TouchableOpacity>
                 </View>
               </View>
-            );
+            );/////
           }}
           inverted
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
