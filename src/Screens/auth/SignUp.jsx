@@ -55,7 +55,7 @@ const SignUp = ({ navigation }) => {
   
       const userRef = database().ref(`/users/${userId}`);
       const snapshot = await userRef.once('value');
-  
+      
       if (!snapshot.exists()) {
         await userRef.set({
           name: encryptMessage(name),
