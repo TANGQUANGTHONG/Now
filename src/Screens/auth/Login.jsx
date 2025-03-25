@@ -12,7 +12,6 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
 import { saveCurrentUserAsyncStorage, saveChatsAsyncStorage } from '../../storage/Storage';
-import LoadingModal from '../../loading/LoadingModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,12 +20,8 @@ const Login = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [nickname, setNickname] = useState('');
   const [errors, setErrors] = useState({}); // Thêm state để quản lý lỗi
-  
-  GoogleSignin.configure({
-    webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
-  });
+
 
   useEffect(() => {
     const user = auth().currentUser;
@@ -67,60 +62,6 @@ const Login = ({ navigation }) => {
     }
   };
 
-async function signInWithGoogle() {
-  try {
-    setIsLoading(true);
-    await GoogleSignin.signOut();
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const signInResult = await GoogleSignin.signIn();
-    const idToken = signInResult.idToken || signInResult.data?.idToken;
-
-    if (!idToken) {
-      throw new Error('No ID token found');
-    }
-
-    const name = signInResult.data.user.name;
-    const avatar = signInResult.data.user.photo;
-    const gmail = signInResult.data.user.email;
-
-    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-    const userCredential = await auth().signInWithCredential(googleCredential);
-    const userId = userCredential.user.uid;
-
-    const userRef = database().ref(`/users/${userId}`);
-    const snapshot = await userRef.once('value');
-
-    if (!snapshot.exists()) {
-      await userRef.set({
-        name: encryptMessage(name),
-        email: encryptMessage(gmail),
-        Image: encryptMessage(avatar),
-        nickname: encryptMessage(nickname),
-        createdAt: database.ServerValue.TIMESTAMP,
-      });
-      await saveCurrentUserAsyncStorage();
-      await saveChatsAsyncStorage();
-      console.log('Thông tin người dùng đã đc lưu');
-    } else {
-      console.log('Đăng nhập thành công');
-      await saveCurrentUserAsyncStorage();
-      await saveChatsAsyncStorage();
-    }
-
-    // Kiểm tra trạng thái đăng nhập
-    const currentUser = auth().currentUser;
-    if (currentUser) {
-      console.log('User is signed in after Google Sign-in:', currentUser.email);
-      navigation.navigate('TabHome');
-    } else {
-      console.log('No user is signed in after Google Sign-in');
-    }
-  } catch (error) {
-    console.log('Google Sign-In Error:', error);
-  } finally {
-    setIsLoading(false);
-  }
-}
 
   const onForgotPassword = () => navigation.navigate('ForgotPassword');
   const isValidEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -169,13 +110,9 @@ async function signInWithGoogle() {
             </LinearGradient>
           </MaskedView>
 
-          <Text style={styles.subtitle}>Welcome back! Sign in using your social account or email to continue us</Text>
+          <Text style={styles.subtitle}>Welcome back! Sign in using your email to continue us</Text>
 
-          <View style={styles.socialContainer}>
-            <TouchableOpacity style={styles.socialButton} onPress={signInWithGoogle}>
-              <Image source={require('../auth/assets/icon/google.png')} style={styles.socialIcon} />
-            </TouchableOpacity>
-          </View>
+
 
           <View style={styles.inputContainer}>
             <TextInput

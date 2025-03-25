@@ -47,12 +47,13 @@ import {Animated} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import Clipboard from '@react-native-clipboard/clipboard';
 import RNFS from 'react-native-fs';
+import styles from '../../Styles/Chat/SingleS';
 import ChatLimitModal from '../../components/items/ChatLimitModal';
 import Video from 'react-native-video';
+import AudioRecorderPlayer from 'react-native-audio-recorder-player'; // Thêm import
 const {width, height} = Dimensions.get('window');
 
 globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
-
 const Single = () => {
   const route = useRoute();
   const {
@@ -86,7 +87,7 @@ const Single = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   // const fadeAnim = useRef(new Animated.Value(0)).current;
   const [lastActive, setLastActive] = useState(null);
-  const [isOnline, setIsOnline] = useState(false); // Trạng thái online/offline của người dùng
+
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSending, setIsSending] = useState(false);
@@ -98,7 +99,13 @@ const Single = () => {
   const [loadingImageUrl, setLoadingImageUrl] = useState(null);
   const [loadingVideoUrl, setLoadingVideoUrl] = useState(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false); // Quản lý hiển thị menu
-
+  const [showNotification, setShowNotification] = useState(false);
+  const [isOnline, setIsOnline] = useState(false)
+  const [playingAudioId, setPlayingAudioId] = useState(null); // Theo dõi tin nhắn nào đang phát
+  const [isRecording, setIsRecording] = useState(false); // Trạng thái đang ghi âm
+  const [audioPath, setAudioPath] = useState(''); // Đường dẫn tệp âm thanh
+  const audioRecorderPlayer = useRef(new AudioRecorderPlayer()).current;
+  const [audioStates, setAudioStates] = useState({}); // Lưu trạng thái âm thanh cho từng tin nhắn
 
   const {RNMediaScanner} = NativeModules;
 
@@ -113,6 +120,271 @@ const Single = () => {
     {label: '5 phút', value: 300},
     {label: 'Tắt tự hủy', value: null},
   ];
+
+  
+
+
+  const requestAudioPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Quyền truy cập microphone',
+            message: 'Ứng dụng cần quyền để ghi âm tin nhắn thoại.',
+            buttonPositive: 'Cho phép',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.error('❌ Lỗi khi xin quyền:', err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const startRecording = async () => {
+    const hasPermission = await requestAudioPermission();
+    if (!hasPermission) {
+      Alert.alert('Lỗi', 'Bạn cần cấp quyền microphone để ghi âm.');
+      return;
+    }
+
+    if (isRecording) {
+      console.log('🎙 Đã ghi âm rồi, bỏ qua...');
+      return;
+    }
+
+    const path = `${RNFS.DocumentDirectoryPath}/voice_${Date.now()}.mp4`;
+    try {
+      await audioRecorderPlayer.startRecorder(path);
+      setIsRecording(true);
+      setAudioPath(path);
+      console.log('🎙 Bắt đầu ghi âm:', path);
+    } catch (error) {
+      console.error('❌ Lỗi khi bắt đầu ghi âm:', error);
+    }
+  };
+
+  const stopRecordingAndSend = async () => {
+    if (!isRecording) {
+      console.log('🎙 Chưa ghi âm, không thể dừng.');
+      return;
+    }
+
+    try {
+      const result = await audioRecorderPlayer.stopRecorder();
+      setIsRecording(false);
+      console.log('🎙 Đã dừng ghi âm:', result);
+      if (audioPath) {
+        await uploadAudioToCloudinary(audioPath);
+      } else {
+        console.error('❌ Không có đường dẫn âm thanh để tải lên');
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi dừng ghi âm:', error);
+    }
+  };
+
+  const uploadAudioToCloudinary = async (audioUri) => {
+    if (!audioUri || isSending) {
+      console.log('❌ Không có audioUri hoặc đang gửi');
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      const fileExists = await RNFS.exists(audioUri);
+      if (!fileExists) {
+        throw new Error('Tệp âm thanh không tồn tại');
+      }
+
+      const tempMessageId = `temp-${Date.now()}`;
+      setMessages(prev => [
+        ...prev,
+        { id: tempMessageId, senderId: myId, audioUrl: audioUri, timestamp: Date.now(), isLoading: true },
+      ]);
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: Platform.OS === 'android' ? `file://${audioUri}` : audioUri,
+        type: 'audio/mp4',
+        name: `voice_${Date.now()}.mp4`,
+      });
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+
+      console.log('📤 Đang tải lên Cloudinary:', audioUri);
+
+      const response = await fetch(CLOUDINARY_URL, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const data = await response.json();
+      if (!data.secure_url) {
+        throw new Error(`Lỗi Cloudinary: ${data.error?.message || 'Không rõ nguyên nhân'}`);
+      }
+
+      console.log('✅ Tải lên thành công:', data.secure_url);
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempMessageId ? { ...msg, audioUrl: data.secure_url, isLoading: false } : msg
+        )
+      );
+      await sendAudioMessage(data.secure_url, tempMessageId);
+    } catch (error) {
+      console.error('❌ Lỗi khi tải âm thanh:', error);
+      Alert.alert('Lỗi', 'Không thể gửi tin nhắn thoại.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Hàm gửi tin nhắn âm thanh lên Firebase
+  const sendAudioMessage = async (audioUrl, tempMessageId) => {
+    if (!audioUrl || isSending) return;
+
+    try {
+      const chatRef = database().ref(`/chats/${chatId}/messages`).push();
+      const timestamp = Date.now();
+
+      const messageData = {
+        senderId: myId,
+        audioUrl: audioUrl,
+        text: encryptMessage('🎙 Tin nhắn thoại', secretKey),
+        timestamp: timestamp,
+        seen: { [myId]: true, [userId]: false },
+        selfDestruct: isSelfDestruct,
+        selfDestructTime: isSelfDestruct ? selfDestructTime : null,
+        isLockedBy: isSelfDestruct ? { [myId]: true, [userId]: true } : {},
+      };
+
+      await chatRef.set(messageData);
+      console.log('✅ Tin nhắn thoại đã gửi:', audioUrl);
+
+      const userRef = database().ref(`/users/${myId}`);
+      const snapshot = await userRef.once('value');
+      let { countChat: currentCount = 100 } = snapshot.val();
+      if (currentCount === 0) {
+        setShowNotification(true);
+        return;
+      }
+      await userRef.update({ countChat: currentCount - 1 });
+      setcountChat(currentCount - 1);
+    } catch (error) {
+      console.error('❌ Lỗi khi gửi tin nhắn thoại:', error);
+      Alert.alert('Lỗi', 'Không thể lưu tin nhắn thoại vào Firebase.');
+    }
+  };
+
+  const playAudio = async (audioUrl) => {
+    try {
+      await audioRecorderPlayer.startPlayer(audioUrl);
+      audioRecorderPlayer.addPlayBackListener((e) => {
+        if (e.currentPosition === e.duration) {
+          audioRecorderPlayer.stopPlayer();
+        }
+      });
+    } catch (error) {
+      console.error('❌ Lỗi khi phát âm thanh:', error);
+    }
+  };
+
+  const toggleAudio = async (messageId, audioUrl) => {
+    const currentState = audioStates[messageId] || { isPlaying: false, duration: 0, currentTime: 0 };
+  
+    try {
+      if (currentState.isPlaying) {
+        await audioRecorderPlayer.pausePlayer();
+        setAudioStates(prev => ({
+          ...prev,
+          [messageId]: { ...prev[messageId], isPlaying: false },
+        }));
+        setPlayingAudioId(null);
+        console.log('⏸ Tạm dừng âm thanh:', audioUrl);
+      } else {
+        if (playingAudioId && playingAudioId !== messageId) {
+          await audioRecorderPlayer.stopPlayer();
+          setAudioStates(prev => ({
+            ...prev,
+            [playingAudioId]: { ...prev[playingAudioId], isPlaying: false, currentTime: 0 },
+          }));
+        }
+  
+        await audioRecorderPlayer.startPlayer(audioUrl);
+        setPlayingAudioId(messageId);
+  
+        audioRecorderPlayer.addPlayBackListener((e) => {
+          const duration = e.duration / 1000;
+          const currentTime = e.currentPosition / 1000;
+  
+          setAudioStates(prev => ({
+            ...prev,
+            [messageId]: {
+              isPlaying: true,
+              duration: duration || prev[messageId]?.duration || 0,
+              currentTime,
+            },
+          }));
+  
+          if (currentTime >= duration) {
+            audioRecorderPlayer.stopPlayer();
+            setAudioStates(prev => ({
+              ...prev,
+              [messageId]: { ...prev[messageId], isPlaying: false, currentTime: 0 },
+            }));
+            setPlayingAudioId(null);
+            console.log('🏁 Âm thanh kết thúc:', audioUrl);
+          }
+        });
+  
+        console.log('▶️ Phát âm thanh:', audioUrl);
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi xử lý âm thanh:', error);
+      setPlayingAudioId(null);
+      setAudioStates(prev => ({
+        ...prev,
+        [messageId]: { ...prev[messageId], isPlaying: false },
+      }));
+    }
+  };
+  
+  // Cleanup khi component unmount
+  useEffect(() => {
+    return () => {
+      audioRecorderPlayer.stopPlayer();
+      audioRecorderPlayer.removePlayBackListener();
+    };
+  }, []);
+
+  const getAudioDuration = async (audioUrl, messageId) => {
+    try {
+      await audioRecorderPlayer.startPlayer(audioUrl);
+      audioRecorderPlayer.addPlayBackListener((e) => {
+        const duration = e.duration / 1000; // Chuyển từ ms sang giây
+        setAudioStates(prev => ({
+          ...prev,
+          [messageId]: {
+            ...prev[messageId],
+            duration: duration || prev[messageId]?.duration || 0,
+            isPlaying: false,
+            currentTime: 0,
+          },
+        }));
+        audioRecorderPlayer.stopPlayer(); // Dừng ngay lập tức sau khi lấy duration
+      });
+      console.log(`⏱ Lấy duration cho ${messageId}: ${audioUrl}`);
+    } catch (error) {
+      console.error('❌ Lỗi khi lấy duration:', error);
+      return 0;
+    }
+  };
 
   //xóa tin nhắn ở local
   const deleteMessageLocally = async messageId => {
@@ -429,39 +701,40 @@ setMessages(updatedMessages.filter(msg => !msg.deletedBy?.[myId]));
   LogBox.ignoreAllLogs();
   console.warn = () => {};
 
-  //hiển thị trạng thái hoạt động của người dùng
-  useEffect(() => {
-    const userRef = database().ref(`/users/${userId}`);
+//hiển thị trạng thái hoạt động của người dùng
+useEffect(() => {
+  const userRef = database().ref(`/users/${userId}`);
 
-    const onUserStatusChange = (snapshot) => {
-      if (snapshot.exists()) {
-        const userData = snapshot.val();
-        setIsOnline(userData.isOnline || false); // Lấy trạng thái isOnline
-        setLastActive(userData.lastActive || null); // Vẫn giữ lastActive để hiển thị thời gian offline
-      }
-    };
-
-    userRef.on('value', onUserStatusChange);
-
-    return () => userRef.off('value', onUserStatusChange);
-  }, [userId]);
-
-  // Hàm hiển thị trạng thái
-  const getStatusText = () => {
-    if (isOnline) {
-      return 'Đang hoạt động';
-    } else if (lastActive) {
-      const now = Date.now();
-      const diff = now - lastActive;
-
-      if (diff < 60000) return 'Vừa mới truy cập';
-      if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
-      if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
-      return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+  const onUserStatusChange = (snapshot) => {
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      setIsOnline(userData.isOnline || false); // Lấy trạng thái isOnline
+      setLastActive(userData.lastActive || null); // Vẫn giữ lastActive để hiển thị thời gian offline
     }
-    return '';
   };
-  
+
+  userRef.on('value', onUserStatusChange);
+
+  return () => userRef.off('value', onUserStatusChange);
+}, [userId]);
+
+// Hàm hiển thị trạng thái
+const getStatusText = () => {
+  if (isOnline) {
+    return 'Đang hoạt động';
+  } else if (lastActive) {
+    const now = Date.now();
+    const diff = now - lastActive;
+
+    if (diff < 60000) return 'Vừa mới truy cập';
+    if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+    if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+  }
+  return '';
+};
+
+
   // lấy dữ liệu từ firebase về để show lên
   useEffect(() => {
     const typingRef = database().ref(`/chats/${chatId}/typing`);
@@ -514,6 +787,7 @@ if (!snapshot.exists()) return;
             id,
             senderId: data.senderId,
             text: data.text ? decryptMessage(data.text, secretKey) : null, // Chỉ xử lý text nếu có
+            audioUrl: data.audioUrl || null, 
             imageUrl: data.imageUrl || null,
             videoUrl: data.videoUrl || null,
             timestamp: data.timestamp,
@@ -527,7 +801,12 @@ if (!snapshot.exists()) return;
           .filter(msg => !(msg.deletedBy && msg.deletedBy[myId]) || !msg.id)
           .sort((a, b) => a.timestamp - b.timestamp);
 
-        console.log('📩 Tin nhắn mới từ Firebase:', newMessages);
+          // Lấy duration cho các tin nhắn có audioUrl
+      for (const msg of newMessages) {
+        if (msg.audioUrl && !audioStates[msg.id]?.duration) {
+          await getAudioDuration(msg.audioUrl, msg.id);
+        }
+      }
 
         // 🛑 Lọc các tin nhắn bị xóa (chỉ sau khi cập nhật AsyncStorage)
         const messagesToDelete = newMessages.filter(
@@ -579,23 +858,42 @@ if (!snapshot.exists()) return;
   // Lắng nghe sự kiện khi người dùng đang nhập tin nhắn
   useEffect(() => {
     if (!myId) return;
-  
+
     const userRef = database().ref(`/users/${myId}/countChat`);
     const fetchUserData = async () => {
       const snapshot = await userRef.once('value');
       if (snapshot.exists()) {
         setcountChat(snapshot.val());
-      } else {
-        // Nếu countChat không tồn tại, gán mặc định là 100 và lưu vào Firebase
-        await database().ref(`/users/${myId}`).update({ countChat: 100 });
-        setcountChat(100);
       }
     };
-  
+
     fetchUserData();
-  
+
     return () => userRef.off();
-  }, [myId, database]);
+  }, [myId, database]); //  Thêm dependency
+
+  // Lắng nghe sự thay đổi của countChat trên Firebase
+  useEffect(() => {
+    const userRef = database().ref(`/users/${myId}/countChat`);
+
+    const onCountChatChange = snapshot => {
+      if (snapshot.exists()) {
+        const newCountChat = snapshot.val();
+        setcountChat(newCountChat);
+
+        // Hiển thị thông báo khi hết lượt chat
+        if (newCountChat === 0) {
+          setShowNotification(true);
+        }
+      }
+    };
+
+    // Lắng nghe thay đổi của countChat
+    userRef.on('value', onCountChatChange);
+
+    // Cleanup để ngừng lắng nghe khi component unmount
+    return () => userRef.off('value', onCountChatChange);
+  }, [myId]);
 
   const formatCountdown = seconds => {
     const hours = Math.floor(seconds / 3600);
@@ -663,9 +961,10 @@ if (!snapshot.exists()) return;
         // Gửi tin nhắn lên Firebase
         await messageRef.set(messageData);
 
-        const chatDeletedRef = database().ref(`/chats/${chatId}/deletedBy/${myId}`);
-await chatDeletedRef.remove();
-
+        const chatDeletedRef = database().ref(
+          `/chats/${chatId}/deletedBy/${myId}`,
+        );
+        await chatDeletedRef.remove();
 
      // Cập nhật UI
     setMessages(prev => [
@@ -1547,6 +1846,11 @@ await chatDeletedRef.remove();
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
+        <ChatLimitModal
+          visible={showNotification}
+          onClose={() => setShowNotification(false)}
+          timeReset={formatCountdown(resetCountdown)}
+        />
         <View>
           <View style={styles.header}>
             <TouchableOpacity
@@ -1591,7 +1895,8 @@ await chatDeletedRef.remove();
           onEndReached={() => setShouldAutoScroll(true)}
           keyExtractor={item => item.id}
           renderItem={({item}) => {
-            // console.log('📋 Dữ liệu item:', item); // Log dữ liệu của mỗi tin nhắn
+            // console.log('📋 Dữ liệu tin nhắn:', item);
+            const isPlaying = playingAudioId === item.id; // Kiểm tra tin nhắn này có đang phát không
             const isSentByMe = item.senderId === myId;
             const isSelfDestruct = item.selfDestruct;
             // console.log('Video URL:', item.videoUrl);
@@ -1610,12 +1915,18 @@ await chatDeletedRef.remove();
             };
 
             return (
-              <View style={{flexDirection: 'column'}}>
+              <View style={{ flexDirection: 'column' }}>
                 <View style={isSentByMe ? styles.sentWrapper : styles.receivedWrapper}>
-                  {!isSentByMe && <Image source={{uri: img}} style={styles.avatar} />}
+                  {!isSentByMe && <Image source={{ uri: img }} style={styles.avatar} />}
                   <TouchableOpacity
                     onPress={() => {
-                      if (isSelfDestruct && item.isLockedBy?.[myId]) {
+                      if (item.audioUrl) {
+                        if (!isSelfDestruct || !item.isLockedBy?.[myId]) {
+                          toggleAudio(item.id, item.audioUrl);
+                        } else {
+                          handleUnlockMessage(item.id, item.selfDestructTime);
+                        }
+                      } else if (isSelfDestruct && item.isLockedBy?.[myId]) {
                         handleUnlockMessage(item.id, item.selfDestructTime);
                       }
                     }}
@@ -1629,8 +1940,33 @@ await chatDeletedRef.remove();
                       <Text style={styles.lockedMessage}>🔒 Nhấn để mở khóa</Text>
                     ) : (
                       <>
-                        {/* Nếu tin nhắn là video */}
-                        {item.videoUrl ? (
+                        {/* Nếu tin nhắn là âm thanh */}
+                        {item.audioUrl ? (
+  <View style={styles.audioWrapper}>
+    {item.isLoading ? (
+      <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
+    ) : (
+      <>
+        <TouchableOpacity
+          onPress={() => toggleAudio(item.id, item.audioUrl)}
+          style={styles.playButton}>
+          <Ionicons
+            name={audioStates[item.id]?.isPlaying ? "pause-circle" : "play-circle"}
+            size={40}
+            color="#007bff"
+          />
+        </TouchableOpacity>
+        <Text style={styles.audioTimer}>
+          {Math.floor(audioStates[item.id]?.currentTime || 0)}s /{' '}
+          {Math.floor(audioStates[item.id]?.duration || 0)}s
+        </Text>
+      </>
+    )}
+    {isSelfDestruct && timeLefts[item.id] > 0 && (
+      <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
+    )}
+  </View>
+) : item.videoUrl ? (
                           <View style={styles.videoWrapper}>
                             {item.isLoading ? (
                               <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
@@ -1662,7 +1998,7 @@ await chatDeletedRef.remove();
                               {item.isLoading || !item.imageUrl ? (
                                 <ActivityIndicator size="large" color="blue" style={styles.loadingIndicator} />
                               ) : (
-                                <Image source={{uri: item.imageUrl}} style={styles.imageMessage} />
+                                <Image source={{ uri: item.imageUrl }} style={styles.imageMessage} />
                               )}
                             </View>
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
@@ -1670,7 +2006,7 @@ await chatDeletedRef.remove();
                             )}
                           </TouchableOpacity>
                         ) : isGoogleMapsLink(item.text) ? (
-                          <View style={{alignItems: 'center'}}>
+                          <View style={{ alignItems: 'center' }}>
                             <MapView
                               style={{ width: 200, height: 120, borderRadius: 10 }}
                               initialRegion={{
@@ -1696,14 +2032,13 @@ await chatDeletedRef.remove();
                                 borderRadius: 8,
                               }}
                               onPress={() => handlePressLocation(item.text)}>
-                              <Text style={{color: '#fff'}}>Mở Google Maps</Text>
+                              <Text style={{ color: '#fff' }}>Mở Google Maps</Text>
                             </TouchableOpacity>
-                            {/* Thêm countdown cho bản đồ */}
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
                               <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
                             )}
                           </View>
-                        ) : item.text ? ( // Chỉ hiển thị text nếu không có videoUrl hoặc imageUrl
+                        ) : item.text ? (
                           <>
                             <Text
                               style={
@@ -1716,24 +2051,27 @@ await chatDeletedRef.remove();
                             )}
                           </>
                         ) : null}
-                        <Text
-                          style={
-                            isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp
-                          }>
-                          {new Date(item.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
+                        {/* Chỉ hiển thị timestamp nếu không phải tin nhắn tự động xóa */}
+                        {!isSelfDestruct && (
+                          <Text
+                            style={
+                              isSentByMe ? styles.Sendtimestamp : styles.Revecivedtimestamp
+                            }>
+                            {new Date(item.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </Text>
+                        )}
                       </>
                     )}
                   </TouchableOpacity>
                 </View>
               </View>
-            );
+            );/////
           }}
           inverted
-          contentContainerStyle={{flexGrow: 1, justifyContent: 'flex-end'}}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
         />
 
         <FlatList
@@ -1748,48 +2086,65 @@ await chatDeletedRef.remove();
           <TouchableOpacity onPress={pickMedia} style={styles.imageButton}>
             <Ionicons name="image" size={24} color="#007bff" />
           </TouchableOpacity>
-
-        {/* Bọc icon trong một container riêng */}
-        <View style={styles.iconWrapper}>
-        <TouchableOpacity onPress={() => setIsMenuVisible(!isMenuVisible)} style={styles.mainButton}>
-          <Ionicons name="ellipsis-vertical" size={24} color="#007bff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Menu hiển thị tách biệt */}
-      {isMenuVisible && (
-        <View style={styles.menuContainer}>
-          {/* Gửi vị trí */}
           <TouchableOpacity
-            onPress={() => {
-              setIsMenuVisible(false); // Ẩn menu trước khi chuyển màn hình
-              navigation.navigate('MapScreen', {
-                userId,
-                myId,
-                username,
-                img,
-                messages,
-                isGui: true,
-              });
-            }}
-            style={styles.menuItem}>
-            <Ionicons name="navigate-outline" size={24} color="#007bff" />
-            <Text style={styles.menuText}>Gửi vị trí</Text>
+            onPressIn={startRecording}
+            onPressOut={stopRecordingAndSend}
+            style={[styles.audioButton, isRecording && styles.recordingButton]}>
+            <Ionicons
+              name={isRecording ? "mic" : "mic-outline"}
+              size={24}
+              color={isRecording ? "red" : "#007bff"}
+            />
           </TouchableOpacity>
 
-          {/* Tự động xóa */}
-          <TouchableOpacity
-            onPress={() => {
-              setIsMenuVisible(false); // Ẩn menu trước khi mở modal
-              setIsModalVisible(true);
-            }}
-            style={styles.menuItem}>
-            <Icon name={isSelfDestruct ? 'timer-sand' : 'timer-off'} size={24} color={isSelfDestruct ? 'red' : '#007bff'} />
-            <Text style={styles.menuText}>{selfDestructTime ? `${selfDestructTime}s` : 'Tự động xóa'}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+          {/* Bọc icon trong một container riêng */}
+          <View style={styles.iconWrapper}>
+            <TouchableOpacity
+              onPress={() => setIsMenuVisible(!isMenuVisible)}
+              style={styles.mainButton}>
+              <Ionicons name="ellipsis-vertical" size={24} color="#007bff" />
+            </TouchableOpacity>
+          </View>
 
+          {/* Menu hiển thị tách biệt */}
+          {isMenuVisible && (
+            <View style={styles.menuContainer}>
+              {/* Gửi vị trí */}
+              <TouchableOpacity
+                onPress={() => {
+                  setIsMenuVisible(false); // Ẩn menu trước khi chuyển màn hình
+                  navigation.navigate('MapScreen', {
+                    userId,
+                    myId,
+                    username,
+                    img,
+                    messages,
+                    isGui: true,
+                  });
+                }}
+                style={styles.menuItem}>
+                <Ionicons name="navigate-outline" size={24} color="#007bff" />
+                <Text style={styles.menuText}>Gửi vị trí</Text>
+              </TouchableOpacity>
+
+              {/* Tự động xóa */}
+              <TouchableOpacity
+                onPress={() => {
+                  setIsMenuVisible(false); // Ẩn menu trước khi mở modal
+                  setIsModalVisible(true);
+                }}
+                style={styles.menuItem}>
+                <Icon
+                  name={isSelfDestruct ? 'timer-sand' : 'timer-off'}
+                  size={24}
+                  color={isSelfDestruct ? 'red' : '#007bff'}
+                />
+                <Text style={styles.menuText}>
+                  {selfDestructTime ? `${selfDestructTime}s` : 'Tự động xóa'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <Modal
             animationType="slide"
@@ -1973,325 +2328,5 @@ await chatDeletedRef.remove();
     </TouchableWithoutFeedback>
   );
 };
-
-const styles = StyleSheet.create({
-  imageWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 200,
-    height: 200,
-  },
-
-  loadingIndicator: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{translateX: -15}, {translateY: -15}],
-  },
-
-  statusContainer: {
-    marginLeft: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'green',
-    marginLeft: 5,
-  },
-  userStatus: {
-    marginHorizontal: 5,
-    fontSize: 12,
-    color: '#888',
-  },
-  container: {flex: 1, padding: 0, backgroundColor: '#121212'},
-  username: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 10,
-  },
-  sentWrapper: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  receivedWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-    marginTop: 10,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 8,
-    marginLeft: 10,
-  },
-  usernameText: {
-    fontSize: 14,
-    color: '#007bff',
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  sentContainer: {
-    backgroundColor: '#99F2C8',
-    padding: 12,
-    borderRadius: 20,
-    maxWidth: '70%',
-    alignSelf: 'flex-end',
-    marginBottom: 10,
-  },
-  receivedContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 20,
-    maxWidth: '70%',
-    marginBottom: 10,
-  },
-
-  SendmessageText: {fontSize: 16, color: '#000000'},
-  ReceivedmessageText: {fontSize: 16, color: '#0F1828'},
-  deletedText: {fontSize: 16, color: '#999', fontStyle: 'italic'},
-  Sendtimestamp: {
-    fontSize: 12,
-    color: '#000000',
-    marginTop: 5,
-    alignSelf: 'flex-end',
-  },
-  Revecivedtimestamp: {
-    fontSize: 12,
-    color: '#000000',
-    marginTop: 5,
-    alignSelf: 'flex-end',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  inputWrapper: {
-    flex: 1,
-    backgroundColor: '#F7F7FC',
-    borderRadius: 10,
-    marginRight: 10,
-  },
-  input: {
-    fontSize: 16,
-    color: '#0F1828',
-    padding: 8,
-    backgroundColor: '#F7F7FC',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    justifyContent: 'space-between',
-    backgroundColor: '#000000',
-    width: '100%',
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-start',
-  },
-  headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  headerUsername: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginLeft: 10,
-  },
-  backButton: {
-    padding: 5,
-  },
-  iconButton: {
-    padding: 8,
-    borderRadius: 20,
-  },
-  sendButton: {
-    padding: 10,
-    borderRadius: 20,
-  },
-  typingText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    color: '#007bff',
-    marginLeft: 5,
-    alignItems: 'flex-end',
-    backgroundColor: '#FFFFFF',
-    width: '25%',
-    borderRadius: 10,
-    padding: 2,
-  },
-  chatStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  chatCountText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#007bff',
-  },
-  resetText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: 'red',
-  },
-
-  seenStatusContainer: {
-    alignSelf: 'flex-end', // Để căn phải theo tin nhắn
-    marginTop: 2, // Tạo khoảng cách với tin nhắn
-    marginRight: 10, // Đẩy sát mép tin nhắn
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    width: '80%',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: 'black',
-  },
-  modalOption: {
-    paddingVertical: 10,
-    width: '100%',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  modalText: {
-    color: 'black',
-    fontSize: 16,
-  },
-  modalCancel: {
-    marginTop: 10,
-    paddingVertical: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  selfDestructMessage: {
-    backgroundColor: '#ffcccb', // Màu đỏ nhạt cho tin nhắn tự hủy
-    opacity: 0.8, // Làm mờ tin nhắn để dễ nhận biết
-  },
-  selfDestructTimer: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'red',
-    textAlign: 'right',
-  },
-
-  TextselfDestructTimer: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'black',
-    textAlign: 'right',
-  },
-  imageButton: {
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  imageMessage: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
-    marginTop: 5,
-  },
-  sentImage: {
-    alignSelf: 'flex-end', // Ảnh gửi đi nằm bên phải
-  },
-  receivedImage: {
-    alignSelf: 'flex-start', // Ảnh nhận nằm bên trái
-  },
-  pinnedMessageContainer: {
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    margin: 5,
-    borderRadius: 10,
-  },
-  pinnedMessageText: {
-    fontSize: 16,
-    color: 'blue',
-  },
-  pinnedMessageTime: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 5,
-  },
-  pinnedHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    padding: 10,
-    backgroundColor: '#e0e0e0',
-  },
-  fullScreenImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain', // Hiển thị ảnh mà không bị méo
-    backgroundColor: 'black', // Tạo nền đen để nhìn rõ hơn
-  },
-  iconWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  }, mainButton: {
-    padding: 10,
-  },
-  menuContainer: {
-    position: 'absolute',
-    top: height - 1100,
-    right:width - 155,
-    backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 100, // Giúp hiển thị menu trên UI
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  menuText: {
-    marginLeft: 10,
-    fontSize: 16,
-  },
-});
 
 export default Single;

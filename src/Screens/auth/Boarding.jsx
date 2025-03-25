@@ -9,7 +9,7 @@ import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
 import { saveCurrentUserAsyncStorage, saveChatsAsyncStorage } from '../../storage/Storage';
 import LoadingModal from '../../loading/LoadingModal';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Thêm thư viện icon
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
 
 const Boarding = (props) => {
   const { navigation } = props;
@@ -117,7 +117,7 @@ const Boarding = (props) => {
         setNickname(randomNickname);
         setShowNicknameModal(true);
       } else {
-        console.log('User already has a nickname, proceeding to home.');
+        console.log('user đã có nickname');
         navigation.navigate('HomeNavigation');
       }
     } catch (error) {

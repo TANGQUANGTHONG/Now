@@ -27,49 +27,50 @@ import {
 import QRCode from 'react-native-qrcode-svg'; // ✅ Import thư viện QR Code
 import {oStackHome} from '../../navigations/HomeNavigation';
 import {launchImageLibrary} from 'react-native-image-picker';
-import { getAuth } from "@react-native-firebase/auth";
-import { getDatabase, ref, update } from "@react-native-firebase/database";
+import {getAuth} from '@react-native-firebase/auth';
+import {getDatabase, ref, update} from '@react-native-firebase/database';
 import LoadingModal from '../../loading/LoadingModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
 const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
-
 
 const {width, height} = Dimensions.get('window');
 
 const Setting = ({navigation}) => {
   const [myUser, setMyUser] = useState(null);
   const [password, setPassword] = useState('');
-  const [loading, setloading] = useState(false)
+  const [loading, setloading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [qrVisible, setQrVisible] = useState(false); // 🔥 State để hiển thị modal QR
-  GoogleSignin.configure({
-    webClientId:
-      '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
-  });
+  const providerId = auth().currentUser?.providerData[0]?.providerId;
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+    });
+  }, []);
+  // đổi avatar
+  const updateAvatar = async avatarUrl => {
+    try {
+      const auth = getAuth();
+      const userId = auth.currentUser?.uid;
 
-// đổi avatar 
-const updateAvatar = async (avatarUrl) => {
-  try {
-    const auth = getAuth();
-    const userId = auth.currentUser?.uid;
+      if (!userId) {
+        Alert.alert('Lỗi', 'Không tìm thấy ID người dùng!');
+        return;
+      }
 
-    if (!userId) {
-      Alert.alert("Lỗi", "Không tìm thấy ID người dùng!");
-      return;
+      const userRef = ref(getDatabase(), `users/${userId}`);
+      await update(userRef, {Image: encryptMessage(avatarUrl)});
+    } catch (error) {
+      Alert.alert('Lỗi', error.message);
+      console.log('Lỗi cập nhật avatar:', error);
     }
+  };
 
-    const userRef = ref(getDatabase(), `users/${userId}`);
-    await update(userRef, { Image: encryptMessage(avatarUrl) });
-    
-  } catch (error) {
-    Alert.alert("Lỗi", error.message);
-    console.log("Lỗi cập nhật avatar:", error);
-  }
-};
-
-// lấy ảnh từ thư viện
-const pickImage = () => {
+  // lấy ảnh từ thư viện
+  const pickImage = () => {
     const options = {
       mediaType: 'photo',
       quality: 1,
@@ -91,7 +92,7 @@ const pickImage = () => {
 
   const uploadImageToCloudinary = async imageUri => {
     try {
-      setloading(true)
+      setloading(true);
       const formData = new FormData();
       formData.append('file', {
         uri: imageUri,
@@ -114,9 +115,8 @@ const pickImage = () => {
       }
     } catch (error) {
       console.error('❌ Lỗi khi upload ảnh:', error);
-    }
-    finally{
-      setloading(false)
+    } finally {
+      setloading(false);
     }
   };
 
@@ -184,21 +184,37 @@ const pickImage = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
-      return;
-    }
+
     try {
       const user = auth().currentUser;
       if (!user) throw new Error('Bạn chưa đăng nhập.');
 
-      const credential = auth.EmailAuthProvider.credential(
-        user.email,
-        password,
-      );
-      await user.reauthenticateWithCredential(credential);
+      const providerId = user.providerData[0]?.providerId;
+
+      if (providerId === 'password') {
+        if (!password) {
+          Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
+          return;
+        }
+        const credential = auth.EmailAuthProvider.credential(
+          user.email,
+          password,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }else if (providerId === 'google.com') {
+        await GoogleSignin.hasPlayServices();
+        const { idToken } = await GoogleSignin.getTokens(); // Đã sửa
+        if (!idToken) throw new Error('Không lấy được idToken từ Google');
+        const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+        await user.reauthenticateWithCredential(googleCredential);
+      }
+      
+
       await database().ref(`/users/${user.uid}`).remove();
+       // Xóa toàn bộ dữ liệu local liên quan user
+       await AsyncStorage.clear();
       await user.delete();
+      
 
       Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
       setModalVisible(false);
@@ -210,7 +226,7 @@ const pickImage = () => {
 
   return (
     <View style={styles.container}>
-      <LoadingModal visible={loading}/>
+      <LoadingModal visible={loading} />
       {!myUser ? (
         <Text style={{color: 'white', textAlign: 'center', marginTop: 20}}>
           Đang tải...
@@ -357,18 +373,25 @@ const pickImage = () => {
                   borderRadius: 10,
                 }}>
                 <Text
-                  style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10,color:'black'}}>
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    marginBottom: 10,
+                    color: 'black',
+                  }}>
                   Nhập mật khẩu
                 </Text>
 
-                <TextInput
-                  placeholder="Nhập mật khẩu để xác nhận"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholderTextColor={'#aaa'}
-                  style={{borderBottomWidth: 1, marginBottom: 20}}
-                />
+                {providerId === 'password' && (
+                  <TextInput
+                    placeholder="Nhập mật khẩu để xác nhận"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholderTextColor={'#aaa'}
+                    style={{borderBottomWidth: 1, marginBottom: 20}}
+                  />
+                )}
 
                 <View
                   style={{
@@ -466,8 +489,8 @@ const styles = StyleSheet.create({
   avatar: {width: 60, height: 60, borderRadius: 30, marginRight: 10},
   profileInfo: {flex: 1},
   name: {fontSize: 18, fontWeight: 'bold', color: 'black'},
-  status:{
-color: 'black',
+  status: {
+    color: 'black',
   },
   modalContainer: {
     flex: 1,

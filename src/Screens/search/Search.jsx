@@ -75,20 +75,22 @@ const Search = () => {
     return () => usersRef.off('value');
   };
 
+  const normalizeText = (text) => {
+    return text
+        .toLowerCase()
+        .normalize('NFD') // Tách dấu ra khỏi chữ
+        .replace(/[\u0300-\u036f]/g, '') // Xóa dấu
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D');
+};
   const handleSearch = text => {
     setSearchText(text);
     if (text === '') {
       setFilteredUsers([]);
-    } else if (text.startsWith('@')) {
+    } else {
       // Nếu text bắt đầu bằng @ thì tìm kiếm theo nickname (bỏ ký tự @ khi so sánh)
       const filtered = users.filter(user =>
-        user.nickname.toLowerCase().includes(text.toLowerCase()),
-      );
-      setFilteredUsers(filtered);
-    } else {
-      // Ngược lại, tìm kiếm theo username
-      const filtered = users.filter(user =>
-        user.username.toLowerCase().includes(text.toLowerCase()),
+        normalizeText(user.nickname).toLowerCase().includes(normalizeText(text).toLowerCase()),
       );
       setFilteredUsers(filtered);
     }

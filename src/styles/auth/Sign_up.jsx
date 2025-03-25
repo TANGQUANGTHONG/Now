@@ -104,10 +104,12 @@ export const styles = StyleSheet.create({
     right: width * 0.03,
   },
   bottomContainer: {
+
     paddingHorizontal: width * 0.05,
     paddingBottom: height * 0.03, // Tăng padding dưới để nút không sát đáy
   },
   loginButton: {
+    borderColor :'#616060',
     paddingVertical: height * 0.02, // Padding dọc cân đối
     paddingHorizontal: width * 0.04, // Padding ngang
     alignItems: 'center',
@@ -119,7 +121,7 @@ export const styles = StyleSheet.create({
     elevation: 6, // Bóng cho Android
   },
   loginText: {
-    color: '#fff',
+    color: '#bfbbbb',
     fontWeight: 'bold',
     fontSize: width * 0.045, // Tăng kích thước chữ
   },

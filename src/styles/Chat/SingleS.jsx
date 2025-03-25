@@ -83,9 +83,9 @@ const styles = StyleSheet.create({
       backgroundColor: '#99F2C8',
       padding: width * 0.03, 
       borderRadius: width * 0.05, 
-      maxWidth: '70%',
+      maxWidth: '100%',
       alignSelf: 'flex-end',
-      marginBottom: height * 0.015, 
+      marginBottom: height * 0.001, 
     },
   
     receivedContainer: {
@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
       color: '#000000',
       marginTop: height * 0.007,
       alignSelf: 'flex-end',
+      flexDirection: 'row',
     },
   
     Revecivedtimestamp: {
@@ -124,6 +125,7 @@ const styles = StyleSheet.create({
       color: '#000000',
       marginTop: height * 0.007, 
       alignSelf: 'flex-end',
+      flexDirection: 'row',
     },
   
     inputContainer: {
@@ -279,12 +281,6 @@ const styles = StyleSheet.create({
       opacity: 0.8,
     },
   
-    selfDestructTimer: {
-      fontSize: width * 0.03,
-      fontWeight: 'bold',
-      color: 'red',
-      textAlign: 'right',
-    },
   
     TextselfDestructTimer: {
       fontSize: width * 0.03,
@@ -396,16 +392,39 @@ const styles = StyleSheet.create({
       marginVertical: 10,
     },
     selfDestructTimer: {
-      position: 'absolute',
-      bottom: 5,
-      right: 5,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      color: 'white',
-      padding: 5,
-      borderRadius: 5,
-      fontSize: 12,
+      alignSelf: 'flex-end', // Căn phải nhưng chỉ chiếm không gian nội dung
+      color: '#FFFFFF', // Chữ trắng
+      // paddingVertical: 4, // Padding dọc nhẹ
+      paddingHorizontal: 8, // Padding ngang vừa đủ
+      borderRadius: 10, // Bo góc mềm mại
+      fontSize: 13, // Kích thước chữ dễ đọc
+      fontWeight: '500', // Độ đậm trung bình
     },
-    
+    playButton: {
+      marginRight: 10,
+    },
+    audioWrapper: {
+      flexDirection: 'column', // Xếp dọc: icon, timer, waveform
+      alignItems: 'center', // Căn giữa theo chiều ngang
+    },
+    audioTimer: {
+      fontSize: 12,
+      color: '#666',
+      marginTop: 4,
+      marginBottom: 4, // Khoảng cách giữa timer và waveform
+      fontWeight: '500',
+    },
+    waveformContainer: {
+      flexDirection: 'row', // Xếp các thanh sóng âm theo hàng ngang
+      justifyContent: 'space-between',
+      width: 200, // Chiều rộng cố định cho sóng âm
+      height: 30, // Chiều cao tối đa của sóng âm
+    },
+    waveformBar: {
+      width: 3, // Chiều rộng mỗi thanh
+      marginHorizontal: 1, // Khoảng cách giữa các thanh
+      borderRadius: 2, // Bo góc nhẹ cho thanh
+    },
   });
   
 

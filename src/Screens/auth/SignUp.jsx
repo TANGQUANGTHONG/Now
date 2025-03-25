@@ -8,17 +8,16 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
-  Image,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Icon from 'react-native-vector-icons/Feather';
+import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons'; // Thêm icon renew
 import { styles } from '../../Styles/auth/Sign_up';
-import { encryptMessage, decryptMessage } from '../../cryption/Encryption'; // Thêm decryptMessage
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -32,61 +31,53 @@ const SignUp = ({ navigation }) => {
 
   const defaultImage = 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg';
 
-  GoogleSignin.configure({
-    webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
-  });
+  // Hàm loại bỏ dấu tiếng Việt và chuyển thành chữ thường
+  const removeVietnameseDiacritics = (str) => {
+    str = str.toLowerCase();
+    str = str
+      .replace(/[àáảãạăằắẳẵặâầấẩẫậ]/g, 'a')
+      .replace(/[èéẻẽẹêềếểễệ]/g, 'e')
+      .replace(/[ìíỉĩị]/g, 'i')
+      .replace(/[òóỏõọôồốổỗộơờớởỡợ]/g, 'o')
+      .replace(/[ùúủũụưừứửữự]/g, 'u')
+      .replace(/[ỳýỷỹỵ]/g, 'y')
+      .replace(/đ/g, 'd');
+    return str;
+  };
 
-  async function signInWithGoogle() {
-    try {
-      await GoogleSignin.signOut();
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const signInResult = await GoogleSignin.signIn();
-      const idToken = signInResult.idToken || signInResult.data?.idToken;
-  
-      if (!idToken) throw new Error('No ID token found');
-  
-      const name = signInResult.data.user.name;
-      const avatar = signInResult.data.user.photo;
-      const email = signInResult.data.user.email;
-  
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const userCredential = await auth().signInWithCredential(googleCredential);
-      const userId = userCredential.user.uid;
-  
-      const userRef = database().ref(`/users/${userId}`);
-      const snapshot = await userRef.once('value');
-      
-      if (!snapshot.exists()) {
-        await userRef.set({
-          name: encryptMessage(name),
-          email: encryptMessage(email),
-          Image: encryptMessage(avatar),
-          nickname: encryptMessage(nickname),
-          createdAt: database.ServerValue.TIMESTAMP,
-        });
-        console.log('User information saved to Realtime Database.');
-      } else {
-        console.log('User already exists in Realtime Database.');
-      }
-  
-      // Kiểm tra trạng thái đăng nhập
-      const currentUser = auth().currentUser;
-      if (currentUser) {
-        console.log('User is signed in after Google Sign-in:', currentUser.email);
-      } else {
-        console.log('No user is signed in after Google Sign-in');
-      }
-    } catch (error) {
-      console.log('Google Sign-In Error:', error);
+  // Hàm tạo nickname ngẫu nhiên dựa trên tên
+  const generateRandomNickname = (userName) => {
+    const baseName = removeVietnameseDiacritics(userName).replace(/\s+/g, '');
+    const randomNum = Math.floor(Math.random() * 1000);
+    const separator = Math.random() > 0.5 ? '.' : '_';
+    let nickname = `${baseName}${separator}${randomNum}`;
+    return nickname.length > 20 ? nickname.substring(0, 20) : nickname;
+  };
+
+  // Cập nhật nickname khi thay đổi tên
+  const handleNameChange = (text) => {
+    setName(text);
+    if (text.trim()) {
+      setNickname(generateRandomNickname(text));
+    } else {
+      setNickname('');
     }
-  }
-  
+  };
+
+  // Xử lý khi nhấn icon renew
+  const handleRandomNickname = () => {
+    if (name.trim()) {
+      const newNickname = generateRandomNickname(name);
+      setNickname(newNickname);
+    } else {
+      Alert.alert('Thông báo', 'Vui lòng nhập tên trước!');
+    }
+  };
 
   const isFormComplete = () => {
     return name && email && password && confirmPassword && nickname;
   };
 
-  // Hàm kiểm tra tính duy nhất của nickname
   const checkNicknameUniqueness = async (nicknameToCheck) => {
     if (!nicknameToCheck.trim()) return false;
 
@@ -97,7 +88,6 @@ const SignUp = ({ navigation }) => {
       let isUnique = true;
       if (snapshot.exists()) {
         const users = snapshot.val();
-        // Duyệt qua từng user để kiểm tra nickname
         for (const userId in users) {
           const user = users[userId];
           if (user.nickname) {
@@ -109,7 +99,7 @@ const SignUp = ({ navigation }) => {
           }
         }
       }
-      return isUnique; // Trả về true nếu nickname chưa tồn tại
+      return isUnique;
     } catch (error) {
       console.log('Error checking nickname uniqueness:', error);
       return false;
@@ -119,18 +109,16 @@ const SignUp = ({ navigation }) => {
   const validateFields = async () => {
     let newErrors = {};
 
-    // Kiểm tra các trường khác
     if (!name.trim()) newErrors.name = 'Tên không được để trống';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Email không hợp lệ';
     if (!nickname.trim()) {
       newErrors.nickname = 'Nickname không được để trống';
-    } else if (nickname.length > 10) {
-      newErrors.nickname = 'Nickname không được dài quá 10 ký tự';
+    } else if (nickname.length > 20) {
+      newErrors.nickname = 'Nickname không được dài quá 20 ký tự';
     }
     if (password.length < 6) newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     if (password !== confirmPassword) newErrors.confirmPassword = 'Mật khẩu không khớp';
 
-    // Kiểm tra tính duy nhất của nickname
     if (!newErrors.nickname) {
       setIsCheckingNickname(true);
       const isUnique = await checkNicknameUniqueness(nickname);
@@ -147,19 +135,23 @@ const SignUp = ({ navigation }) => {
 
   const Sign_Up = async () => {
     const isValid = await validateFields();
- 
+    if (!isValid) return;
+
     try {
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const userId = userCredential.user.uid;
 
-      // Lưu thông tin người dùng vào node /users
+      const encryptedNickname = encryptMessage(nickname);
+
       await database()
         .ref(`/users/${userId}`)
         .set({
           name: encryptMessage(name),
           email: encryptMessage(email),
           Image: encryptMessage(defaultImage),
-          nickname: encryptMessage(nickname),
+          nickname: encryptedNickname, // Lưu nickname ngay khi đăng ký
+          isCompleteNickname: true, // Đánh dấu đã hoàn thành nickname
+          countChat: 100,
           createdAt: database.ServerValue.TIMESTAMP,
         });
 
@@ -187,9 +179,7 @@ const SignUp = ({ navigation }) => {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          flexGrow: 1,
-        }}
+        contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         extraHeight={Platform.OS === 'ios' ? 100 : 150}
       >
@@ -226,25 +216,16 @@ const SignUp = ({ navigation }) => {
 
             <Text style={styles.subtitle}>Get chatting with friends and family today!</Text>
 
-            <View style={styles.socialContainer}>
-              <TouchableOpacity style={styles.socialButton} onPress={signInWithGoogle}>
-                <Image
-                  source={require('../auth/assets/icon/google.png')}
-                  style={styles.socialIcon}
-                />
-              </TouchableOpacity>
-            </View>
-
             {/* Các trường nhập liệu */}
             <View style={styles.inputContainer}>
               <TextInput
                 style={[styles.input, errors.name && styles.errorInput]}
                 value={name}
                 placeholder="Enter your name"
-                onChangeText={setName}
+                onChangeText={handleNameChange}
                 autoCapitalize="none"
                 placeholderTextColor={'#8C96A2'}
-                color="black"
+                color="#8C96A2"
               />
               {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
@@ -258,22 +239,27 @@ const SignUp = ({ navigation }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholderTextColor={'#8C96A2'}
-                color="black"
+                color="#8C96A2"
               />
               {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.input, errors.nickname && styles.errorInput]}
-                value={nickname}
-                placeholder="Enter your nickname"
-                onChangeText={setNickname}
-                autoCapitalize="none"
-                placeholderTextColor={'#8C96A2'}
-                color="black"
-                maxLength={10}
-              />
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, errors.nickname && styles.errorInput]}
+                  value={nickname}
+                  placeholder="Enter your nickname"
+                  onChangeText={setNickname}
+                  autoCapitalize="none"
+                  placeholderTextColor={'#8C96A2'}
+                  color="#8C96A2"
+                  maxLength={20}
+                />
+                <TouchableOpacity onPress={handleRandomNickname} style={styles.eyeIcon}>
+                  <MaterialIcon name="autorenew" size={24} color="#8C96A2" />
+                </TouchableOpacity>
+              </View>
               {isCheckingNickname && <Text style={styles.validText}>Đang kiểm tra...</Text>}
               {errors.nickname && <Text style={styles.errorText}>{errors.nickname}</Text>}
             </View>
@@ -285,15 +271,15 @@ const SignUp = ({ navigation }) => {
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Enter your password"
-                  placeholderTextColor="gray"
+                  placeholderTextColor="#8C96A2"
                   secureTextEntry={secureText}
-                  color="black"
+                  color="#8C96A2"
                 />
                 <TouchableOpacity
                   onPress={() => setSecureText(!secureText)}
                   style={styles.eyeIcon}
                 >
-                  <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+                  <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="#8C96A2" />
                 </TouchableOpacity>
               </View>
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
@@ -308,13 +294,13 @@ const SignUp = ({ navigation }) => {
                   placeholder="Re-enter password"
                   placeholderTextColor={'#8C96A2'}
                   secureTextEntry={secureText}
-                  color="black"
+                  color="#8C96A2"
                 />
                 <TouchableOpacity
                   onPress={() => setSecureText(!secureText)}
                   style={styles.eyeIcon}
                 >
-                  <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="gray" />
+                  <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="#8C96A2" />
                 </TouchableOpacity>
               </View>
               {errors.confirmPassword && (
@@ -337,7 +323,7 @@ const SignUp = ({ navigation }) => {
                 colors={
                   isFormComplete() && !isCheckingNickname
                     ? ['#438875', '#99F2C8']
-                    : ['#d3d3d3', '#d3d3d3']
+                    : ['#6f6e6e', '#6f6e6e']
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
