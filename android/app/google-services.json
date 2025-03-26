@@ -23,6 +23,14 @@
           }
         },
         {
+          "client_id": "699479642304-gmvfkfu0akn3nek1doqc77m65bpg0r0d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.now",
+            "certificate_hash": "167bb7ba364e2594083599442195bfec2b23a97a"
+          }
+        },
+        {
           "client_id": "699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com",
           "client_type": 3
         }

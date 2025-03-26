@@ -86,10 +86,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file(MYAPP_RELEASE_STORE_FILE)
-            storePassword MYAPP_RELEASE_STORE_PASSWORD
-            keyAlias MYAPP_RELEASE_KEY_ALIAS
-            keyPassword MYAPP_RELEASE_KEY_PASSWORD
+           storeFile file('mykeystore.jks')
+            storePassword 'thong2004'
+            keyAlias 'mykey'
+            keyPassword 'thong2004'
         }
         debug {
             storeFile file('debug.keystore')
