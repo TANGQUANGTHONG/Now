@@ -3,6 +3,29 @@ import { StyleSheet, Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginVertical: 10,
+    position: 'relative',  // Đảm bảo vị trí của icon sẽ dựa trên container
+  },
+  inputModal: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    color: 'gray',
+    height: 45, // Chiều cao của input
+    paddingRight: 40, // Tạo khoảng trống cho icon ở bên phải
+  },
+  iconInsideInput: {
+    position: 'absolute',
+    right: 10,  // Vị trí của icon nằm bên phải
+    top: '50%', // Đặt icon nằm giữa theo chiều dọc
+    transform: [{ translateY: -12 }], // Căn chỉnh để icon nằm chính giữa theo chiều dọc
+  },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -12,13 +35,13 @@ export const styles = StyleSheet.create({
   modalContent: {
     width: width * 0.8,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderRadius: 10,
     alignItems: 'center',
-    maxHeight: height * 0.2,
+    maxHeight: height * 0.4,
   },
   modalTitle: {
-    color: 'black',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
@@ -30,13 +53,16 @@ export const styles = StyleSheet.create({
     marginVertical: 10,
   },
   inputModal: {
-    flex: 1,
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 5,
-    padding: 10,
     color: 'gray',
-    height: 40,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginVertical: 10,
   },
   randomIcon: {
     padding: 10,

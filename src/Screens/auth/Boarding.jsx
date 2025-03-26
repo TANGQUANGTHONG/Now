@@ -310,12 +310,12 @@ const styles = StyleSheet.create({
   modalContent: {
     width: width * 0.8,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#1E1E1E',
     borderRadius: 10,
     alignItems: 'center',
   },
   modalTitle: {
-    color: 'black',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,

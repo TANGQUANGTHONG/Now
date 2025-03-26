@@ -425,24 +425,27 @@ const SignUp = ({ navigation }) => {
           </View>
 
           {/* Modal cho nickname */}
-          <Modal visible={showNicknameModal} transparent={true} animationType="slide">
+         
+        </View>
+        <Modal visible={showNicknameModal} transparent={true} animationType="slide">
             <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Chọn nickname của bạn</Text>
                 <View style={styles.inputContainer}>
-                  <TextInput
-                    style={styles.inputModal}
-                    value={nickname}
-                    onChangeText={setNickname}
-                    maxLength={20}
-                    color="gray"
-                    placeholderTextColor="gray"
-                    placeholder="Nhập nickname (tối đa 20 ký tự)"
-                  />
-                  <TouchableOpacity style={styles.randomIcon} onPress={handleRandomNickname}>
-                    <MaterialIcon name="autorenew" size={24} color="#438875" />
-                  </TouchableOpacity>
-                </View>
+  <TextInput
+    style={styles.inputModal}
+    value={nickname}
+    onChangeText={setNickname}
+    maxLength={20}
+    color="gray"
+    placeholderTextColor="gray"
+    placeholder="Nhập nickname (tối đa 20 ký tự)"
+  />
+  <TouchableOpacity style={styles.iconInsideInput} onPress={handleRandomNickname}>
+    <MaterialIcon name="autorenew" size={24} color="#438875" />
+  </TouchableOpacity>
+</View>
+
                 <Text style={styles.suggestionText}>Gợi ý: {suggestedNickname}</Text>
                 <Pressable style={styles.submitButton} onPress={handleNicknameSubmit}>
                   <Text style={styles.submitButtonText}>Xác nhận</Text>
@@ -450,7 +453,6 @@ const SignUp = ({ navigation }) => {
               </View>
             </View>
           </Modal>
-        </View>
       </KeyboardAwareScrollView>
     </TouchableWithoutFeedback>
   );

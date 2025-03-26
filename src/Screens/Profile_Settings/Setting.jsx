@@ -178,6 +178,10 @@ const Setting = ({navigation}) => {
 
       removeCurrentUserFromStorage();
       console.log('Đã đăng xuất khỏi Google và Firebase.');
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'UserNavigation' }],
+    });
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
     }
