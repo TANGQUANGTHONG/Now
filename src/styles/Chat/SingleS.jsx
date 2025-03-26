@@ -425,6 +425,27 @@ const styles = StyleSheet.create({
       marginHorizontal: 1, // Khoảng cách giữa các thanh
       borderRadius: 2, // Bo góc nhẹ cho thanh
     },
+    searchButton: {
+      padding: 10,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#f0f0f0',
+      padding: 10,
+    },
+    searchInput: {
+      flex: 1,
+      height: 40,
+      backgroundColor: '#fff',
+      borderRadius: 20,
+      paddingHorizontal: 15,
+      fontSize: 16,
+      color: '#000',
+    },
+    closeSearchButton: {
+      padding: 10,
+    },
   });
   
 

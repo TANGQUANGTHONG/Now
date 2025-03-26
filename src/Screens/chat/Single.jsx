@@ -100,12 +100,16 @@ const Single = () => {
   const [loadingVideoUrl, setLoadingVideoUrl] = useState(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false); // Quản lý hiển thị menu
   const [showNotification, setShowNotification] = useState(false);
-  const [isOnline, setIsOnline] = useState(false)
+
   const [playingAudioId, setPlayingAudioId] = useState(null); // Theo dõi tin nhắn nào đang phát
   const [isRecording, setIsRecording] = useState(false); // Trạng thái đang ghi âm
   const [audioPath, setAudioPath] = useState(''); // Đường dẫn tệp âm thanh
   const audioRecorderPlayer = useRef(new AudioRecorderPlayer()).current;
   const [audioStates, setAudioStates] = useState({}); // Lưu trạng thái âm thanh cho từng tin nhắn
+//lọc tin nhắn
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredMessages, setFilteredMessages] = useState([]);
 
   const {RNMediaScanner} = NativeModules;
 
@@ -122,7 +126,75 @@ const Single = () => {
   ];
 
   
+// Hàm lọc tin nhắn
+const filterAndHighlightMessages = (query) => {
+  if (!query.trim()) {
+    setFilteredMessages(messages);
+    return;
+  }
 
+  const lowerQuery = query.toLowerCase();
+  const filtered = messages.filter((msg) => {
+    if (msg.text) {
+      return msg.text.toLowerCase().includes(lowerQuery);
+    }
+    return false;
+  });
+
+  setFilteredMessages(filtered);
+};
+
+  // Cập nhật danh sách tin nhắn khi searchQuery thay đổi
+  useEffect(() => {
+    filterAndHighlightMessages(searchQuery);
+  }, [searchQuery, messages]);
+
+  // Hàm render văn bản với highlight
+// Hàm render văn bản với highlight
+const renderHighlightedText = (text, isSentByMe) => {
+  if (!searchQuery || !text) {
+    return (
+      <Text style={isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText}>
+        {text}
+      </Text>
+    );
+  }
+
+  const lowerText = text.toLowerCase();
+  const lowerQuery = searchQuery.toLowerCase();
+  const parts = [];
+  let lastIndex = 0;
+
+  // Tìm tất cả các vị trí khớp với searchQuery
+  while (lastIndex < text.length) {
+    const index = lowerText.indexOf(lowerQuery, lastIndex);
+    if (index === -1) {
+      parts.push(text.slice(lastIndex));
+      break;
+    }
+    if (index > lastIndex) {
+      parts.push(text.slice(lastIndex, index));
+    }
+    parts.push(text.slice(index, index + searchQuery.length));
+    lastIndex = index + searchQuery.length;
+  }
+
+  return (
+    <Text style={isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText}>
+      {parts.map((part, index) => {
+        const isHighlighted = part.toLowerCase() === lowerQuery;
+        return (
+          <Text
+            key={index}
+            style={isHighlighted ? { backgroundColor: '#FFFF00', color: '#000' } : {}}
+          >
+            {part}
+          </Text>
+        );
+      })}
+    </Text>
+  );
+};
 
   const requestAudioPermission = async () => {
     if (Platform.OS === 'android') {
@@ -701,39 +773,57 @@ setMessages(updatedMessages.filter(msg => !msg.deletedBy?.[myId]));
   LogBox.ignoreAllLogs();
   console.warn = () => {};
 
-//hiển thị trạng thái hoạt động của người dùng
-useEffect(() => {
-  const userRef = database().ref(`/users/${userId}`);
+  //hiển thị trạng thái hoạt động của người dùng
+  useEffect(() => {
+    const updateLastActive = async () => {
+      const userRef = database().ref(`/users/${myId}/lastActive`);
+      await userRef.set(database.ServerValue.TIMESTAMP);
+    };
 
-  const onUserStatusChange = (snapshot) => {
-    if (snapshot.exists()) {
-      const userData = snapshot.val();
-      setIsOnline(userData.isOnline || false); // Lấy trạng thái isOnline
-      setLastActive(userData.lastActive || null); // Vẫn giữ lastActive để hiển thị thời gian offline
-    }
-  };
+    updateLastActive();
 
-  userRef.on('value', onUserStatusChange);
+    const interval = setInterval(updateLastActive, 30000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [myId]);
 
-  return () => userRef.off('value', onUserStatusChange);
-}, [userId]);
+  //lắng nghe thay đổi trạng thái hoạt động của người dùng từ Firebase
+  useEffect(() => {
+    const userRef = database().ref(`/users/${userId}/lastActive`);
 
-// Hàm hiển thị trạng thái
-const getStatusText = () => {
-  if (isOnline) {
-    return 'Đang hoạt động';
-  } else if (lastActive) {
+    const onUserActiveChange = snapshot => {
+      if (snapshot.exists()) {
+        const lastActive = snapshot.val();
+
+        setLastActive(lastActive);
+      }
+    };
+
+    userRef.on('value', onUserActiveChange);
+
+    return () => userRef.off('value', onUserActiveChange);
+  }, [userId]);
+
+  const getStatusText = () => {
+    if (!lastActive) return 'Đang hoạt động';
+
     const now = Date.now();
+
     const diff = now - lastActive;
 
-    if (diff < 60000) return 'Vừa mới truy cập';
-    if (diff < 3600000) return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
-    if (diff < 86400000) return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
-    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
-  }
-  return '';
-};
+    if (diff < 10000) return 'Đang hoạt động';
 
+    if (diff < 60000) return 'Vừa mới truy cập';
+
+    if (diff < 3600000)
+      return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+
+    if (diff < 86400000)
+      return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
+
+    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+  };
 
   // lấy dữ liệu từ firebase về để show lên
   useEffect(() => {
@@ -1875,7 +1965,7 @@ if (!snapshot.exists()) return;
             <View style={styles.chatStatus}>
               {countChat > 0 ? (
                 <Text style={styles.chatCountText}>
-                  {countChat} lượt nhắn tin
+                  {countChat} lượt
                 </Text>
               ) : (
                 <Text style={styles.resetText}>
@@ -1883,13 +1973,40 @@ if (!snapshot.exists()) return;
                 </Text>
               )}
             </View>
+            <TouchableOpacity
+              onPress={() => setIsSearchVisible(!isSearchVisible)}
+              style={styles.searchButton}>
+              <Icon name="magnify" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+
           </View>
+          {isSearchVisible && (
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Tìm kiếm tin nhắn..."
+                placeholderTextColor="#aaa"
+              />
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery('');
+                  setIsSearchVisible(false);
+                }}
+                style={styles.closeSearchButton}>
+                <Icon name="close" size={24} color="#007bff" />
+              </TouchableOpacity>
+            </View>
+          )}
           {renderPinnedMessages()}
         </View>
         <FlatList
           ref={listRef}
-          data={messages
-            .filter(msg => !(msg.deletedBy?.[myId] === true))
+          data={isSearchVisible && searchQuery.trim()
+            ? filteredMessages
+            : messages
+            .filter((msg) => !(msg.deletedBy?.[myId] === true))
             .sort((a, b) => b.timestamp - a.timestamp)}
           onScrollBeginDrag={() => setShouldAutoScroll(false)}
           onEndReached={() => setShouldAutoScroll(true)}
@@ -2040,12 +2157,7 @@ if (!snapshot.exists()) return;
                           </View>
                         ) : item.text ? (
                           <>
-                            <Text
-                              style={
-                                isSentByMe ? styles.SendmessageText : styles.ReceivedmessageText
-                              }>
-                              {item.text}
-                            </Text>
+{renderHighlightedText(item.text, isSentByMe)}
                             {isSelfDestruct && timeLefts[item.id] > 0 && (
                               <Text style={styles.selfDestructTimer}>🕒 {timeLefts[item.id]}s</Text>
                             )}
