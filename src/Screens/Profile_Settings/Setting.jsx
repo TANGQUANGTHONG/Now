@@ -31,6 +31,7 @@ import {getAuth} from '@react-native-firebase/auth';
 import {getDatabase, ref, update} from '@react-native-firebase/database';
 import LoadingModal from '../../loading/LoadingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import UserNavigation from '../../navigations/UserNavigation';
 
 
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
@@ -178,6 +179,10 @@ const Setting = ({navigation}) => {
 
       removeCurrentUserFromStorage();
       console.log('Đã đăng xuất khỏi Google và Firebase.');
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'UserNavigation' }],
+    });
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
     }
@@ -201,47 +206,63 @@ const Setting = ({navigation}) => {
         await user.reauthenticateWithCredential(credential);
         console.log('Xác thực lại thành công với mật khẩu.');
       } else if (providerId === 'google.com') {
-        // Kiểm tra Google Play Services
         await GoogleSignin.hasPlayServices();
         console.log('Google Play Services sẵn sàng.');
   
-        // Yêu cầu đăng nhập lại để lấy idToken
         const userInfo = await GoogleSignin.signIn();
         console.log('Google Sign-In Result:', userInfo);
   
-        // Lấy idToken từ userInfo.data (dựa trên log của bạn)
         const idToken = userInfo.data?.idToken || userInfo.idToken;
         if (!idToken) throw new Error('Không lấy được idToken từ Google.');
         console.log('idToken:', idToken);
   
-        // Xác thực lại với Firebase
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         await user.reauthenticateWithCredential(googleCredential);
         console.log('Xác thực lại thành công với Google.');
       }
   
-      // Thêm bước xác minh email (tùy chọn)
-      await auth().currentUser.sendEmailVerification();
+      // Gửi email xác minh
+      await user.sendEmailVerification();
       Alert.alert(
         'Xác minh email',
-        'Vui lòng kiểm tra email của bạn và xác minh trước khi xóa tài khoản.',
+        'Vui lòng kiểm tra email của bạn và nhấp vào liên kết xác minh. Tài khoản sẽ tự động bị xóa sau khi bạn xác minh.',
         [
           {
             text: 'OK',
             onPress: () => {
+              setModalVisible(false); // Đóng modal
+              // Bắt đầu kiểm tra định kỳ
               const checkVerification = setInterval(async () => {
-                await user.reload();
-                console.log('Email verified status:', user.emailVerified);
-                if (user.emailVerified) {
-                  clearInterval(checkVerification);
-                  await database().ref(`/users/${user.uid}`).remove();
-                  await AsyncStorage.clear();
-                  await user.delete();
-                  console.log('Tài khoản đã bị xóa.');
-                  Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
-                  setModalVisible(false);
+                try {
+                  await user.reload(); // Cập nhật trạng thái người dùng
+                  console.log('Email verified status:', user.emailVerified);
+                  if (user.emailVerified) {
+                    clearInterval(checkVerification); // Dừng kiểm tra
+                    // Xóa tài khoản
+                    await database().ref(`/users/${user.uid}`).remove(); // Xóa dữ liệu trong Realtime Database
+                    await AsyncStorage.clear(); // Xóa dữ liệu trong AsyncStorage
+                    await user.delete(); // Xóa tài khoản Firebase
+                    console.log('Tài khoản đã bị xóa tự động.');
+                    Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
+  
+                    // Chuyển hướng về màn hình đăng nhập
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Login' }],
+                    });
+                  }
+                } catch (error) {
+                  clearInterval(checkVerification); // Dừng kiểm tra nếu có lỗi
+                  console.error('Lỗi trong quá trình kiểm tra xác minh:', error);
+                  Alert.alert('Lỗi', 'Đã xảy ra lỗi trong quá trình xóa tài khoản.');
                 }
-              }, 2000);
+              }, 2000); // Kiểm tra mỗi 2 giây
+  
+              // (Tùy chọn) Dừng kiểm tra sau 5 phút nếu không xác minh
+              setTimeout(() => {
+                clearInterval(checkVerification);
+                Alert.alert('Hết thời gian', 'Vui lòng thử lại nếu bạn vẫn muốn xóa tài khoản.');
+              }, 300000); // 300,000 ms = 5 phút
             },
           },
         ],
@@ -407,12 +428,12 @@ const Setting = ({navigation}) => {
           marginBottom: 10,
           color: 'black',
         }}>
-        Xác nhận xóa tài khoản
+             Confirm account deletion
       </Text>
       <Text style={{ color: 'black', marginBottom: 10 }}>
         {providerId === 'password'
-          ? 'Vui lòng nhập mật khẩu để xác nhận.'
-          : 'Bạn sẽ cần đăng nhập lại qua Google để xác minh.'}
+          ? 'Please enter your password to confirm.'
+          : 'You will need to log in again via Google to verify.'}
       </Text>
 
       {providerId === 'password' && (
@@ -434,11 +455,11 @@ const Setting = ({navigation}) => {
         <TouchableOpacity
           onPress={() => setModalVisible(false)}
           style={{ padding: 10 }}>
-          <Text style={{ color: 'blue' }}>Hủy</Text>
+          <Text style={{ color: 'blue' }}>Cancel</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleDeleteAccount} style={{ padding: 10 }}>
-          <Text style={{ color: 'red' }}>Xác nhận</Text>
+          <Text style={{ color: 'red' }}>Confirm</Text>
         </TouchableOpacity>
       </View>
     </View>

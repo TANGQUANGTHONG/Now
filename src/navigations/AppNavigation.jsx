@@ -11,7 +11,7 @@ const AppNavigation = () => {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
   const [isEmailVerified, setIsEmailVerified] = useState(null);
-  const [isCompleteNickname, setIsCompleteNickname] = useState(null); // Thêm state mới
+  const [isCompleteNickname, setIsCompleteNickname] = useState(null);
   const [isSplashVisible, setSplashVisible] = useState(true);
   const [previousUserId, setPreviousUserId] = useState(null);
 
@@ -32,7 +32,7 @@ const AppNavigation = () => {
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
-      if (user) {
+      if (user && isCompleteNickname === true) {
         if (nextAppState === 'active') {
           updateUserStatus(user.uid, true);
         } else if (nextAppState === 'background' || nextAppState === 'inactive') {
@@ -43,7 +43,7 @@ const AppNavigation = () => {
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
-  }, [user]);
+  }, [user, isCompleteNickname]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -59,9 +59,11 @@ const AppNavigation = () => {
         if (previousUserId && previousUserId !== user.uid) {
           await updateUserStatus(previousUserId, false);
         }
-        await updateUserStatus(user.uid, true);
-        await checkEmailVerification(user);
-        await checkNicknameStatus(user.uid); // Kiểm tra isCompleteNickname
+        // Chờ cả hai hàm bất đồng bộ hoàn tất trước khi cập nhật trạng thái
+        await Promise.all([
+          checkEmailVerification(user),
+          checkNicknameStatus(user.uid),
+        ]);
         setPreviousUserId(user.uid);
       } else {
         if (previousUserId) {
@@ -69,7 +71,7 @@ const AppNavigation = () => {
         }
         setPreviousUserId(null);
         setIsEmailVerified(null);
-        setIsCompleteNickname(null); // Reset state
+        setIsCompleteNickname(null);
       }
       setUser(user);
       setInitializing(false);
@@ -107,11 +109,15 @@ const AppNavigation = () => {
     return <Splash />;
   }
 
+  // Xử lý trạng thái trung gian khi isCompleteNickname hoặc isEmailVerified vẫn là null
+  if (user && (isCompleteNickname === null || isEmailVerified === null)) {
+    return <Splash />; // Hiển thị Splash trong khi chờ dữ liệu
+  }
 
   return (
     <>
       {!user || isCompleteNickname === false ? (
-        <UserNavigation /> // Nếu chưa có nickname, giữ ở UserNavigation
+        <UserNavigation />
       ) : isEmailVerified === false ? (
         <DashBoard checkEmailVerification={() => checkEmailVerification(user)} />
       ) : (

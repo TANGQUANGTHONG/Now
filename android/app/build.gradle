@@ -85,6 +85,7 @@ android {
         versionName "1.0"
     }
     signingConfigs {
+<<<<<<< HEAD
        release {
             if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {  
                 storeFile file(MYAPP_RELEASE_STORE_FILE)
@@ -92,6 +93,13 @@ android {
                 keyAlias MYAPP_RELEASE_KEY_ALIAS
                 keyPassword MYAPP_RELEASE_KEY_PASSWORD
             }
+=======
+        release {
+           storeFile file('mykeystore.jks')
+            storePassword 'thong2004'
+            keyAlias 'mykey'
+            keyPassword 'thong2004'
+>>>>>>> origin/Tai_Auth
         }
         debug {
             storeFile file('debug.keystore')

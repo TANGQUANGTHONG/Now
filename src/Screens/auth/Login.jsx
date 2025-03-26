@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image,
   StyleSheet, Dimensions, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator
+  Platform, ScrollView, ActivityIndicator, Modal, Pressable
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import auth from '@react-native-firebase/auth';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
 import { saveCurrentUserAsyncStorage, saveChatsAsyncStorage } from '../../storage/Storage';
+import LoadingModal from '../../loading/LoadingModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,15 +22,153 @@ const Login = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({}); // Thêm state để quản lý lỗi
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false); // Thêm state riêng cho Google loading
+  const [errors, setErrors] = useState({});
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [suggestedNickname, setSuggestedNickname] = useState('');
+  const [name, setName] = useState('');
 
+  const defaultImage = 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg';
 
   useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+    });
+
     const user = auth().currentUser;
     if (user) {
       saveCurrentUserAsyncStorage();
     }
   }, []);
+
+  const removeVietnameseDiacritics = (str) => {
+    str = str.toLowerCase();
+    str = str
+      .replace(/[àáảãạăằắẳẵặâầấẩẫậ]/g, 'a')
+      .replace(/[èéẻẽẹêềếểễệ]/g, 'e')
+      .replace(/[ìíỉĩị]/g, 'i')
+      .replace(/[òóỏõọôồốổỗộơờớởỡợ]/g, 'o')
+      .replace(/[ùúủũụưừứửữự]/g, 'u')
+      .replace(/[ỳýỷỹỵ]/g, 'y')
+      .replace(/đ/g, 'd');
+    return str;
+  };
+
+  const generateRandomNickname = (userName) => {
+    const baseName = removeVietnameseDiacritics(userName).replace(/\s+/g, '');
+    const randomNum = Math.floor(Math.random() * 1000);
+    const separator = Math.random() > 0.5 ? '.' : '_';
+    let nickname = `${baseName}${separator}${randomNum}`;
+    return nickname.length > 20 ? nickname.substring(0, 20) : nickname;
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      setIsGoogleLoading(true); // Sử dụng state riêng cho Google loading
+      await GoogleSignin.signOut();
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo = await GoogleSignin.signIn();
+      const { idToken } = userInfo.data;
+      if (!idToken) throw new Error('Không lấy được idToken từ Google Sign-In.');
+      const { name, email, photo } = userInfo.data.user;
+      if (!name || !email) throw new Error('Không lấy được thông tin người dùng từ Google.');
+
+      setName(name);
+      setEmail(email);
+
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const userCredential = await auth().signInWithCredential(googleCredential);
+      const userId = userCredential.user.uid;
+      const userRef = database().ref(`/users/${userId}`);
+      const snapshot = await userRef.once('value');
+
+      if (!snapshot.exists()) {
+        const userData = {
+          name: encryptMessage(name),
+          email: encryptMessage(email),
+          Image: encryptMessage(photo || defaultImage),
+          isCompleteNickname: false,
+          countChat: 100,
+          createdAt: database.ServerValue.TIMESTAMP,
+        };
+        await userRef.set(userData);
+      } else {
+        const userData = snapshot.val();
+        const updates = {};
+        if (!userData.name) updates.name = encryptMessage(name);
+        if (!userData.email) updates.email = encryptMessage(email);
+        if (!userData.Image) updates.Image = encryptMessage(photo || defaultImage);
+        if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
+        if (Object.keys(updates).length > 0) await userRef.update(updates);
+      }
+
+      await saveCurrentUserAsyncStorage();
+      await saveChatsAsyncStorage();
+
+      const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
+      if (!userData.isCompleteNickname) {
+        const randomNickname = generateRandomNickname(name);
+        setSuggestedNickname(randomNickname);
+        setNickname(randomNickname);
+        setShowNicknameModal(true);
+      } else {
+        navigation.navigate('HomeNavigation');
+      }
+    } catch (error) {
+      console.error('Google Sign-In Error:', error);
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        setErrors({ ...errors, general: 'Bạn đã hủy đăng nhập bằng Google.' });
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setErrors({ ...errors, general: 'Google Play Services không khả dụng.' });
+      } else {
+        setErrors({ ...errors, general: 'Lỗi đăng nhập: ' + error.message });
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleNicknameSubmit = async () => {
+    if (nickname.length > 20) {
+      setErrors({ ...errors, general: 'Nickname tối đa 20 ký tự!' });
+      return;
+    }
+    if (!nickname) {
+      setErrors({ ...errors, general: 'Vui lòng nhập nickname!' });
+      return;
+    }
+
+    const processedNickname = removeVietnameseDiacritics(nickname);
+    const encryptedNickname = encryptMessage(processedNickname);
+    try {
+      setIsGoogleLoading(true); // Sử dụng Google loading cho nickname submit
+      const userId = auth().currentUser?.uid;
+      if (!userId) throw new Error('User not authenticated');
+      const userRef = database().ref(`/users/${userId}`);
+      await userRef.update({
+        nickname: encryptedNickname,
+        isCompleteNickname: true,
+      });
+      setShowNicknameModal(false);
+      navigation.navigate('HomeNavigation');
+    } catch (error) {
+      console.log('Error saving nickname:', error);
+      setErrors({ ...errors, general: 'Lỗi khi lưu nickname: ' + error.message });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleRandomNickname = () => {
+    if (name.trim()) {
+      const newNickname = generateRandomNickname(name);
+      setNickname(newNickname);
+      setSuggestedNickname(newNickname);
+    } else {
+      setErrors({ ...errors, general: 'Không có tên để tạo nickname!' });
+    }
+  };
 
   const validateFields = () => {
     let newErrors = {};
@@ -45,15 +185,15 @@ const Login = ({ navigation }) => {
   const loginWithEmailAndPass = async () => {
     const isValid = validateFields();
     if (!isValid) {
-      return; // Dừng nếu có lỗi
+      return;
     }
 
     setIsLoading(true);
     try {
       await auth().signInWithEmailAndPassword(email, password);
-      navigation.navigate('TabHome');
       setPassword('');
       setEmail('');
+      navigation.navigate('HomeNavigation');
     } catch (err) {
       console.log(err);
       setErrors({ ...errors, general: getFirebaseErrorMessage(err.code) });
@@ -61,7 +201,6 @@ const Login = ({ navigation }) => {
       setIsLoading(false);
     }
   };
-
 
   const onForgotPassword = () => navigation.navigate('ForgotPassword');
   const isValidEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -112,7 +251,16 @@ const Login = ({ navigation }) => {
 
           <Text style={styles.subtitle}>Welcome back! Sign in using your email to continue us</Text>
 
-
+          <View style={styles.iconContainer}>
+            <View style={styles.iconWrapper}>
+              <TouchableOpacity onPress={signInWithGoogle} disabled={isGoogleLoading}>
+                <Image
+                  style={styles.icon}
+                  source={require('../auth/assets/icon/icon_google.png')}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
 
           <View style={styles.inputContainer}>
             <TextInput
@@ -183,6 +331,35 @@ const Login = ({ navigation }) => {
             <Text style={styles.forgotPassword}>Forgot password?</Text>
           </TouchableOpacity>
         </View>
+
+        <Modal visible={showNicknameModal} transparent={true} animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Chọn nickname của bạn</Text>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.inputModal}
+                  value={nickname}
+                  onChangeText={setNickname}
+                  maxLength={20}
+                  color="gray"
+                  placeholderTextColor="gray"
+                  placeholder="Nhập nickname (tối đa 20 ký tự)"
+                />
+                <TouchableOpacity style={styles.randomIcon} onPress={handleRandomNickname}>
+                  <MaterialIcon name="autorenew" size={24} color="#438875" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.suggestionText}>Gợi ý: {suggestedNickname}</Text>
+              <Pressable style={styles.submitButton} onPress={handleNicknameSubmit}>
+                <Text style={styles.submitButtonText}>Xác nhận</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Thêm LoadingModal cho Google Sign-In */}
+        <LoadingModal visible={isGoogleLoading} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -215,19 +392,38 @@ const styles = StyleSheet.create({
     color: 'gray',
     marginVertical: height * 0.015,
   },
+  iconContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: height * 0.03,
+  },
+  iconWrapper: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: width * 0.1,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  icon: {
+    width: width * 0.08,
+    height: width * 0.08,
+  },
   inputContainer: {
     marginTop: height * 0.03,
   },
   input: {
     width: '100%',
-    backgroundColor: '#1E1E1E', // Nền tối giống SignUp
+    backgroundColor: '#1E1E1E',
     height: height * 0.07,
     borderWidth: 1,
-    borderRadius: width * 0.04, // Bo góc mềm mại
-    borderColor: '#4A4A4A', // Viền xám nhạt
+    borderRadius: width * 0.04,
+    borderColor: '#4A4A4A',
     fontSize: width * 0.045,
     paddingHorizontal: width * 0.04,
-    color: '#FFFFFF', // Chữ trắng
+    color: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -235,7 +431,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   errorInput: {
-    borderColor: '#FF4D4D', // Viền đỏ khi có lỗi
+    borderColor: '#FF4D4D',
     borderWidth: 2,
     shadowColor: '#FF4D4D',
     shadowOffset: { width: 0, height: 2 },
@@ -259,13 +455,13 @@ const styles = StyleSheet.create({
   bottomContainer: {
     marginTop: height * 0.05,
     paddingHorizontal: width * 0.05,
-    paddingBottom: height * 0.03, // Tăng padding dưới
+    paddingBottom: height * 0.03,
   },
   loginButton: {
     paddingVertical: height * 0.02,
     paddingHorizontal: width * 0.04,
     alignItems: 'center',
-    borderRadius: width * 0.04, // Bo góc mềm mại
+    borderRadius: width * 0.04,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
@@ -274,32 +470,64 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontWeight: 'bold',
-    color: '#fff', // Chữ trắng
-    fontSize: width * 0.045, // Kích thước chữ giống SignUp
+    color: '#fff',
+    fontSize: width * 0.045,
   },
   forgotPassword: {
     textAlign: 'center',
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: width * 0.04, // Kích thước chữ lớn hơn một chút
+    fontSize: width * 0.04,
   },
-  socialContainer: {
-    flexDirection: 'row',
+  modalContainer: {
+    flex: 1,
     justifyContent: 'center',
-    marginVertical: height * 0.03,
-  },
-  socialButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingVertical: height * 0.01,
-    paddingHorizontal: width * 0.02,
-    borderRadius: width * 1,
-    marginHorizontal: width * 0.02,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  socialIcon: {
-    width: width * 0.08,
-    height: width * 0.08,
+  modalContent: {
+    width: width * 0.8,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: width * 0.05,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 20,
+  },
+  inputModal: {
+    width: '100%',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 50,
+    color: '#FFFFFF',
+    fontSize: width * 0.04,
+  },
+  randomIcon: {
+    position: 'absolute',
+    right: 10,
+    top: 13,
+  },
+  suggestionText: {
+    color: '#99F2C8',
+    fontSize: width * 0.035,
+    marginTop: 10,
+  },
+  submitButton: {
+    marginTop: 20,
+    backgroundColor: '#438875',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: width * 0.04,
+    fontWeight: 'bold',
   },
 });
 

@@ -99,7 +99,6 @@ const oStackHome = {
   Chat: {name: 'Chat', component: Chat},
   Single: {name: 'Single', component: Single},
   Search: {name: 'Search', component: Search},
-  Login: {name: 'Login', component: Login},
   ChangeDisplayName: {name: 'ChangeDisplayName', component: ChangeDisplayName},
   ChangePasswordScreen: {
     name: 'ChangePasswordScreen',
