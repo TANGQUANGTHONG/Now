@@ -131,10 +131,10 @@ const styles = StyleSheet.create({
     inputContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      backgroundColor: '#f0f0f0',
-      position: 'relative', // Để các phần tử con absolute hoạt động đúng
+      padding: 10,
+      backgroundColor: '#fff',
+      borderTopWidth: 1,
+      borderTopColor: '#ddd',
     },
   
     inputWrapper: {
@@ -345,23 +345,22 @@ const styles = StyleSheet.create({
     },
   
     iconWrapper: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      position: 'relative', // Để menuContainer có thể định vị tương đối với iconWrapper
     },
-  
     mainButton: {
-      padding: width * 0.025,
+      padding: 10, // Kích thước nút ba chấm
     },
   
     menuContainer: {
       position: 'absolute',
-      bottom: 50, // Khoảng cách từ bottom của inputContainer
-      right: 10, // Đặt menu gần nút 3 chấm
+      left: 0, // Căn trái với nút ba chấm
+      bottom: 75, // Đặt ngay trên nút ba chấm (chiều cao nút + khoảng cách)
+      width: width * 0.4, // Chiếm 40% chiều rộng màn hình (sửa lại từ width * 1)
       backgroundColor: '#fff',
-      borderRadius: 8,
+      borderRadius: 10,
       padding: 10,
-      elevation: 5, // Shadow cho Android
-      shadowColor: '#000', // Shadow cho iOS
+      elevation: 5, // Bóng đổ cho Android
+      shadowColor: '#000', // Bóng đổ cho iOS
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.3,
       shadowRadius: 4,
@@ -370,12 +369,14 @@ const styles = StyleSheet.create({
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 8,
-        },
+      paddingVertical: height * 0.015, // 1.5% chiều cao màn hình
+      paddingHorizontal: 10,
+    },
   
     menuText: {
-      marginLeft:  width * 0.025,
-      fontSize: width * 0.04,
+      marginLeft: 10,
+      fontSize: width * 0.04, // Kích thước chữ dựa trên chiều rộng màn hình
+      color: '#007bff',
     },
     videoWrapper: {
       borderRadius: 10,
