@@ -90,23 +90,22 @@ const SignUp = ({navigation}) => {
     try {
       setLoading(true);
       await GoogleSignin.signOut();
-      await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
-      const {idToken} = userInfo.data;
-      if (!idToken)
-        throw new Error('Không lấy được idToken từ Google Sign-In.');
-      const {name, email, photo} = userInfo.data.user;
-      if (!name || !email)
-        throw new Error('Không lấy được thông tin người dùng từ Google.');
+      const { idToken } = userInfo.data;
+      if (!idToken) throw new Error('Không lấy được idToken từ Google Sign-In.');
+      const { name, email, photo } = userInfo.data.user;
+      if (!name || !email) throw new Error('Không lấy được thông tin người dùng từ Google.');
+  
       setName(name);
       setEmail(email);
+  
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const userCredential = await auth().signInWithCredential(
-        googleCredential,
-      );
+      const userCredential = await auth().signInWithCredential(googleCredential);
       const userId = userCredential.user.uid;
       const userRef = database().ref(`/users/${userId}`);
       const snapshot = await userRef.once('value');
+  
       if (!snapshot.exists()) {
         const userData = {
           name: encryptMessage(name),
@@ -115,8 +114,8 @@ const SignUp = ({navigation}) => {
           isCompleteNickname: false,
           countChat: 100,
           createdAt: database.ServerValue.TIMESTAMP,
-          isOnline: true,                    // Thêm trạng thái online
-    lastActive: database.ServerValue.TIMESTAMP, // Thêm thời gian hoạt động cuối
+          isOnline: true, // Khởi tạo trạng thái online
+          lastActive: database.ServerValue.TIMESTAMP, // Khởi tạo lastActive
         };
         await userRef.set(userData);
       } else {
@@ -124,25 +123,22 @@ const SignUp = ({navigation}) => {
         const updates = {};
         if (!userData.name) updates.name = encryptMessage(name);
         if (!userData.email) updates.email = encryptMessage(email);
-        if (!userData.Image)
-          updates.Image = encryptMessage(photo || defaultImage);
-        if (!userData.createdAt)
-          updates.createdAt = database.ServerValue.TIMESTAMP;
+        if (!userData.Image) updates.Image = encryptMessage(photo || defaultImage);
+        if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
         if (Object.keys(updates).length > 0) await userRef.update(updates);
       }
+  
       await saveCurrentUserAsyncStorage();
       await saveChatsAsyncStorage();
-      const userData = snapshot.exists()
-        ? snapshot.val()
-        : {isCompleteNickname: false};
+  
+      const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
       if (!userData.isCompleteNickname) {
         const randomNickname = generateRandomNickname(name);
         setSuggestedNickname(randomNickname);
         setNickname(randomNickname);
         setShowNicknameModal(true);
       } else {
-        // Cập nhật trạng thái online sau khi hoàn tất đăng nhập và có nickname
-        await updateUserStatus(userId, true);
+        await updateUserStatus(userId, true); // Cập nhật trạng thái online nếu đã có nickname
         navigation.navigate('HomeNavigation');
       }
     } catch (error) {
@@ -179,8 +175,7 @@ const SignUp = ({navigation}) => {
         nickname: encryptedNickname,
         isCompleteNickname: true,
       });
-      // Cập nhật trạng thái online sau khi hoàn tất nhập nickname
-      await updateUserStatus(userId, true);
+      await updateUserStatus(userId, true); // Cập nhật trạng thái online sau khi lưu nickname
       setShowNicknameModal(false);
       navigation.navigate('HomeNavigation');
     } catch (error) {
@@ -272,10 +267,7 @@ const SignUp = ({navigation}) => {
     const isValid = await validateFields();
     if (!isValid) return;
     try {
-      const userCredential = await auth().createUserWithEmailAndPassword(
-        email,
-        password,
-      );
+      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const userId = userCredential.user.uid;
       const encryptedNickname = encryptMessage(nickname);
       await database()
@@ -288,9 +280,10 @@ const SignUp = ({navigation}) => {
           isCompleteNickname: true,
           countChat: 100,
           createdAt: database.ServerValue.TIMESTAMP,
+          isOnline: true, // Khởi tạo trạng thái online
+          lastActive: database.ServerValue.TIMESTAMP, // Khởi tạo lastActive
         });
-      // Cập nhật trạng thái online sau khi tạo tài khoản bằng email/password
-      await updateUserStatus(userId, true);
+      await updateUserStatus(userId, true); // Cập nhật trạng thái online
       await userCredential.user.sendEmailVerification();
       console.log('User saved successfully');
     } catch (error) {

@@ -30,8 +30,7 @@ import {launchImageLibrary} from 'react-native-image-picker';
 import {getAuth} from '@react-native-firebase/auth';
 import {getDatabase, ref, update} from '@react-native-firebase/database';
 import LoadingModal from '../../loading/LoadingModal';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import UserNavigation from '../../navigations/UserNavigation';
+
 
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
 const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
@@ -162,7 +161,7 @@ const Setting = ({navigation}) => {
     try {
       const currentUser = auth().currentUser;
       const userId = currentUser?.uid;
-
+  
       // Cập nhật trạng thái offline trước khi đăng xuất
       if (userId) {
         await database().ref(`/users/${userId}`).update({
@@ -171,16 +170,18 @@ const Setting = ({navigation}) => {
         });
         console.log(`User ${userId} is now offline`);
       }
-
+  
       // Đăng xuất khỏi Google và Firebase
       await GoogleSignin.signOut();
       await auth().signOut();
-
+  
       removeCurrentUserFromStorage();
       console.log('Đã đăng xuất khỏi Google và Firebase.');
+  
+      // Buộc điều hướng về UserNavigation
       navigation.reset({
         index: 0,
-        routes: [{name: 'UserNavigation'}],
+        routes: [{ name: 'UserNavigation' }],
       });
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
@@ -364,8 +365,7 @@ const Setting = ({navigation}) => {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() =>
-                  navigation.navigate(oStackHome.QRScannerScreen.name)
-                }>
+                  navigation.navigate(oStackHome.QRScannerScreen.name)}>
                 <Option icon="scan" title="QR" subtitle="QR scan" />
               </TouchableOpacity>
               <TouchableOpacity onPress={logOut}>

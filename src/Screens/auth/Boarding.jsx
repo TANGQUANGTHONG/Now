@@ -49,135 +49,127 @@ const Boarding = (props) => {
     return nickname.length > 20 ? nickname.substring(0, 20) : nickname;
   };
 
-  async function signInWithGoogle() {
-    try {
-      setLoading(true);
-      setError(''); // Reset lỗi trước khi đăng nhập
-      await GoogleSignin.signOut();
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const userInfo = await GoogleSignin.signIn();
-      console.log('Google Sign-In Result:', userInfo);
+// Thêm hàm updateUserStatus vào đầu file, ngay sau import
+const updateUserStatus = async (userId, isOnline) => {
+  if (!userId) return;
+  try {
+    await database()
+      .ref(`/users/${userId}`)
+      .update({
+        isOnline,
+        lastActive: isOnline ? database.ServerValue.TIMESTAMP : null,
+      });
+    console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+  } catch (error) {
+    console.error('Error updating user status:', error);
+  }
+};
 
-      const { idToken } = userInfo.data;
-      if (!idToken) {
-        throw new Error('Không lấy được idToken từ Google Sign-In.');
-      }
+// Trong hàm signInWithGoogle, sau khi lưu dữ liệu người dùng mới
+async function signInWithGoogle() {
+  try {
+    setLoading(true);
+    setError('');
+    await GoogleSignin.signOut();
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const userInfo = await GoogleSignin.signIn();
+    const { idToken } = userInfo.data;
+    if (!idToken) throw new Error('Không lấy được idToken từ Google Sign-In.');
 
-      setIdToken(idToken);
-      console.log('idToken:', idToken);
+    const { name, email, photo } = userInfo.data.user;
+    if (!name || !email) throw new Error('Không lấy được thông tin người dùng từ Google.');
 
-      const { name, email, photo } = userInfo.data.user;
-      if (!name || !email) {
-        throw new Error('Không lấy được thông tin người dùng từ Google.');
-      }
+    setName(name);
+    setEmail(email);
+    setAvatar(photo);
 
-      console.log('User Name:', name);
-      console.log('User Email:', email);
-      console.log('User Photo:', photo);
+    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+    const userCredential = await auth().signInWithCredential(googleCredential);
+    const userId = userCredential.user.uid;
 
-      setName(name);
-      setEmail(email);
-      setAvatar(photo);
+    const userRef = database().ref(`/users/${userId}`);
+    const snapshot = await userRef.once('value');
 
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const userCredential = await auth().signInWithCredential(googleCredential);
-      const userId = userCredential.user.uid;
-
-      const userRef = database().ref(`/users/${userId}`);
-      const snapshot = await userRef.once('value');
-
-      if (!snapshot.exists()) {
-        const userData = {
-          name: encryptMessage(name),
-          email: encryptMessage(email),
-          Image: encryptMessage(photo),
-          isCompleteNickname: false,
-          countChat: 100,
-          createdAt: database.ServerValue.TIMESTAMP,
-        };
-        await userRef.set(userData);
-        console.log('New user created with data:', userData);
-      } else {
-        const userData = snapshot.val();
-        const updates = {};
-
-        if (!userData.name) updates.name = encryptMessage(name);
-        if (!userData.email) updates.email = encryptMessage(email);
-        if (!userData.Image) updates.Image = encryptMessage(photo);
-        if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
-
-        if (Object.keys(updates).length > 0) {
-          await userRef.update(updates);
-          console.log('Updated missing fields:', updates);
-        }
-      }
-
-      await saveCurrentUserAsyncStorage();
-      await saveChatsAsyncStorage();
-
-      const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
-      if (!userData.isCompleteNickname) {
-        const randomNickname = generateRandomNickname(name);
-        setSuggestedNickname(randomNickname);
-        setNickname(randomNickname);
-        setShowNicknameModal(true);
-      } else {
-        console.log('User đã có nickname');
-        navigation.navigate('HomeNavigation');
-      }
-    } catch (error) {
-      console.log('Google Sign-In Error:', error);
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        setError('Bạn đã hủy đăng nhập bằng Google.');
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setError('Google Play Services không khả dụng.');
-      } else {
-        setError('Lỗi đăng nhập: ' + error.message);
-      }
-    } finally {
-      setLoading(false);
+    if (!snapshot.exists()) {
+      const userData = {
+        name: encryptMessage(name),
+        email: encryptMessage(email),
+        Image: encryptMessage(photo),
+        isCompleteNickname: false,
+        countChat: 100,
+        createdAt: database.ServerValue.TIMESTAMP,
+        isOnline: true, // Khởi tạo trạng thái online
+        lastActive: database.ServerValue.TIMESTAMP, // Khởi tạo lastActive
+      };
+      await userRef.set(userData);
+      console.log('New user created with data:', userData);
+    } else {
+      const userData = snapshot.val();
+      const updates = {};
+      if (!userData.name) updates.name = encryptMessage(name);
+      if (!userData.email) updates.email = encryptMessage(email);
+      if (!userData.Image) updates.Image = encryptMessage(photo);
+      if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
+      if (Object.keys(updates).length > 0) await userRef.update(updates);
     }
+
+    await saveCurrentUserAsyncStorage();
+    await saveChatsAsyncStorage();
+
+    const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
+    if (!userData.isCompleteNickname) {
+      const randomNickname = generateRandomNickname(name);
+      setSuggestedNickname(randomNickname);
+      setNickname(randomNickname);
+      setShowNicknameModal(true);
+    } else {
+      await updateUserStatus(userId, true); // Cập nhật trạng thái online nếu đã có nickname
+      navigation.navigate('HomeNavigation');
+    }
+  } catch (error) {
+    // Xử lý lỗi như cũ
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Trong hàm handleNicknameSubmit, sau khi lưu nickname
+const handleNicknameSubmit = async () => {
+  if (nickname.length > 20) {
+    setError('Nickname tối đa 20 ký tự!');
+    return;
+  }
+  if (!nickname) {
+    setError('Vui lòng nhập nickname!');
+    return;
   }
 
-  const handleNicknameSubmit = async () => {
-    if (nickname.length > 20) {
-      setError('Nickname tối đa 20 ký tự!');
-      return;
-    }
-    if (!nickname) {
-      setError('Vui lòng nhập nickname!');
-      return;
-    }
+  const processedNickname = removeVietnameseDiacritics(nickname);
+  const encryptedNickname = encryptMessage(processedNickname);
 
-    const processedNickname = removeVietnameseDiacritics(nickname);
-    const encryptedNickname = encryptMessage(processedNickname);
+  try {
+    setLoading(true);
+    setError('');
+    const userId = auth().currentUser?.uid;
+    if (!userId) throw new Error('User not authenticated');
 
-    try {
-      setLoading(true);
-      setError(''); // Reset lỗi trước khi lưu nickname
+    const userRef = database().ref(`/users/${userId}`);
+    await userRef.update({
+      nickname: encryptedNickname,
+      isCompleteNickname: true,
+    });
 
-      const userId = auth().currentUser?.uid;
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-
-      const userRef = database().ref(`/users/${userId}`);
-      await userRef.update({
-        nickname: encryptedNickname,
-        isCompleteNickname: true,
-      });
-
-      console.log('Nickname saved to Realtime Database:', encryptedNickname);
-      setShowNicknameModal(false);
-
-      navigation.navigate('HomeNavigation');
-    } catch (error) {
-      console.log('Error saving nickname:', error);
-      setError('Lỗi khi lưu nickname: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    await updateUserStatus(userId, true); // Cập nhật trạng thái online sau khi lưu nickname
+    console.log('Nickname saved to Realtime Database:', encryptedNickname);
+    setShowNicknameModal(false);
+    navigation.navigate('HomeNavigation');
+  } catch (error) {
+    console.log('Error saving nickname:', error);
+    setError('Lỗi khi lưu nickname: ' + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleRandomNickname = () => {
     const newNickname = generateRandomNickname(name);
@@ -273,7 +265,7 @@ const Boarding = (props) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Chọn nickname của bạn</Text>
+            <Text style={styles.modalTitle}>Choose your nickname</Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -282,15 +274,15 @@ const Boarding = (props) => {
                 maxLength={20}
                 color="gray"
                 placeholderTextColor="gray"
-                placeholder="Nhập nickname (tối đa 20 ký tự)"
+                placeholder="Enter nickname (maximum 20 characters)"
               />
               <TouchableOpacity style={styles.randomIcon} onPress={handleRandomNickname}>
                 <Icon name="autorenew" size={24} color="#438875" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.suggestionText}>Gợi ý: {suggestedNickname}</Text>
+            <Text style={styles.suggestionText}>Suggest: {suggestedNickname}</Text>
             <Pressable style={styles.submitButton} onPress={handleNicknameSubmit}>
-              <Text style={styles.submitButtonText}>Xác nhận</Text>
+              <Text style={styles.submitButtonText}>Confilm</Text>
             </Pressable>
           </View>
         </View>

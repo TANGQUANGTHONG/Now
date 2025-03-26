@@ -13,16 +13,16 @@ const AppNavigation = () => {
   const [isEmailVerified, setIsEmailVerified] = useState(null);
   const [isCompleteNickname, setIsCompleteNickname] = useState(null);
   const [isSplashVisible, setSplashVisible] = useState(true);
-  const [previousUserId, setPreviousUserId] = useState(null);
 
+  // Cập nhật trạng thái người dùng trong database
   const updateUserStatus = async (userId, isOnline) => {
     if (!userId) return;
     try {
       await database()
         .ref(`/users/${userId}`)
         .update({
-          isOnline: isOnline,
-          lastActive: database.ServerValue.TIMESTAMP,
+          isOnline,
+          lastActive: isOnline ? database.ServerValue.TIMESTAMP : null, // Chỉ cập nhật lastActive khi online
         });
       console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
     } catch (error) {
@@ -30,55 +30,52 @@ const AppNavigation = () => {
     }
   };
 
+  // Xử lý trạng thái ứng dụng (active, background, inactive)
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
-      if (user && isCompleteNickname === true) {
-        if (nextAppState === 'active') {
-          updateUserStatus(user.uid, true);
-        } else if (nextAppState === 'background' || nextAppState === 'inactive') {
-          updateUserStatus(user.uid, false);
-        }
-      }
+      if (!user || isCompleteNickname !== true) return; // Không cập nhật nếu user không hợp lệ
+      const isOnline = nextAppState === 'active';
+      updateUserStatus(user.uid, isOnline);
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
   }, [user, isCompleteNickname]);
 
+  // Hiển thị Splash trong 2 giây khi khởi động
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setSplashVisible(false);
-    }, 2000);
+    const timeout = setTimeout(() => setSplashVisible(false), 2000);
     return () => clearTimeout(timeout);
   }, []);
 
+  // Lắng nghe trạng thái xác thực
   useEffect(() => {
-    const subscriber = auth().onAuthStateChanged(async (user) => {
-      console.log('Auth state changed:', user ? `User logged in: ${user.email}` : 'No user logged in');
-      if (user) {
-        if (previousUserId && previousUserId !== user.uid) {
-          await updateUserStatus(previousUserId, false);
-        }
-        // Chờ cả hai hàm bất đồng bộ hoàn tất trước khi cập nhật trạng thái
+    const subscriber = auth().onAuthStateChanged(async (currentUser) => {
+      console.log(
+        'Auth state changed:',
+        currentUser ? `User logged in: ${currentUser.email}` : 'No user logged in'
+      );
+
+      if (currentUser) {
+        // Khi đăng nhập: Set trạng thái online ngay lập tức
         await Promise.all([
-          checkEmailVerification(user),
-          checkNicknameStatus(user.uid),
+          checkEmailVerification(currentUser),
+          checkNicknameStatus(currentUser.uid),
+          updateUserStatus(currentUser.uid, true), // Khởi tạo trạng thái online
         ]);
-        setPreviousUserId(user.uid);
       } else {
-        if (previousUserId) {
-          await updateUserStatus(previousUserId, false);
+        // Khi đăng xuất: Set trạng thái offline cho user trước đó (nếu có)
+        if (user?.uid) {
+          await updateUserStatus(user.uid, false);
         }
-        setPreviousUserId(null);
-        setIsEmailVerified(null);
-        setIsCompleteNickname(null);
       }
-      setUser(user);
+
+      setUser(currentUser);
       setInitializing(false);
     });
 
     return subscriber;
-  }, [previousUserId]);
+  }, [user?.uid]); // Chỉ chạy lại nếu uid thay đổi
 
   const checkEmailVerification = async (user) => {
     await user.reload();
@@ -90,13 +87,9 @@ const AppNavigation = () => {
     try {
       const userRef = database().ref(`/users/${userId}`);
       const snapshot = await userRef.once('value');
-      if (snapshot.exists()) {
-        const userData = snapshot.val();
-        setIsCompleteNickname(userData.isCompleteNickname || false);
-        console.log('isCompleteNickname:', userData.isCompleteNickname || false);
-      } else {
-        setIsCompleteNickname(false);
-      }
+      const userData = snapshot.val() || {};
+      setIsCompleteNickname(userData.isCompleteNickname || false);
+      console.log('isCompleteNickname:', userData.isCompleteNickname || false);
     } catch (error) {
       console.error('Error checking nickname status:', error);
       setIsCompleteNickname(false);
@@ -104,14 +97,11 @@ const AppNavigation = () => {
   };
 
   if (initializing) return null;
+  if (isSplashVisible) return <Splash />;
 
-  if (isSplashVisible) {
-    return <Splash />;
-  }
-
-  // Xử lý trạng thái trung gian khi isCompleteNickname hoặc isEmailVerified vẫn là null
+  // Chờ dữ liệu cần thiết trước khi điều hướng
   if (user && (isCompleteNickname === null || isEmailVerified === null)) {
-    return <Splash />; // Hiển thị Splash trong khi chờ dữ liệu
+    return <Splash />;
   }
 
   return (

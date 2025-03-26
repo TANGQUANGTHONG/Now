@@ -63,58 +63,77 @@ const Login = ({ navigation }) => {
     return nickname.length > 20 ? nickname.substring(0, 20) : nickname;
   };
 
-  const signInWithGoogle = async () => {
-    try {
-      setIsGoogleLoading(true); // Sử dụng state riêng cho Google loading
-      await GoogleSignin.signOut();
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const userInfo = await GoogleSignin.signIn();
-      const { idToken } = userInfo.data;
-      if (!idToken) throw new Error('Không lấy được idToken từ Google Sign-In.');
-      const { name, email, photo } = userInfo.data.user;
-      if (!name || !email) throw new Error('Không lấy được thông tin người dùng từ Google.');
+  const updateUserStatus = async (userId, isOnline) => {
+  if (!userId) return;
+  try {
+    await database()
+      .ref(`/users/${userId}`)
+      .update({
+        isOnline,
+        lastActive: isOnline ? database.ServerValue.TIMESTAMP : null,
+      });
+    console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+  } catch (error) {
+    console.error('Error updating user status:', error);
+  }
+};
 
-      setName(name);
-      setEmail(email);
+// Trong signInWithGoogle
+const signInWithGoogle = async () => {
+  try {
+    setIsGoogleLoading(true);
+    await GoogleSignin.signOut();
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const userInfo = await GoogleSignin.signIn();
+    const { idToken } = userInfo.data;
+    if (!idToken) throw new Error('Không lấy được idToken từ Google Sign-In.');
+    const { name, email, photo } = userInfo.data.user;
+    if (!name || !email) throw new Error('Không lấy được thông tin người dùng từ Google.');
 
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const userCredential = await auth().signInWithCredential(googleCredential);
-      const userId = userCredential.user.uid;
-      const userRef = database().ref(`/users/${userId}`);
-      const snapshot = await userRef.once('value');
+    setName(name);
+    setEmail(email);
 
-      if (!snapshot.exists()) {
-        const userData = {
-          name: encryptMessage(name),
-          email: encryptMessage(email),
-          Image: encryptMessage(photo || defaultImage),
-          isCompleteNickname: false,
-          countChat: 100,
-          createdAt: database.ServerValue.TIMESTAMP,
-        };
-        await userRef.set(userData);
-      } else {
-        const userData = snapshot.val();
-        const updates = {};
-        if (!userData.name) updates.name = encryptMessage(name);
-        if (!userData.email) updates.email = encryptMessage(email);
-        if (!userData.Image) updates.Image = encryptMessage(photo || defaultImage);
-        if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
-        if (Object.keys(updates).length > 0) await userRef.update(updates);
-      }
+    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+    const userCredential = await auth().signInWithCredential(googleCredential);
+    const userId = userCredential.user.uid;
+    const userRef = database().ref(`/users/${userId}`);
+    const snapshot = await userRef.once('value');
 
-      await saveCurrentUserAsyncStorage();
-      await saveChatsAsyncStorage();
+    if (!snapshot.exists()) {
+      const userData = {
+        name: encryptMessage(name),
+        email: encryptMessage(email),
+        Image: encryptMessage(photo || defaultImage),
+        isCompleteNickname: false,
+        countChat: 100,
+        createdAt: database.ServerValue.TIMESTAMP,
+        isOnline: true, // Khởi tạo trạng thái online
+        lastActive: database.ServerValue.TIMESTAMP, // Khởi tạo lastActive
+      };
+      await userRef.set(userData);
+    } else {
+      const userData = snapshot.val();
+      const updates = {};
+      if (!userData.name) updates.name = encryptMessage(name);
+      if (!userData.email) updates.email = encryptMessage(email);
+      if (!userData.Image) updates.Image = encryptMessage(photo || defaultImage);
+      if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
+      if (Object.keys(updates).length > 0) await userRef.update(updates);
+    }
 
-      const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
-      if (!userData.isCompleteNickname) {
-        const randomNickname = generateRandomNickname(name);
-        setSuggestedNickname(randomNickname);
-        setNickname(randomNickname);
-        setShowNicknameModal(true);
-      } else {
-        navigation.navigate('HomeNavigation');
-      }
+    await saveCurrentUserAsyncStorage();
+    await saveChatsAsyncStorage();
+
+    const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
+    if (!userData.isCompleteNickname) {
+      const randomNickname = generateRandomNickname(name);
+      setSuggestedNickname(randomNickname);
+      setNickname(randomNickname);
+      setShowNicknameModal(true);
+    } else {
+      await updateUserStatus(userId, true); // Cập nhật trạng thái online nếu đã có nickname
+      navigation.navigate('HomeNavigation');
+    }
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
@@ -138,11 +157,11 @@ const Login = ({ navigation }) => {
       setErrors({ ...errors, general: 'Vui lòng nhập nickname!' });
       return;
     }
-
+  
     const processedNickname = removeVietnameseDiacritics(nickname);
     const encryptedNickname = encryptMessage(processedNickname);
     try {
-      setIsGoogleLoading(true); // Sử dụng Google loading cho nickname submit
+      setIsGoogleLoading(true);
       const userId = auth().currentUser?.uid;
       if (!userId) throw new Error('User not authenticated');
       const userRef = database().ref(`/users/${userId}`);
@@ -150,6 +169,7 @@ const Login = ({ navigation }) => {
         nickname: encryptedNickname,
         isCompleteNickname: true,
       });
+      await updateUserStatus(userId, true); // Cập nhật trạng thái online sau khi lưu nickname
       setShowNicknameModal(false);
       navigation.navigate('HomeNavigation');
     } catch (error) {
@@ -184,13 +204,13 @@ const Login = ({ navigation }) => {
 
   const loginWithEmailAndPass = async () => {
     const isValid = validateFields();
-    if (!isValid) {
-      return;
-    }
-
+    if (!isValid) return;
+  
     setIsLoading(true);
     try {
-      await auth().signInWithEmailAndPassword(email, password);
+      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      const userId = userCredential.user.uid;
+      await updateUserStatus(userId, true); // Cập nhật trạng thái online sau khi đăng nhập
       setPassword('');
       setEmail('');
       navigation.navigate('HomeNavigation');
@@ -335,7 +355,7 @@ const Login = ({ navigation }) => {
         <Modal visible={showNicknameModal} transparent={true} animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Chọn nickname của bạn</Text>
+              <Text style={styles.modalTitle}>Choose your nickname</Text>
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.inputModal}
@@ -344,15 +364,15 @@ const Login = ({ navigation }) => {
                   maxLength={20}
                   color="gray"
                   placeholderTextColor="gray"
-                  placeholder="Nhập nickname (tối đa 20 ký tự)"
+                  placeholder="Enter nickname (maximum 20 characters)"
                 />
                 <TouchableOpacity style={styles.randomIcon} onPress={handleRandomNickname}>
                   <MaterialIcon name="autorenew" size={24} color="#438875" />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.suggestionText}>Gợi ý: {suggestedNickname}</Text>
+              <Text style={styles.suggestionText}>Suggest: {suggestedNickname}</Text>
               <Pressable style={styles.submitButton} onPress={handleNicknameSubmit}>
-                <Text style={styles.submitButtonText}>Xác nhận</Text>
+                <Text style={styles.submitButtonText}>Confilm</Text>
               </Pressable>
             </View>
           </View>
