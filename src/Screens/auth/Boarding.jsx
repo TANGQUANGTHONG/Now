@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 const { width, height } = Dimensions.get('window');
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import { encryptMessage } from '../../cryption/Encryption';
@@ -51,41 +51,53 @@ const Boarding = (props) => {
   async function signInWithGoogle() {
     try {
       setLoading(true);
+      // Đăng xuất trước để lấy token mới
       await GoogleSignin.signOut();
-
+  
+      // Kiểm tra Google Play Services
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const signInResult = await GoogleSignin.signIn();
-
-      const idToken = signInResult.idToken || signInResult.data?.idToken;
+  
+      // Đăng nhập bằng Google
+      const userInfo = await GoogleSignin.signIn();
+      console.log('Google Sign-In Result:', userInfo);
+  
+      // Lấy idToken từ userInfo.data
+      const { idToken } = userInfo.data; // Sửa ở đây
       if (!idToken) {
-        throw new Error('No ID token found');
+        throw new Error('Không lấy được idToken từ Google Sign-In.');
       }
-
-      const name = signInResult.data.user.name;
-      const avatar = signInResult.data.user.photo;
-      const email = signInResult.data.user.email;
-
-      console.log('User email:', email);
+  
+      setIdToken(idToken);
+      console.log('idToken:', idToken);
+  
+      // Lấy thông tin người dùng từ userInfo.data.user
+      const { name, email, photo } = userInfo.data.user; // Sửa ở đây
+      if (!name || !email) {
+        throw new Error('Không lấy được thông tin người dùng từ Google.');
+      }
+  
       console.log('User Name:', name);
-      console.log('User Photo:', avatar);
-
+      console.log('User Email:', email);
+      console.log('User Photo:', photo);
+  
       setName(name);
       setEmail(email);
-      setAvatar(avatar);
-      setIdToken(idToken);
-
+      setAvatar(photo);
+  
+      // Đăng nhập vào Firebase với idToken
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
       const userCredential = await auth().signInWithCredential(googleCredential);
       const userId = userCredential.user.uid;
-
+  
+      // Kiểm tra và lưu thông tin vào Realtime Database
       const userRef = database().ref(`/users/${userId}`);
       const snapshot = await userRef.once('value');
-
+  
       if (!snapshot.exists()) {
         const userData = {
           name: encryptMessage(name),
           email: encryptMessage(email),
-          Image: encryptMessage(avatar),
+          Image: encryptMessage(photo),
           isCompleteNickname: false,
           countChat: 100,
           createdAt: database.ServerValue.TIMESTAMP,
@@ -95,21 +107,23 @@ const Boarding = (props) => {
       } else {
         const userData = snapshot.val();
         const updates = {};
-
+  
         if (!userData.name) updates.name = encryptMessage(name);
         if (!userData.email) updates.email = encryptMessage(email);
-        if (!userData.Image) updates.Image = encryptMessage(avatar);
+        if (!userData.Image) updates.Image = encryptMessage(photo);
         if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
-
+  
         if (Object.keys(updates).length > 0) {
           await userRef.update(updates);
           console.log('Updated missing fields:', updates);
         }
       }
-
+  
+      // Lưu thông tin vào AsyncStorage
       await saveCurrentUserAsyncStorage();
       await saveChatsAsyncStorage();
-
+  
+      // Kiểm tra nickname
       const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
       if (!userData.isCompleteNickname) {
         const randomNickname = generateRandomNickname(name);
@@ -117,12 +131,18 @@ const Boarding = (props) => {
         setNickname(randomNickname);
         setShowNicknameModal(true);
       } else {
-        console.log('user đã có nickname');
+        console.log('User đã có nickname');
         navigation.navigate('HomeNavigation');
       }
     } catch (error) {
-      console.log('Google Sign-In Error:', error);
-      alert('Lỗi đăng nhập: ' + error.message);
+      console.error('Google Sign-In Error:', error);
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        alert('Đăng nhập bị hủy.');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        alert('Google Play Services không khả dụng.');
+      } else {
+        alert('Lỗi đăng nhập: ' + error.message);
+      }
     } finally {
       setLoading(false);
     }
