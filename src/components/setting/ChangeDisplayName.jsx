@@ -70,7 +70,7 @@ const ChangeUserInfo = () => {
 
   const handleUpdateUsername = async () => {
     if (!name.trim() || !nickname.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ!');
+      Alert.alert('Error', 'Please enter all required information!');
       return;
     }
   
@@ -78,7 +78,8 @@ const ChangeUserInfo = () => {
       setUpdating(true); // Bật loading khi bắt đầu cập nhật
       const id = auth.currentUser?.uid;
       if (!id) {
-        Alert.alert('Lỗi', 'Không tìm thấy ID người dùng!');
+        Alert.alert('Error', 'User ID not found!');
+
         return;
       }
   
@@ -96,7 +97,7 @@ const ChangeUserInfo = () => {
           });
   
           if (isDuplicate) {
-            Alert.alert('Lỗi', 'Biệt danh đã tồn tại, vui lòng chọn biệt danh khác!');
+            Alert.alert('Error', 'Nickname already exists, please choose another one!');
             setUpdating(false); // Tắt loading nếu lỗi
             return;
           }
@@ -111,7 +112,7 @@ const ChangeUserInfo = () => {
       }, { onlyOnce: true });
   
     } catch (error) {
-      Alert.alert('Lỗi', error.message);
+      Alert.alert('Error', error.message);
       console.log('Lỗi cập nhật name:', error);
       setUpdating(false);
     }
@@ -148,21 +149,21 @@ const ChangeUserInfo = () => {
                 style={styles.updateLoading}
               />
             ) : (
-              <Text style={styles.text_hearder}>Xong</Text>
+              <Text style={styles.text_header}>Done</Text>
             )}
-          </TouchableOpacity>
-        </View>
-  
-        <Text style={styles.label}>Thay đổi tên</Text>
-        <TextInput
-          placeholder="Nhập tên mới"
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholderTextColor={'#aaa'}
-        />
-  
-        <Text style={styles.label}>Đặt biệt danh</Text>
+            </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.label}>Change Name</Text>
+            <TextInput
+              placeholder="Enter new name"
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholderTextColor={'#aaa'}
+            />
+            
+            <Text style={styles.label}>Set Nickname</Text>            
         <TextInput
           placeholder="@Nhập biệt danh mới"
           style={styles.input}

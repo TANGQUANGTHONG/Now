@@ -33,7 +33,6 @@ import LoadingModal from '../../loading/LoadingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserNavigation from '../../navigations/UserNavigation';
 
-
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
 const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
 
@@ -48,7 +47,8 @@ const Setting = ({navigation}) => {
   const providerId = auth().currentUser?.providerData[0]?.providerId;
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+      webClientId:
+        '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
     });
   }, []);
   // đổi avatar
@@ -58,14 +58,14 @@ const Setting = ({navigation}) => {
       const userId = auth.currentUser?.uid;
 
       if (!userId) {
-        Alert.alert('Lỗi', 'Không tìm thấy ID người dùng!');
+        Alert.alert('Error', 'User ID not found!');
         return;
       }
 
       const userRef = ref(getDatabase(), `users/${userId}`);
       await update(userRef, {Image: encryptMessage(avatarUrl)});
     } catch (error) {
-      Alert.alert('Lỗi', error.message);
+      Alert.alert('Error', error.message);
       console.log('Lỗi cập nhật avatar:', error);
     }
   };
@@ -132,7 +132,8 @@ const Setting = ({navigation}) => {
           const data = snapshot.val();
           let decryptedNickname = data.nickname
             ? decryptMessage(data.nickname)
-            : 'Không có nickname';
+            : 'No nickname';
+
 
           // Thêm @ vào trước nickname nếu chưa có
           if (decryptedNickname && !decryptedNickname.startsWith('@')) {
@@ -164,12 +165,10 @@ const Setting = ({navigation}) => {
 
       // Cập nhật trạng thái offline trước khi đăng xuất
       if (userId) {
-        await database()
-          .ref(`/users/${userId}`)
-          .update({
-            isOnline: false,
-            lastActive: database.ServerValue.TIMESTAMP,
-          });
+        await database().ref(`/users/${userId}`).update({
+          isOnline: false,
+          lastActive: database.ServerValue.TIMESTAMP,
+        });
         console.log(`User ${userId} is now offline`);
       }
 
@@ -179,10 +178,10 @@ const Setting = ({navigation}) => {
 
       removeCurrentUserFromStorage();
       console.log('Đã đăng xuất khỏi Google và Firebase.');
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'UserNavigation' }],
-    });
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'UserNavigation'}],
+      });
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
     }
@@ -191,41 +190,44 @@ const Setting = ({navigation}) => {
   const handleDeleteAccount = async () => {
     try {
       const user = auth().currentUser;
-      if (!user) throw new Error('Bạn chưa đăng nhập.');
-  
+      if (!user) throw new Error('You are not logged in.');
+
       const providerId = user.providerData[0]?.providerId;
       console.log('Provider ID:', providerId);
-  
-      // Xác thực lại danh tính
+
+      // Reauthenticate identity
       if (providerId === 'password') {
         if (!password) {
-          Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu để xác nhận.');
+          Alert.alert('Error', 'Please enter your password to confirm.');
           return;
         }
-        const credential = auth.EmailAuthProvider.credential(user.email, password);
+        const credential = auth.EmailAuthProvider.credential(
+          user.email,
+          password,
+        );
         await user.reauthenticateWithCredential(credential);
-        console.log('Xác thực lại thành công với mật khẩu.');
+        console.log('Successfully reauthenticated with password.');
       } else if (providerId === 'google.com') {
         await GoogleSignin.hasPlayServices();
         console.log('Google Play Services sẵn sàng.');
-  
+
         const userInfo = await GoogleSignin.signIn();
         console.log('Google Sign-In Result:', userInfo);
-  
+
         const idToken = userInfo.data?.idToken || userInfo.idToken;
         if (!idToken) throw new Error('Không lấy được idToken từ Google.');
         console.log('idToken:', idToken);
-  
+
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         await user.reauthenticateWithCredential(googleCredential);
         console.log('Xác thực lại thành công với Google.');
       }
-  
+
       // Gửi email xác minh
       await user.sendEmailVerification();
       Alert.alert(
-        'Xác minh email',
-        'Vui lòng kiểm tra email của bạn và nhấp vào liên kết xác minh. Tài khoản sẽ tự động bị xóa sau khi bạn xác minh.',
+        'Email Verification',
+        'Please check your email and click the verification link. The account will be automatically deleted after verification.',
         [
           {
             text: 'OK',
@@ -242,26 +244,34 @@ const Setting = ({navigation}) => {
                     await database().ref(`/users/${user.uid}`).remove(); // Xóa dữ liệu trong Realtime Database
                     await AsyncStorage.clear(); // Xóa dữ liệu trong AsyncStorage
                     await user.delete(); // Xóa tài khoản Firebase
-                    console.log('Tài khoản đã bị xóa tự động.');
-                    Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
-  
+                    console.log('The account has been automatically deleted.');
+                    Alert.alert(
+                      'Success',
+                      'The account and data have been deleted.',
+                    );
                     // Chuyển hướng về màn hình đăng nhập
                     navigation.reset({
                       index: 0,
-                      routes: [{ name: 'Login' }],
+                      routes: [{name: 'Login'}],
                     });
                   }
                 } catch (error) {
                   clearInterval(checkVerification); // Dừng kiểm tra nếu có lỗi
-                  console.error('Lỗi trong quá trình kiểm tra xác minh:', error);
-                  Alert.alert('Lỗi', 'Đã xảy ra lỗi trong quá trình xóa tài khoản.');
+                  console.error('Error during verification check:', error);
+                  Alert.alert(
+                    'Error',
+                    'An error occurred while deleting the account.',
+                  );
                 }
               }, 2000); // Kiểm tra mỗi 2 giây
-  
+
               // (Tùy chọn) Dừng kiểm tra sau 5 phút nếu không xác minh
               setTimeout(() => {
                 clearInterval(checkVerification);
-                Alert.alert('Hết thời gian', 'Vui lòng thử lại nếu bạn vẫn muốn xóa tài khoản.');
+                Alert.alert(
+                  'Timeout',
+                  'Please try again if you still want to delete your account.',
+                );
               }, 300000); // 300,000 ms = 5 phút
             },
           },
@@ -269,7 +279,7 @@ const Setting = ({navigation}) => {
       );
     } catch (error) {
       console.error('Lỗi xóa tài khoản:', error);
-      Alert.alert('Lỗi', error.message);
+      Alert.alert('Error', error.message);
     }
   };
 
@@ -316,10 +326,19 @@ const Setting = ({navigation}) => {
                   style={styles.avatar}
                 />
 
-                <View style={{position: 'absolute', right: 10, bottom: 0, backgroundColor: 'white', borderRadius : 15, padding: 2, borderWidth: 1, borderColor: 'gray'}}>
-                <Icon name="camera-reverse" size={18} color="black" />
+                <View
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    bottom: 0,
+                    backgroundColor: 'white',
+                    borderRadius: 15,
+                    padding: 2,
+                    borderWidth: 1,
+                    borderColor: 'gray',
+                  }}>
+                  <Icon name="camera-reverse" size={18} color="black" />
                 </View>
-
               </Pressable>
               <View style={styles.profileInfo}>
                 <Text style={styles.name}>{myUser?.name}</Text>
@@ -399,72 +418,73 @@ const Setting = ({navigation}) => {
                   color="red"
                 />
               </TouchableOpacity>
-       
             </ScrollView>
           </View>
           <Modal
-  animationType="slide"
-  transparent
-  visible={modalVisible}
-  onRequestClose={() => setModalVisible(false)}>
-  <View
-    style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0,0,0,0.5)',
-    }}>
-    <View
-      style={{
-        width: 300,
-        backgroundColor: 'white',
-        padding: 20,
-        borderRadius: 10,
-      }}>
-      <Text
-        style={{
-          fontSize: 18,
-          fontWeight: 'bold',
-          marginBottom: 10,
-          color: 'black',
-        }}>
-             Confirm account deletion
-      </Text>
-      <Text style={{ color: 'black', marginBottom: 10 }}>
-        {providerId === 'password'
-          ? 'Please enter your password to confirm.'
-          : 'You will need to log in again via Google to verify.'}
-      </Text>
+            animationType="slide"
+            transparent
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+              }}>
+              <View
+                style={{
+                  width: 300,
+                  backgroundColor: 'white',
+                  padding: 20,
+                  borderRadius: 10,
+                }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    marginBottom: 10,
+                    color: 'black',
+                  }}>
+                  Confirm account deletion
+                </Text>
+                <Text style={{color: 'black', marginBottom: 10}}>
+                  {providerId === 'password'
+                    ? 'Please enter your password to confirm.'
+                    : 'You will need to log in again via Google to verify.'}
+                </Text>
 
-      {providerId === 'password' && (
-        <TextInput
-          placeholder="Nhập mật khẩu để xác nhận"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholderTextColor={'#aaa'}
-          style={{ borderBottomWidth: 1, marginBottom: 20 }}
-        />
-      )}
+                {providerId === 'password' && (
+                  <TextInput
+                    placeholder="Nhập mật khẩu để xác nhận"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholderTextColor={'#aaa'}
+                    style={{borderBottomWidth: 1, marginBottom: 20}}
+                  />
+                )}
 
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-        }}>
-        <TouchableOpacity
-          onPress={() => setModalVisible(false)}
-          style={{ padding: 10 }}>
-          <Text style={{ color: 'blue' }}>Cancel</Text>
-        </TouchableOpacity>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                  }}>
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    style={{padding: 10}}>
+                    <Text style={{color: 'blue'}}>Cancel</Text>
+                  </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleDeleteAccount} style={{ padding: 10 }}>
-          <Text style={{ color: 'red' }}>Confirm</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
+                  <TouchableOpacity
+                    onPress={handleDeleteAccount}
+                    style={{padding: 10}}>
+                    <Text style={{color: 'red'}}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </>
       )}
     </View>

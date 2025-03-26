@@ -806,23 +806,25 @@ setMessages(updatedMessages.filter(msg => !msg.deletedBy?.[myId]));
   }, [userId]);
 
   const getStatusText = () => {
-    if (!lastActive) return 'Đang hoạt động';
+    if (!lastActive) return 'Active';
 
     const now = Date.now();
-
+    
     const diff = now - lastActive;
-
-    if (diff < 10000) return 'Đang hoạt động';
-
-    if (diff < 60000) return 'Vừa mới truy cập';
+    
+    if (diff < 10000) return 'Active';
+    
+    if (diff < 60000) return 'Just now';
+    
 
     if (diff < 3600000)
-      return `Hoạt động ${Math.floor(diff / 60000)} phút trước`;
+      return `Active ${Math.floor(diff / 60000)} minutes ago`;
 
     if (diff < 86400000)
-      return `Hoạt động ${Math.floor(diff / 3600000)} giờ trước`;
-
-    return `Hoạt động ${Math.floor(diff / 86400000)} ngày trước`;
+      return `Active ${Math.floor(diff / 3600000)} hours ago`;
+    
+    return `Active ${Math.floor(diff / 86400000)} days ago`;
+    
   };
 
   // lấy dữ liệu từ firebase về để show lên
@@ -1954,7 +1956,7 @@ if (!snapshot.exists()) return;
               <View>
                 <Text style={styles.headerUsername}>{username}</Text>
                 <View style={styles.statusContainer}>
-                  {getStatusText() === 'Đang hoạt động' && (
+                {getStatusText() === 'Active' && (
                     <View style={styles.activeDot} />
                   )}
                   <Text style={styles.userStatus}>{getStatusText()}</Text>
@@ -2236,8 +2238,8 @@ if (!snapshot.exists()) return;
                 }}
                 style={styles.menuItem}>
                 <Ionicons name="navigate-outline" size={24} color="#007bff" />
-                <Text style={styles.menuText}>Gửi vị trí</Text>
-              </TouchableOpacity>
+                <Text style={styles.menuText}>Send Location</Text>
+                </TouchableOpacity>
 
               {/* Tự động xóa */}
               <TouchableOpacity
@@ -2252,7 +2254,7 @@ if (!snapshot.exists()) return;
                   color={isSelfDestruct ? 'red' : '#007bff'}
                 />
                 <Text style={styles.menuText}>
-                  {selfDestructTime ? `${selfDestructTime}s` : 'Tự động xóa'}
+                {selfDestructTime ? `${selfDestructTime}s` : 'Auto Delete'}
                 </Text>
               </TouchableOpacity>
             </View>
