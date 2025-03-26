@@ -23,27 +23,11 @@
           }
         },
         {
-<<<<<<< HEAD
-          "client_id": "699479642304-91af4dqe8abm8de9o156eddek9v01rhe.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.now",
-            "certificate_hash": "db8eb26aa9e5ebfd4da3f9683cda799553a10988"
-          }
-        },
-        {
-          "client_id": "699479642304-v62p7be86c8bg5lej97ql19gr1je5l3h.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.now",
-            "certificate_hash": "0f3caec6bd50f16dd2d989d3e223009eaeb49198"
-=======
           "client_id": "699479642304-gmvfkfu0akn3nek1doqc77m65bpg0r0d.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.now",
             "certificate_hash": "167bb7ba364e2594083599442195bfec2b23a97a"
->>>>>>> origin/Tai_Auth
           }
         },
         {

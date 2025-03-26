@@ -191,88 +191,44 @@ const Setting = ({navigation}) => {
     try {
       const user = auth().currentUser;
       if (!user) throw new Error('You are not logged in.');
-
+  
       const providerId = user.providerData[0]?.providerId;
       console.log('Provider ID:', providerId);
-
+  
       // Reauthenticate identity
       if (providerId === 'password') {
         if (!password) {
           Alert.alert('Error', 'Please enter your password to confirm.');
           return;
         }
-        const credential = auth.EmailAuthProvider.credential(
-          user.email,
-          password,
-        );
+        const credential = auth.EmailAuthProvider.credential(user.email, password);
         await user.reauthenticateWithCredential(credential);
         console.log('Successfully reauthenticated with password.');
       } else if (providerId === 'google.com') {
         await GoogleSignin.hasPlayServices();
         console.log('Google Play Services sẵn sàng.');
-
         const userInfo = await GoogleSignin.signIn();
         console.log('Google Sign-In Result:', userInfo);
-
         const idToken = userInfo.data?.idToken || userInfo.idToken;
         if (!idToken) throw new Error('Không lấy được idToken từ Google.');
         console.log('idToken:', idToken);
-
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         await user.reauthenticateWithCredential(googleCredential);
         console.log('Xác thực lại thành công với Google.');
       }
-
+  
       // Gửi email xác minh
       await user.sendEmailVerification();
       Alert.alert(
-        'Email Verification',
-        'Please check your email and click the verification link. The account will be automatically deleted after verification.',
+        'Email Verification Required',
+        'Please check your email and click the verification link. Then return to this screen and press "Confirm Delete" to delete your account.',
         [
           {
             text: 'OK',
             onPress: () => {
-              setModalVisible(false); // Đóng modal
-              // Bắt đầu kiểm tra định kỳ
-              const checkVerification = setInterval(async () => {
-                try {
-                  await user.reload(); // Cập nhật trạng thái người dùng
-                  console.log('Email verified status:', user.emailVerified);
-                  if (user.emailVerified) {
-                    clearInterval(checkVerification); // Dừng kiểm tra
-                    // Xóa tài khoản
-                    await database().ref(`/users/${user.uid}`).remove(); // Xóa dữ liệu trong Realtime Database
-                    await AsyncStorage.clear(); // Xóa dữ liệu trong AsyncStorage
-                    await user.delete(); // Xóa tài khoản Firebase
-                    console.log('The account has been automatically deleted.');
-                    Alert.alert(
-                      'Success',
-                      'The account and data have been deleted.',
-                    );
-                    // Chuyển hướng về màn hình đăng nhập
-                    navigation.reset({
-                      index: 0,
-                      routes: [{name: 'Login'}],
-                    });
-                  }
-                } catch (error) {
-                  clearInterval(checkVerification); // Dừng kiểm tra nếu có lỗi
-                  console.error('Error during verification check:', error);
-                  Alert.alert(
-                    'Error',
-                    'An error occurred while deleting the account.',
-                  );
-                }
-              }, 2000); // Kiểm tra mỗi 2 giây
-
-              // (Tùy chọn) Dừng kiểm tra sau 5 phút nếu không xác minh
-              setTimeout(() => {
-                clearInterval(checkVerification);
-                Alert.alert(
-                  'Timeout',
-                  'Please try again if you still want to delete your account.',
-                );
-              }, 300000); // 300,000 ms = 5 phút
+              setModalVisible(false); // Đóng modal xác nhận mật khẩu
+              // Chuyển sang màn hình chờ xác nhận (hoặc hiển thị nút xác nhận)
+              navigation.navigate('ConfirmDeleteScreen', {userId: user.uid});
             },
           },
         ],
@@ -282,6 +238,8 @@ const Setting = ({navigation}) => {
       Alert.alert('Error', error.message);
     }
   };
+  
+ 
 
   return (
     <View style={styles.container}>
