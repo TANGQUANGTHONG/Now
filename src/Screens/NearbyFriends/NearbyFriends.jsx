@@ -25,8 +25,6 @@ const NearbyFriendsMap = ({route}) => {
   const [users, setUsers] = useState([]);
   const [selectedDistance, setSelectedDistance] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
-  const avatarUri =
-    ' https://res.cloudinary.com/dzlomqxnn/image/upload/v1741918231/upload_ffaki1.jpg?f_auto';
 
   const distanceOptions = [1, 5, 10, 20, 50, 20000];
 
@@ -70,7 +68,7 @@ const getLocation = async () => {
     updateFirebase(latitude, longitude);
   } catch (fallbackError) {
     console.log('❌ Lỗi khi lấy vị trí bằng Wi-Fi/mạng di động:', fallbackError);
-    alert('Không thể lấy vị trí. Vui lòng kiểm tra kết nối hoặc ra ngoài để tín hiệu tốt hơn.');
+    alert("Unable to get location. Please check your connection or go outside for a better signal.");
   }
   try {
     // Thử với GPS trước

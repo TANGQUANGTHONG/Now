@@ -148,11 +148,11 @@ const SignUp = ({navigation}) => {
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        Alert.alert('Đăng nhập bị hủy.');
+        Alert.alert('Login canceled.');
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Google Play Services không khả dụng.');
+        Alert.alert('Google Play Services is not available.');
       } else {
-        Alert.alert('Đăng nhập bị hủy');
+        Alert.alert('Login canceled');
       }
     } finally {
       setLoading(false);
@@ -161,11 +161,11 @@ const SignUp = ({navigation}) => {
 
   const handleNicknameSubmit = async () => {
     if (nickname.length > 20) {
-      Alert.alert('Nickname tối đa 20 ký tự!');
+      Alert.alert('Nickname can be up to 20 characters!');
       return;
     }
     if (!nickname) {
-      Alert.alert('Vui lòng nhập nickname!');
+      Alert.alert('Please enter a nickname!');
       return;
     }
     const processedNickname = removeVietnameseDiacritics(nickname);
@@ -185,7 +185,7 @@ const SignUp = ({navigation}) => {
       navigation.navigate('HomeNavigation');
     } catch (error) {
       console.log('Error saving nickname:', error);
-      Alert.alert('Lỗi khi lưu nickname: ' + error.message);
+      Alert.alert('Error saving nickname: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -206,7 +206,7 @@ const SignUp = ({navigation}) => {
       setNickname(newNickname);
       setSuggestedNickname(newNickname);
     } else {
-      Alert.alert('Thông báo', 'Vui lòng nhập tên trước!');
+      Alert.alert('Notification', 'Please enter a name first!');
     }
   };
 
@@ -244,25 +244,26 @@ const SignUp = ({navigation}) => {
 
   const validateFields = async () => {
     let newErrors = {};
-    if (!name.trim()) newErrors.name = 'Tên không được để trống';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      newErrors.email = 'Email không hợp lệ';
+    if (!name.trim()) newErrors.name = 'Name cannot be empty';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) 
+      newErrors.email = 'Invalid email';
     if (!nickname.trim()) {
-      newErrors.nickname = 'Nickname không được để trống';
+      newErrors.nickname = 'Nickname cannot be empty';
     } else if (nickname.length > 20) {
-      newErrors.nickname = 'Nickname không được dài quá 20 ký tự';
+      newErrors.nickname = 'Nickname cannot exceed 20 characters';
     }
-    if (password.length < 6)
-      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
-    if (password !== confirmPassword)
-      newErrors.confirmPassword = 'Mật khẩu không khớp';
+    if (password.length < 6) 
+      newErrors.password = 'Password must be at least 6 characters long';
+    if (password !== confirmPassword) 
+      newErrors.confirmPassword = 'Passwords do not match';
     if (!newErrors.nickname) {
       setIsCheckingNickname(true);
       const isUnique = await checkNicknameUniqueness(nickname);
       setIsCheckingNickname(false);
       if (!isUnique) {
-        newErrors.nickname = 'Nickname đã tồn tại, vui lòng chọn nickname khác';
+        newErrors.nickname = 'Nickname already exists, please choose another one';
       }
+        
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -298,19 +299,19 @@ const SignUp = ({navigation}) => {
     }
   };
 
-  const getFirebaseErrorMessage = errorCode => {
+  const getFirebaseErrorMessage = (errorCode) => {
     switch (errorCode) {
       case 'auth/email-already-in-use':
-        return 'Email này đã được sử dụng';
+        return 'This email is already in use';
       case 'auth/invalid-email':
-        return 'Email không hợp lệ';
+        return 'Invalid email';
       case 'auth/weak-password':
-        return 'Mật khẩu quá yếu, hãy chọn mật khẩu mạnh hơn';
+        return 'Weak password, please choose a stronger one';
       default:
-        return 'Có lỗi xảy ra, vui lòng thử lại';
+        return 'An error occurred, please try again';
     }
   };
-
+  
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAwareScrollView
