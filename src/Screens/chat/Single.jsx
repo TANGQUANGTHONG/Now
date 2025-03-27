@@ -117,7 +117,7 @@ const Single = () => {
   const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
 
   const timeOptions = [
-    {label: '1 phút', value: 10},
+    {label: '1 phút', value: 60},
     {label: '2 phút', value: 120},
     {label: '3 phút', value: 180},
     {label: '4 phút', value: 240},

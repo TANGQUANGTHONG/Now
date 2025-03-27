@@ -8,6 +8,7 @@ import SignUp from '../Screens/auth/SignUp';
 import ForgotPassword from '../Screens/auth/ForgotPassword';
 import DashBoard from '../Screens/auth/DashBoard';
 import HomeNavigation from './HomeNavigation';
+
 const UserNavigation = () => {
   return (
     <Stack.Navigator

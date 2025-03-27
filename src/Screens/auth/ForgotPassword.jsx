@@ -21,14 +21,14 @@ const ForgotPassword = ({ navigation }) => {
 
   const handleResetPassword = () => {
     if (!email) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email');
+      Alert.alert('Error', 'Please enter your email');
       return;
     }
 
     auth()
       .sendPasswordResetEmail(email)
       .then(() => {
-        Alert.alert('Thành công', 'Email đặt lại mật khẩu đã được gửi.');
+        Alert.alert('Success', 'The password reset email has been sent.');
         setEmail('');
       })
       .catch(error => {

@@ -15,7 +15,6 @@ import ChangeDisplayName from '../components/setting/ChangeDisplayName';
 import ChangePasswordScreen from '../components/setting/ChangePassWord';
 import DeleteAccountScreen from '../components/setting/Deleted';
 import Profile from '../Screens/Profile_Settings/Profile';
-import ConfirmDeleteScreen from '../Screens/Profile_Settings/ConfirmDeleteScreen';
 import Gemini from '../Screens/chat/germiniAI';
 import QRScannerScreen from '../Screens/Profile_Settings/QRScannerScreen';
 import SearchMessage from '../Screens/chat/SearchMessage';
@@ -116,7 +115,6 @@ const oStackHome = {
   // CreateGroup: {name: 'CreateGroup', component: CreateGroup},
   NearbyFriends: {name: 'NearbyFriends', component: NearbyFriends},
   MapScreen: {name: 'MapScreen', component: MapScreen},
-  ConfirmDeleteScreen: {name: 'ConfirmDeleteScreen', component: ConfirmDeleteScreen},
 };
 
 const StackHome = createNativeStackNavigator();

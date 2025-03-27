@@ -567,8 +567,8 @@ const Home = ({navigation}) => {
               bottom: '50%',
             }}>
             <ActivityIndicator size="large" color="#007bff" />
-            <Text>Đang tải danh sách chat...</Text>
-          </View>
+            <Text>Loading chat list...</Text>
+            </View>
         ) : (
           <FlatList
             data={sortedChats}
@@ -615,8 +615,7 @@ const Home = ({navigation}) => {
                 }}>
                 <Text style={styles.modalButtonText}>
                   {selectedChat && pinnedChats.includes(selectedChat)
-                    ? 'Bỏ ghim'
-                    : 'Ghim'}
+                   ? 'Unpin' : 'Pin'}
                 </Text>
               </TouchableOpacity>
 
@@ -626,8 +625,8 @@ const Home = ({navigation}) => {
                 onPress={() => {
                   if (selectedChat) deleteChat(selectedChat);
                 }}>
-                <Text style={styles.modalButtonText}>Xóa chỉ mình tôi</Text>
-              </TouchableOpacity>
+<Text style={styles.modalButtonText}>Delete for me only</Text>
+</TouchableOpacity>
 
               {/* Nút Xóa cả hai */}
               <TouchableOpacity
@@ -635,8 +634,8 @@ const Home = ({navigation}) => {
                 onPress={() => {
                   if (selectedChat) deleteChatForBoth(selectedChat);
                 }}>
-                <Text style={styles.modalButtonText}>Xóa cả hai</Text>
-              </TouchableOpacity>
+<Text style={styles.modalButtonText}>Delete for both</Text>
+</TouchableOpacity>
 
               {/* Nút Hủy */}
               <TouchableOpacity
