@@ -188,51 +188,43 @@ const Setting = ({navigation}) => {
   };
 
   const handleDeleteAccount = async () => {
+
     try {
       const user = auth().currentUser;
-      if (!user) throw new Error('You are not logged in.');
-  
+      if (!user) throw new Error('Bạn chưa đăng nhập.');
+
       const providerId = user.providerData[0]?.providerId;
-      console.log('Provider ID:', providerId);
-  
-      // Reauthenticate identity
+
       if (providerId === 'password') {
         if (!password) {
-          Alert.alert('Error', 'Please enter your password to confirm.');
+          Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu.');
           return;
         }
-        const credential = auth.EmailAuthProvider.credential(user.email, password);
+        const credential = auth.EmailAuthProvider.credential(
+          user.email,
+          password,
+        );
         await user.reauthenticateWithCredential(credential);
-        console.log('Successfully reauthenticated with password.');
-      } else if (providerId === 'google.com') {
+      }else if (providerId === 'google.com') {
         await GoogleSignin.hasPlayServices();
-        const userInfo = await GoogleSignin.signIn();
-        const idToken = userInfo.data?.idToken || userInfo.idToken;
-        if (!idToken) throw new Error('Không lấy được idToken từ Google.');
+        const { idToken } = await GoogleSignin.getTokens(); // Đã sửa
+        if (!idToken) throw new Error('Không lấy được idToken từ Google');
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         await user.reauthenticateWithCredential(googleCredential);
-        console.log('Xác thực lại thành công với Google.');
       }
-  
-      // Gửi email xác minh
-      await user.sendEmailVerification();
-      Alert.alert(
-        'Email Verification Required',
-        'Please check your email and click the verification link to confirm account deletion.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setModalVisible(false); // Đóng modal xác nhận
-              // Chuyển sang màn hình chờ xác nhận hoặc hiển thị hướng dẫn
-              navigation.navigate('ConfirmDeleteScreen', { userId: user.uid });
-            },
-          },
-        ],
-      );
+      
+
+      await database().ref(`/users/${user.uid}`).remove();
+       // Xóa toàn bộ dữ liệu local liên quan user
+       await AsyncStorage.clear();
+      await user.delete();
+      
+
+      Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
+      setModalVisible(false);
     } catch (error) {
-      console.error('Lỗi khi yêu cầu xóa tài khoản:', error);
-      Alert.alert('Error', error.message);
+      Alert.alert('Lỗi', error.message);
+      console.log(error.message);
     }
   };
  

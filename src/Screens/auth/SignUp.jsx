@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,26 +12,20 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {styles} from '../../Styles/auth/Sign_up';
-import {encryptMessage, decryptMessage} from '../../cryption/Encryption';
+import { styles } from '../../Styles/auth/Sign_up';
+import { encryptMessage, decryptMessage } from '../../cryption/Encryption';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
-import {
-  saveCurrentUserAsyncStorage,
-  saveChatsAsyncStorage,
-} from '../../storage/Storage';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { saveCurrentUserAsyncStorage, saveChatsAsyncStorage } from '../../storage/Storage';
 import LoadingModal from '../../loading/LoadingModal';
 
-const SignUp = ({navigation}) => {
+const SignUp = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,15 +38,13 @@ const SignUp = ({navigation}) => {
   const [showNicknameModal, setShowNicknameModal] = useState(false);
   const [suggestedNickname, setSuggestedNickname] = useState('');
 
-  const defaultImage =
-    'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg';
+  const defaultImage = 'https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg';
 
   GoogleSignin.configure({
-    webClientId:
-      '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+    webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
   });
 
-  const removeVietnameseDiacritics = str => {
+  const removeVietnameseDiacritics = (str) => {
     str = str.toLowerCase();
     str = str
       .replace(/[àáảãạăằắẳẵặâầấẩẫậ]/g, 'a')
@@ -65,7 +57,7 @@ const SignUp = ({navigation}) => {
     return str;
   };
 
-  const generateRandomNickname = userName => {
+  const generateRandomNickname = (userName) => {
     const baseName = removeVietnameseDiacritics(userName).replace(/\s+/g, '');
     const randomNum = Math.floor(Math.random() * 1000);
     const separator = Math.random() > 0.5 ? '.' : '_';
@@ -73,13 +65,15 @@ const SignUp = ({navigation}) => {
     return nickname.length > 20 ? nickname.substring(0, 20) : nickname;
   };
 
-  const updateUserStatus = async (userId, isOnline, isDeleting = false) => {
-    if (!userId || isDeleting) return; // Không cập nhật nếu đang xóa tài khoản
+  const updateUserStatus = async (userId, isOnline) => {
+    if (!userId) return;
     try {
-      await database().ref(`/users/${userId}`).update({
-        isOnline: isOnline,
-        lastActive: database.ServerValue.TIMESTAMP,
-      });
+      await database()
+        .ref(`/users/${userId}`)
+        .update({
+          isOnline: isOnline,
+          lastActive: database.ServerValue.TIMESTAMP,
+        });
       console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
     } catch (error) {
       console.error('Error updating user status:', error);
@@ -90,20 +84,16 @@ const SignUp = ({navigation}) => {
     try {
       setLoading(true);
       await GoogleSignin.signOut();
-      await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
-      const {idToken} = userInfo.data;
-      if (!idToken)
-        throw new Error('Không lấy được idToken từ Google Sign-In.');
-      const {name, email, photo} = userInfo.data.user;
-      if (!name || !email)
-        throw new Error('Không lấy được thông tin người dùng từ Google.');
+      const { idToken } = userInfo.data;
+      if (!idToken) throw new Error('Không lấy được idToken từ Google Sign-In.');
+      const { name, email, photo } = userInfo.data.user;
+      if (!name || !email) throw new Error('Không lấy được thông tin người dùng từ Google.');
       setName(name);
       setEmail(email);
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const userCredential = await auth().signInWithCredential(
-        googleCredential,
-      );
+      const userCredential = await auth().signInWithCredential(googleCredential);
       const userId = userCredential.user.uid;
       const userRef = database().ref(`/users/${userId}`);
       const snapshot = await userRef.once('value');
@@ -115,8 +105,6 @@ const SignUp = ({navigation}) => {
           isCompleteNickname: false,
           countChat: 100,
           createdAt: database.ServerValue.TIMESTAMP,
-          isOnline: true,                    // Thêm trạng thái online
-    lastActive: database.ServerValue.TIMESTAMP, // Thêm thời gian hoạt động cuối
         };
         await userRef.set(userData);
       } else {
@@ -124,17 +112,13 @@ const SignUp = ({navigation}) => {
         const updates = {};
         if (!userData.name) updates.name = encryptMessage(name);
         if (!userData.email) updates.email = encryptMessage(email);
-        if (!userData.Image)
-          updates.Image = encryptMessage(photo || defaultImage);
-        if (!userData.createdAt)
-          updates.createdAt = database.ServerValue.TIMESTAMP;
+        if (!userData.Image) updates.Image = encryptMessage(photo || defaultImage);
+        if (!userData.createdAt) updates.createdAt = database.ServerValue.TIMESTAMP;
         if (Object.keys(updates).length > 0) await userRef.update(updates);
       }
       await saveCurrentUserAsyncStorage();
       await saveChatsAsyncStorage();
-      const userData = snapshot.exists()
-        ? snapshot.val()
-        : {isCompleteNickname: false};
+      const userData = snapshot.exists() ? snapshot.val() : { isCompleteNickname: false };
       if (!userData.isCompleteNickname) {
         const randomNickname = generateRandomNickname(name);
         setSuggestedNickname(randomNickname);
@@ -148,11 +132,11 @@ const SignUp = ({navigation}) => {
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        Alert.alert('Login canceled.');
+        Alert.alert('Đăng nhập bị hủy.');
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Google Play Services is not available.');
+        Alert.alert('Google Play Services không khả dụng.');
       } else {
-        Alert.alert('Login canceled');
+        Alert.alert('Đăng nhập bị hủy');
       }
     } finally {
       setLoading(false);
@@ -161,18 +145,19 @@ const SignUp = ({navigation}) => {
 
   const handleNicknameSubmit = async () => {
     if (nickname.length > 20) {
-      Alert.alert('Nickname can be up to 20 characters!');
+      Alert.alert('Nickname tối đa 20 ký tự!');
       return;
     }
     if (!nickname) {
-      Alert.alert('Please enter a nickname!');
+      Alert.alert('Vui lòng nhập nickname!');
       return;
     }
     const processedNickname = removeVietnameseDiacritics(nickname);
     const encryptedNickname = encryptMessage(processedNickname);
     try {
       setLoading(true);
-      const userId = auth().currentUser?.uid;
+      const userId = auth().currentUser?.uid
+      ;
       if (!userId) throw new Error('User not authenticated');
       const userRef = database().ref(`/users/${userId}`);
       await userRef.update({
@@ -185,13 +170,13 @@ const SignUp = ({navigation}) => {
       navigation.navigate('HomeNavigation');
     } catch (error) {
       console.log('Error saving nickname:', error);
-      Alert.alert('Error saving nickname: ' + error.message);
+      Alert.alert('Lỗi khi lưu nickname: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNameChange = text => {
+  const handleNameChange = (text) => {
     setName(text);
     if (text.trim()) {
       setNickname(generateRandomNickname(text));
@@ -206,7 +191,7 @@ const SignUp = ({navigation}) => {
       setNickname(newNickname);
       setSuggestedNickname(newNickname);
     } else {
-      Alert.alert('Notification', 'Please enter a name first!');
+      Alert.alert('Thông báo', 'Vui lòng nhập tên trước!');
     }
   };
 
@@ -214,7 +199,7 @@ const SignUp = ({navigation}) => {
     return name && email && password && confirmPassword && nickname;
   };
 
-  const checkNicknameUniqueness = async nicknameToCheck => {
+  const checkNicknameUniqueness = async (nicknameToCheck) => {
     if (!nicknameToCheck.trim()) return false;
     try {
       const usersRef = database().ref('/users');
@@ -226,9 +211,7 @@ const SignUp = ({navigation}) => {
           const user = users[userId];
           if (user.nickname) {
             const decryptedNickname = decryptMessage(user.nickname);
-            if (
-              decryptedNickname.toLowerCase() === nicknameToCheck.toLowerCase()
-            ) {
+            if (decryptedNickname.toLowerCase() === nicknameToCheck.toLowerCase()) {
               isUnique = false;
               break;
             }
@@ -244,26 +227,22 @@ const SignUp = ({navigation}) => {
 
   const validateFields = async () => {
     let newErrors = {};
-    if (!name.trim()) newErrors.name = 'Name cannot be empty';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) 
-      newErrors.email = 'Invalid email';
+    if (!name.trim()) newErrors.name = 'Tên không được để trống';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Email không hợp lệ';
     if (!nickname.trim()) {
-      newErrors.nickname = 'Nickname cannot be empty';
+      newErrors.nickname = 'Nickname không được để trống';
     } else if (nickname.length > 20) {
-      newErrors.nickname = 'Nickname cannot exceed 20 characters';
+      newErrors.nickname = 'Nickname không được dài quá 20 ký tự';
     }
-    if (password.length < 6) 
-      newErrors.password = 'Password must be at least 6 characters long';
-    if (password !== confirmPassword) 
-      newErrors.confirmPassword = 'Passwords do not match';
+    if (password.length < 6) newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+    if (password !== confirmPassword) newErrors.confirmPassword = 'Mật khẩu không khớp';
     if (!newErrors.nickname) {
       setIsCheckingNickname(true);
       const isUnique = await checkNicknameUniqueness(nickname);
       setIsCheckingNickname(false);
       if (!isUnique) {
-        newErrors.nickname = 'Nickname already exists, please choose another one';
+        newErrors.nickname = 'Nickname đã tồn tại, vui lòng chọn nickname khác';
       }
-        
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -273,10 +252,7 @@ const SignUp = ({navigation}) => {
     const isValid = await validateFields();
     if (!isValid) return;
     try {
-      const userCredential = await auth().createUserWithEmailAndPassword(
-        email,
-        password,
-      );
+      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const userId = userCredential.user.uid;
       const encryptedNickname = encryptMessage(nickname);
       await database()
@@ -302,23 +278,24 @@ const SignUp = ({navigation}) => {
   const getFirebaseErrorMessage = (errorCode) => {
     switch (errorCode) {
       case 'auth/email-already-in-use':
-        return 'This email is already in use';
+        return 'Email này đã được sử dụng';
       case 'auth/invalid-email':
-        return 'Invalid email';
+        return 'Email không hợp lệ';
       case 'auth/weak-password':
-        return 'Weak password, please choose a stronger one';
+        return 'Mật khẩu quá yếu, hãy chọn mật khẩu mạnh hơn';
       default:
-        return 'An error occurred, please try again';
+        return 'Có lỗi xảy ra, vui lòng thử lại';
     }
   };
-  
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAwareScrollView
-        style={{flex: 1}}
-        contentContainerStyle={{flexGrow: 1}}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
-        extraHeight={Platform.OS === 'ios' ? 100 : 150}>
+        extraHeight={Platform.OS === 'ios' ? 100 : 150}
+      >
         <View style={styles.container}>
           <LoadingModal visible={loading} />
           <View style={styles.backButton}>
@@ -329,23 +306,13 @@ const SignUp = ({navigation}) => {
 
           <View style={styles.content}>
             <MaskedView
-              maskElement={
-                <Text style={[styles.title, {backgroundColor: 'transparent'}]}>
-                  Sign Up with Email
-                </Text>
-              }>
-              <LinearGradient
-                colors={['#438875', '#99F2C8']}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}>
-                <Text style={[styles.title, {opacity: 0}]}>
-                  Sign Up with Email
-                </Text>
+              maskElement={<Text style={[styles.title, { backgroundColor: 'transparent' }]}>Sign Up with Email</Text>}
+            >
+              <LinearGradient colors={['#438875', '#99F2C8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <Text style={[styles.title, { opacity: 0 }]}>Sign Up with Email</Text>
               </LinearGradient>
             </MaskedView>
-            <Text style={styles.subtitle}>
-              Get chatting with friends and family today!
-            </Text>
+            <Text style={styles.subtitle}>Get chatting with friends and family today!</Text>
 
             <View style={styles.iconContainer}>
               <View style={styles.iconWrapper}>
@@ -368,9 +335,7 @@ const SignUp = ({navigation}) => {
                 placeholderTextColor={'#8C96A2'}
                 color="#8C96A2"
               />
-              {errors.name && (
-                <Text style={styles.errorText}>{errors.name}</Text>
-              )}
+              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
@@ -384,9 +349,7 @@ const SignUp = ({navigation}) => {
                 placeholderTextColor={'#8C96A2'}
                 color="#8C96A2"
               />
-              {errors.email && (
-                <Text style={styles.errorText}>{errors.email}</Text>
-              )}
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
@@ -401,18 +364,12 @@ const SignUp = ({navigation}) => {
                   color="#8C96A2"
                   maxLength={20}
                 />
-                <TouchableOpacity
-                  onPress={handleRandomNickname}
-                  style={styles.eyeIcon}>
+                <TouchableOpacity onPress={handleRandomNickname} style={styles.eyeIcon}>
                   <MaterialIcon name="autorenew" size={24} color="#8C96A2" />
                 </TouchableOpacity>
               </View>
-              {isCheckingNickname && (
-                <Text style={styles.validText}>Checking...</Text>
-              )}
-              {errors.nickname && (
-                <Text style={styles.errorText}>{errors.nickname}</Text>
-              )}
+              {isCheckingNickname && <Text style={styles.validText}>Đang kiểm tra...</Text>}
+              {errors.nickname && <Text style={styles.errorText}>{errors.nickname}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
@@ -426,28 +383,17 @@ const SignUp = ({navigation}) => {
                   secureTextEntry={secureText}
                   color="#8C96A2"
                 />
-                <TouchableOpacity
-                  onPress={() => setSecureText(!secureText)}
-                  style={styles.eyeIcon}>
-                  <Icon
-                    name={secureText ? 'eye-off' : 'eye'}
-                    size={20}
-                    color="#8C96A2"
-                  />
+                <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+                  <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="#8C96A2" />
                 </TouchableOpacity>
               </View>
-              {errors.password && (
-                <Text style={styles.errorText}>{errors.password}</Text>
-              )}
+              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
 
             <View style={styles.inputContainer}>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[
-                    styles.input,
-                    errors.confirmPassword && styles.errorInput,
-                  ]}
+                  style={[styles.input, errors.confirmPassword && styles.errorInput]}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder="Re-enter password"
@@ -455,77 +401,59 @@ const SignUp = ({navigation}) => {
                   secureTextEntry={secureText}
                   color="#8C96A2"
                 />
-                <TouchableOpacity
-                  onPress={() => setSecureText(!secureText)}
-                  style={styles.eyeIcon}>
-                  <Icon
-                    name={secureText ? 'eye-off' : 'eye'}
-                    size={20}
-                    color="#8C96A2"
-                  />
+                <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+                  <Icon name={secureText ? 'eye-off' : 'eye'} size={20} color="#8C96A2" />
                 </TouchableOpacity>
               </View>
-              {errors.confirmPassword && (
-                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-              )}
+              {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
             </View>
           </View>
 
           <View style={styles.bottomContainer}>
             <TouchableOpacity
               disabled={!isFormComplete() || isCheckingNickname}
-              onPress={Sign_Up}>
+              onPress={Sign_Up}
+            >
               <LinearGradient
-                colors={
-                  isFormComplete() && !isCheckingNickname
-                    ? ['#438875', '#99F2C8']
-                    : ['#6f6e6e', '#6f6e6e']
-                }
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
-                style={styles.loginButton}>
+                colors={isFormComplete() && !isCheckingNickname ? ['#438875', '#99F2C8'] : ['#6f6e6e', '#6f6e6e']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginButton}
+              >
                 <Text style={styles.loginText}>Sign Up</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
 
           {/* Modal cho nickname */}
+         
         </View>
-        <Modal
-          visible={showNicknameModal}
-          transparent={true}
-          animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Choose Your Nickname</Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.inputModal}
-                  value={nickname}
-                  onChangeText={setNickname}
-                  maxLength={20}
-                  color="gray"
-                  placeholderTextColor="gray"
-                  placeholder="Enter nickname (max 20 characters)"
-                />
-                <TouchableOpacity
-                  style={styles.iconInsideInput}
-                  onPress={handleRandomNickname}>
-                  <MaterialIcon name="autorenew" size={24} color="#438875" />
-                </TouchableOpacity>
-              </View>
+        <Modal visible={showNicknameModal} transparent={true} animationType="slide">
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Chọn nickname của bạn</Text>
+                <View style={styles.inputContainer}>
+  <TextInput
+    style={styles.inputModal}
+    value={nickname}
+    onChangeText={setNickname}
+    maxLength={20}
+    color="gray"
+    placeholderTextColor="gray"
+    placeholder="Nhập nickname (tối đa 20 ký tự)"
+  />
+  <TouchableOpacity style={styles.iconInsideInput} onPress={handleRandomNickname}>
+    <MaterialIcon name="autorenew" size={24} color="#438875" />
+  </TouchableOpacity>
+</View>
 
-              <Text style={styles.suggestionText}>
-                Gợi ý: {suggestedNickname}
-              </Text>
-              <Pressable
-                style={styles.submitButton}
-                onPress={handleNicknameSubmit}>
-                <Text style={styles.submitButtonText}>Confirm</Text>
-              </Pressable>
+                <Text style={styles.suggestionText}>Gợi ý: {suggestedNickname}</Text>
+                <Pressable style={styles.submitButton} onPress={handleNicknameSubmit}>
+                  <Text style={styles.submitButtonText}>Xác nhận</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
       </KeyboardAwareScrollView>
     </TouchableWithoutFeedback>
   );

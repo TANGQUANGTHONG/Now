@@ -11,20 +11,25 @@ const AppNavigation = () => {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
   const [isEmailVerified, setIsEmailVerified] = useState(null);
-  const [isCompleteNickname, setIsCompleteNickname] = useState(null);
+  const [isCompleteNickname, setIsCompleteNickname] = useState(null); // Thêm state mới
   const [isSplashVisible, setSplashVisible] = useState(true);
   const [previousUserId, setPreviousUserId] = useState(null);
 
   const updateUserStatus = async (userId, isOnline) => {
     if (!userId) return;
     try {
-      await database()
-        .ref(`/users/${userId}`)
-        .update({
-          isOnline: isOnline,
-          lastActive: database.ServerValue.TIMESTAMP,
-        });
-      console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+      const userRef = database().ref(`/users/${userId}`);
+      const snapshot = await userRef.once('value');
+      if (snapshot.exists()) {
+        const updates = { isOnline };
+        if (isOnline) {
+          updates.lastActive = database.ServerValue.TIMESTAMP;
+        }
+        await userRef.update(updates);
+        console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+      } else {
+        console.log(`User ${userId} does not exist. Skipping status update.`);
+      }
     } catch (error) {
       console.error('Error updating user status:', error);
     }
@@ -32,7 +37,7 @@ const AppNavigation = () => {
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
-      if (user && isCompleteNickname === true) {
+      if (user) {
         if (nextAppState === 'active') {
           updateUserStatus(user.uid, true);
         } else if (nextAppState === 'background' || nextAppState === 'inactive') {
@@ -43,7 +48,7 @@ const AppNavigation = () => {
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
-  }, [user, isCompleteNickname]);
+  }, [user]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -57,17 +62,37 @@ const AppNavigation = () => {
       console.log('Auth state changed:', user ? `User logged in: ${user.email}` : 'No user logged in');
       if (user) {
         if (previousUserId && previousUserId !== user.uid) {
-          await updateUserStatus(previousUserId, false);
+          // Kiểm tra xem previousUserId có còn tồn tại trong database không
+          const previousUserRef = database().ref(`/users/${previousUserId}`);
+          const previousSnapshot = await previousUserRef.once('value');
+          if (previousSnapshot.exists()) {
+            await updateUserStatus(previousUserId, false);
+          } else {
+            console.log(`Previous user ${previousUserId} no longer exists. Skipping status update.`);
+          }
         }
-        // Chờ cả hai hàm bất đồng bộ hoàn tất trước khi cập nhật trạng thái
-        await Promise.all([
-          checkEmailVerification(user),
-          checkNicknameStatus(user.uid),
-        ]);
+  
+        const userRef = database().ref(`/users/${user.uid}`);
+        const snapshot = await userRef.once('value');
+        if (snapshot.exists()) {
+          await updateUserStatus(user.uid, true);
+        } else {
+          console.log(`User ${user.uid} does not exist in database yet. Skipping status update.`);
+        }
+  
+        await checkEmailVerification(user);
+        await checkNicknameStatus(user.uid);
         setPreviousUserId(user.uid);
       } else {
         if (previousUserId) {
-          await updateUserStatus(previousUserId, false);
+          // Kiểm tra xem previousUserId có còn tồn tại trong database không
+          const previousUserRef = database().ref(`/users/${previousUserId}`);
+          const previousSnapshot = await previousUserRef.once('value');
+          if (previousSnapshot.exists()) {
+            await updateUserStatus(previousUserId, false);
+          } else {
+            console.log(`Previous user ${previousUserId} no longer exists. Skipping status update.`);
+          }
         }
         setPreviousUserId(null);
         setIsEmailVerified(null);
@@ -76,7 +101,7 @@ const AppNavigation = () => {
       setUser(user);
       setInitializing(false);
     });
-
+  
     return subscriber;
   }, [previousUserId]);
 
@@ -109,15 +134,11 @@ const AppNavigation = () => {
     return <Splash />;
   }
 
-  // Xử lý trạng thái trung gian khi isCompleteNickname hoặc isEmailVerified vẫn là null
-  if (user && (isCompleteNickname === null || isEmailVerified === null)) {
-    return <Splash />; // Hiển thị Splash trong khi chờ dữ liệu
-  }
 
   return (
     <>
       {!user || isCompleteNickname === false ? (
-        <UserNavigation />
+        <UserNavigation /> // Nếu chưa có nickname, giữ ở UserNavigation
       ) : isEmailVerified === false ? (
         <DashBoard checkEmailVerification={() => checkEmailVerification(user)} />
       ) : (
