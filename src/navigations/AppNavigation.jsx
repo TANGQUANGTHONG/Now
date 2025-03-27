@@ -18,13 +18,18 @@ const AppNavigation = () => {
   const updateUserStatus = async (userId, isOnline) => {
     if (!userId) return;
     try {
-      await database()
-        .ref(`/users/${userId}`)
-        .update({
-          isOnline: isOnline,
-          lastActive: database.ServerValue.TIMESTAMP,
-        });
-      console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+      const userRef = database().ref(`/users/${userId}`);
+      const snapshot = await userRef.once('value');
+      if (snapshot.exists()) {
+        const updates = { isOnline };
+        if (isOnline) {
+          updates.lastActive = database.ServerValue.TIMESTAMP;
+        }
+        await userRef.update(updates);
+        console.log(`User ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+      } else {
+        console.log(`User ${userId} does not exist. Skipping status update.`);
+      }
     } catch (error) {
       console.error('Error updating user status:', error);
     }
@@ -57,14 +62,20 @@ const AppNavigation = () => {
       console.log('Auth state changed:', user ? `User logged in: ${user.email}` : 'No user logged in');
       if (user) {
         if (previousUserId && previousUserId !== user.uid) {
-          await updateUserStatus(previousUserId, false);
+          // Kiểm tra xem previousUserId có còn tồn tại trong database không
+          const previousUserRef = database().ref(`/users/${previousUserId}`);
+          const previousSnapshot = await previousUserRef.once('value');
+          if (previousSnapshot.exists()) {
+            await updateUserStatus(previousUserId, false);
+          } else {
+            console.log(`Previous user ${previousUserId} no longer exists. Skipping status update.`);
+          }
         }
   
-        // Kiểm tra xem user đã tồn tại trong database chưa
         const userRef = database().ref(`/users/${user.uid}`);
         const snapshot = await userRef.once('value');
         if (snapshot.exists()) {
-          await updateUserStatus(user.uid, true); // Chỉ cập nhật trạng thái nếu user đã tồn tại
+          await updateUserStatus(user.uid, true);
         } else {
           console.log(`User ${user.uid} does not exist in database yet. Skipping status update.`);
         }
@@ -74,7 +85,14 @@ const AppNavigation = () => {
         setPreviousUserId(user.uid);
       } else {
         if (previousUserId) {
-          await updateUserStatus(previousUserId, false);
+          // Kiểm tra xem previousUserId có còn tồn tại trong database không
+          const previousUserRef = database().ref(`/users/${previousUserId}`);
+          const previousSnapshot = await previousUserRef.once('value');
+          if (previousSnapshot.exists()) {
+            await updateUserStatus(previousUserId, false);
+          } else {
+            console.log(`Previous user ${previousUserId} no longer exists. Skipping status update.`);
+          }
         }
         setPreviousUserId(null);
         setIsEmailVerified(null);

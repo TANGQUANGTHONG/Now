@@ -31,7 +31,7 @@ import {getAuth} from '@react-native-firebase/auth';
 import {getDatabase, ref, update} from '@react-native-firebase/database';
 import LoadingModal from '../../loading/LoadingModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import UserNavigation from '../../navigations/UserNavigation';
 
 const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzlomqxnn/upload'; // URL của Cloudinary để upload ảnh
 const CLOUDINARY_PRESET = 'ml_default'; // Preset của Cloudinary cho việc upload ảnh
@@ -47,7 +47,8 @@ const Setting = ({navigation}) => {
   const providerId = auth().currentUser?.providerData[0]?.providerId;
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+      webClientId:
+        '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
     });
   }, []);
   // đổi avatar
@@ -57,14 +58,14 @@ const Setting = ({navigation}) => {
       const userId = auth.currentUser?.uid;
 
       if (!userId) {
-        Alert.alert('Lỗi', 'Không tìm thấy ID người dùng!');
+        Alert.alert('Error', 'User ID not found!');
         return;
       }
 
       const userRef = ref(getDatabase(), `users/${userId}`);
       await update(userRef, {Image: encryptMessage(avatarUrl)});
     } catch (error) {
-      Alert.alert('Lỗi', error.message);
+      Alert.alert('Error', error.message);
       console.log('Lỗi cập nhật avatar:', error);
     }
   };
@@ -131,7 +132,8 @@ const Setting = ({navigation}) => {
           const data = snapshot.val();
           let decryptedNickname = data.nickname
             ? decryptMessage(data.nickname)
-            : 'Không có nickname';
+            : 'No nickname';
+
 
           // Thêm @ vào trước nickname nếu chưa có
           if (decryptedNickname && !decryptedNickname.startsWith('@')) {
@@ -160,23 +162,26 @@ const Setting = ({navigation}) => {
     try {
       const currentUser = auth().currentUser;
       const userId = currentUser?.uid;
-  
+
+      // Cập nhật trạng thái offline trước khi đăng xuất
       if (userId) {
-        await database()
-          .ref(`/users/${userId}`)
-          .update({
-            isOnline: false,
-            lastActive: database.ServerValue.TIMESTAMP,
-          });
+        await database().ref(`/users/${userId}`).update({
+          isOnline: false,
+          lastActive: database.ServerValue.TIMESTAMP,
+        });
+        console.log(`User ${userId} is now offline`);
       }
-  
+
+      // Đăng xuất khỏi Google và Firebase
       await GoogleSignin.signOut();
       await auth().signOut();
+
       removeCurrentUserFromStorage();
-  
-      
-  
-      console.log('Đăng xuất thành công, user đã bị xóa');
+      console.log('Đã đăng xuất khỏi Google và Firebase.');
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'UserNavigation'}],
+      });
     } catch (error) {
       console.error('Lỗi khi đăng xuất:', error);
     }
@@ -185,71 +190,56 @@ const Setting = ({navigation}) => {
   const handleDeleteAccount = async () => {
     try {
       const user = auth().currentUser;
-      if (!user) throw new Error('Bạn chưa đăng nhập.');
+      if (!user) throw new Error('You are not logged in.');
   
       const providerId = user.providerData[0]?.providerId;
       console.log('Provider ID:', providerId);
   
-      // Xác thực lại danh tính
+      // Reauthenticate identity
       if (providerId === 'password') {
         if (!password) {
-          Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu để xác nhận.');
+          Alert.alert('Error', 'Please enter your password to confirm.');
           return;
         }
         const credential = auth.EmailAuthProvider.credential(user.email, password);
         await user.reauthenticateWithCredential(credential);
-        console.log('Xác thực lại thành công với mật khẩu.');
+        console.log('Successfully reauthenticated with password.');
       } else if (providerId === 'google.com') {
-        // Kiểm tra Google Play Services
         await GoogleSignin.hasPlayServices();
         console.log('Google Play Services sẵn sàng.');
-  
-        // Yêu cầu đăng nhập lại để lấy idToken
         const userInfo = await GoogleSignin.signIn();
         console.log('Google Sign-In Result:', userInfo);
-  
-        // Lấy idToken từ userInfo.data (dựa trên log của bạn)
         const idToken = userInfo.data?.idToken || userInfo.idToken;
         if (!idToken) throw new Error('Không lấy được idToken từ Google.');
         console.log('idToken:', idToken);
-  
-        // Xác thực lại với Firebase
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         await user.reauthenticateWithCredential(googleCredential);
         console.log('Xác thực lại thành công với Google.');
       }
   
-      // Thêm bước xác minh email (tùy chọn)
-      await auth().currentUser.sendEmailVerification();
+      // Gửi email xác minh
+      await user.sendEmailVerification();
       Alert.alert(
-        'Xác minh email',
-        'Vui lòng kiểm tra email của bạn và xác minh trước khi xóa tài khoản.',
+        'Email Verification Required',
+        'Please check your email and click the verification link. Then return to this screen and press "Confirm Delete" to delete your account.',
         [
           {
             text: 'OK',
             onPress: () => {
-              const checkVerification = setInterval(async () => {
-                await user.reload();
-                console.log('Email verified status:', user.emailVerified);
-                if (user.emailVerified) {
-                  clearInterval(checkVerification);
-                  await database().ref(`/users/${user.uid}`).remove();
-                  await AsyncStorage.clear();
-                  await user.delete();
-                  console.log('Tài khoản đã bị xóa.');
-                  Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
-                  setModalVisible(false);
-                }
-              }, 2000);
+              setModalVisible(false); // Đóng modal xác nhận mật khẩu
+              // Chuyển sang màn hình chờ xác nhận (hoặc hiển thị nút xác nhận)
+              navigation.navigate('ConfirmDeleteScreen', {userId: user.uid});
             },
           },
         ],
       );
     } catch (error) {
       console.error('Lỗi xóa tài khoản:', error);
-      Alert.alert('Lỗi', error.message);
+      Alert.alert('Error', error.message);
     }
   };
+  
+ 
 
   return (
     <View style={styles.container}>
@@ -294,10 +284,19 @@ const Setting = ({navigation}) => {
                   style={styles.avatar}
                 />
 
-                <View style={{position: 'absolute', right: 10, bottom: 0, backgroundColor: 'white', borderRadius : 15, padding: 2, borderWidth: 1, borderColor: 'gray'}}>
-                <Icon name="camera-reverse" size={18} color="black" />
+                <View
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    bottom: 0,
+                    backgroundColor: 'white',
+                    borderRadius: 15,
+                    padding: 2,
+                    borderWidth: 1,
+                    borderColor: 'gray',
+                  }}>
+                  <Icon name="camera-reverse" size={18} color="black" />
                 </View>
-
               </Pressable>
               <View style={styles.profileInfo}>
                 <Text style={styles.name}>{myUser?.name}</Text>
@@ -377,72 +376,73 @@ const Setting = ({navigation}) => {
                   color="red"
                 />
               </TouchableOpacity>
-       
             </ScrollView>
           </View>
           <Modal
-  animationType="slide"
-  transparent
-  visible={modalVisible}
-  onRequestClose={() => setModalVisible(false)}>
-  <View
-    style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0,0,0,0.5)',
-    }}>
-    <View
-      style={{
-        width: 300,
-        backgroundColor: 'white',
-        padding: 20,
-        borderRadius: 10,
-      }}>
-      <Text
-        style={{
-          fontSize: 18,
-          fontWeight: 'bold',
-          marginBottom: 10,
-          color: 'black',
-        }}>
-        Xác nhận xóa tài khoản
-      </Text>
-      <Text style={{ color: 'black', marginBottom: 10 }}>
-        {providerId === 'password'
-          ? 'Vui lòng nhập mật khẩu để xác nhận.'
-          : 'Bạn sẽ cần đăng nhập lại qua Google để xác minh.'}
-      </Text>
+            animationType="slide"
+            transparent
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+              }}>
+              <View
+                style={{
+                  width: 300,
+                  backgroundColor: 'white',
+                  padding: 20,
+                  borderRadius: 10,
+                }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    marginBottom: 10,
+                    color: 'black',
+                  }}>
+                  Confirm account deletion
+                </Text>
+                <Text style={{color: 'black', marginBottom: 10}}>
+                  {providerId === 'password'
+                    ? 'Please enter your password to confirm.'
+                    : 'You will need to log in again via Google to verify.'}
+                </Text>
 
-      {providerId === 'password' && (
-        <TextInput
-          placeholder="Nhập mật khẩu để xác nhận"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholderTextColor={'#aaa'}
-          style={{ borderBottomWidth: 1, marginBottom: 20 }}
-        />
-      )}
+                {providerId === 'password' && (
+                  <TextInput
+                    placeholder="Nhập mật khẩu để xác nhận"
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholderTextColor={'#aaa'}
+                    style={{borderBottomWidth: 1, marginBottom: 20}}
+                  />
+                )}
 
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-        }}>
-        <TouchableOpacity
-          onPress={() => setModalVisible(false)}
-          style={{ padding: 10 }}>
-          <Text style={{ color: 'blue' }}>Hủy</Text>
-        </TouchableOpacity>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                  }}>
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    style={{padding: 10}}>
+                    <Text style={{color: 'blue'}}>Cancel</Text>
+                  </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleDeleteAccount} style={{ padding: 10 }}>
-          <Text style={{ color: 'red' }}>Xác nhận</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
+                  <TouchableOpacity
+                    onPress={handleDeleteAccount}
+                    style={{padding: 10}}>
+                    <Text style={{color: 'red'}}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </>
       )}
     </View>
