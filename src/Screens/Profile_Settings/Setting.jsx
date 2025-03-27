@@ -397,12 +397,12 @@ const Setting = ({navigation}) => {
                 <Text style={{color: 'black', marginBottom: 10}}>
                   {providerId === 'password'
                     ? 'Please enter your password to confirm.'
-                    : 'You will need to log in again via Google to verify.'}
+                    : 'Confirm that you will permanently delete your account'}
                 </Text>
 
                 {providerId === 'password' && (
                   <TextInput
-                    placeholder="Nhập mật khẩu để xác nhận"
+                    placeholder='Please enter your password to confirm.'
                     secureTextEntry
                     value={password}
                     onChangeText={setPassword}
