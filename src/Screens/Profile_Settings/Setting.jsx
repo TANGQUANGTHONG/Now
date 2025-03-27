@@ -206,12 +206,9 @@ const Setting = ({navigation}) => {
         console.log('Successfully reauthenticated with password.');
       } else if (providerId === 'google.com') {
         await GoogleSignin.hasPlayServices();
-        console.log('Google Play Services sẵn sàng.');
         const userInfo = await GoogleSignin.signIn();
-        console.log('Google Sign-In Result:', userInfo);
         const idToken = userInfo.data?.idToken || userInfo.idToken;
         if (!idToken) throw new Error('Không lấy được idToken từ Google.');
-        console.log('idToken:', idToken);
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         await user.reauthenticateWithCredential(googleCredential);
         console.log('Xác thực lại thành công với Google.');
@@ -221,24 +218,23 @@ const Setting = ({navigation}) => {
       await user.sendEmailVerification();
       Alert.alert(
         'Email Verification Required',
-        'Please check your email and click the verification link. Then return to this screen and press "Confirm Delete" to delete your account.',
+        'Please check your email and click the verification link to confirm account deletion.',
         [
           {
             text: 'OK',
             onPress: () => {
-              setModalVisible(false); // Đóng modal xác nhận mật khẩu
-              // Chuyển sang màn hình chờ xác nhận (hoặc hiển thị nút xác nhận)
-              navigation.navigate('ConfirmDeleteScreen', {userId: user.uid});
+              setModalVisible(false); // Đóng modal xác nhận
+              // Chuyển sang màn hình chờ xác nhận hoặc hiển thị hướng dẫn
+              navigation.navigate('ConfirmDeleteScreen', { userId: user.uid });
             },
           },
         ],
       );
     } catch (error) {
-      console.error('Lỗi xóa tài khoản:', error);
+      console.error('Lỗi khi yêu cầu xóa tài khoản:', error);
       Alert.alert('Error', error.message);
     }
   };
-  
  
 
   return (

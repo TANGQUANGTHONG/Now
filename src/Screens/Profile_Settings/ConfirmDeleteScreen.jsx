@@ -1,116 +1,115 @@
-import React, {useState} from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Alert,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
-const ConfirmDeleteScreen = ({route, navigation}) => {
-  const {userId} = route.params;
-  const [isVerified, setIsVerified] = useState(false); // Trạng thái xác minh
+const ConfirmDeleteScreen = ({ route, navigation }) => {
+  const { userId } = route.params;
+  const [loading, setLoading] = useState(false);
 
-  const checkVerification = async () => {
+  // Cấu hình Google Sign-In
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId:
+        '699479642304-kbe1s33gul6m5vk72i0ah7h8u5ri7me8.apps.googleusercontent.com',
+    });
+  }, []);
+
+  const confirmDeletion = async () => {
     try {
-      const user = auth().currentUser;
-      if (!user) throw new Error('User not logged in.');
+      setLoading(true);
+      let user = auth().currentUser;
 
-      await user.reload(); // Cập nhật trạng thái người dùng
-      setIsVerified(user.emailVerified); // Cập nhật trạng thái giao diện
-      return user.emailVerified;
-    } catch (error) {
-      console.error('Error checking verification:', error);
-      Alert.alert('Error', 'An error occurred while checking verification.');
-      return false;
-    }
-  };
+      // Kiểm tra xem người dùng có đang đăng nhập không
+      if (!user) {
+        // Nếu không có người dùng, yêu cầu đăng nhập lại qua Google
+        Alert.alert(
+          'Session Expired',
+          'Please log in again to confirm account deletion.',
+          [
+            {
+              text: 'OK',
+              onPress: async () => {
+                try {
+                  const userInfo = await GoogleSignin.signIn();
+                  const idToken = userInfo.data?.idToken || userInfo.idToken;
+                  if (!idToken) throw new Error('No idToken from Google.');
+                  const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+                  await auth().signInWithCredential(googleCredential);
+                  user = auth().currentUser; // Cập nhật lại user sau khi đăng nhập
+                } catch (error) {
+                  console.error('Login error:', error);
+                  Alert.alert('Error', 'Failed to log in. Please try again.');
+                  setLoading(false);
+                  return;
+                }
+              },
+            },
+          ],
+        );
+      }
 
-  const confirmDelete = async () => {
-    try {
-      const user = auth().currentUser;
-      if (!user) throw new Error('User not logged in.');
-  
-      await user.reload(); // Cập nhật trạng thái người dùng
-      if (user.emailVerified) {
-        // Xóa tài khoản sau khi xác minh
-        await database().ref(`/users/${user.uid}`).remove();
-        await AsyncStorage.clear();
-        await user.delete();
-        console.log('The account has been automatically deleted.');
-        Alert.alert('Success', 'The account and data have been deleted.');
+      if (!user) {
+        setLoading(false);
+        return; // Thoát nếu không thể đăng nhập lại
+      }
+
+      // Tải lại thông tin người dùng để kiểm tra trạng thái emailVerified
+      await user.reload();
+      const updatedUser = auth().currentUser;
+
+      if (updatedUser.emailVerified) {
+        // Email đã được xác minh, tiến hành cập nhật trạng thái tài khoản
+        const userRef = database().ref(`users/${userId}`);
+        await userRef.update({
+          isActive: false, // Đặt trạng thái tài khoản thành false
+          lastActive: database.ServerValue.TIMESTAMP,
+        });
+
+        // Xóa tài khoản khỏi Firebase Authentication
+        await updatedUser.delete();
+        Alert.alert('Success', 'Your account has been deleted successfully.');
+
+        // Đăng xuất và chuyển hướng về màn hình đăng nhập
+        await auth().signOut();
         navigation.reset({
           index: 0,
-          routes: [{name: 'Login'}],
+          routes: [{ name: 'UserNavigation' }],
         });
       } else {
-        Alert.alert('Error', 'Please verify your email before deleting the account.');
+        Alert.alert(
+          'Verification Required',
+          'Please verify your email before deleting your account.',
+        );
       }
     } catch (error) {
-      console.error('Error during account deletion:', error);
-      Alert.alert('Error', 'An error occurred while deleting the account.');
+      console.error('Lỗi khi xác nhận xóa tài khoản:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.message}>
-        Please verify your email, then press the button below to delete your account.
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ fontSize: 18, marginBottom: 20 }}>
+        Please verify your email to delete your account.
       </Text>
-      <Text style={styles.status}>
-        Email verification status: {isVerified ? 'Verified' : 'Not Verified'}
-      </Text>
-      <TouchableOpacity onPress={confirmDelete} style={styles.deleteButton}>
-        <Text style={styles.buttonText}>Confirm Delete</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={checkVerification} style={styles.checkButton}>
-        <Text style={styles.checkButtonText}>Check Verification</Text>
+      <TouchableOpacity
+        onPress={confirmDeletion}
+        disabled={loading}
+        style={{
+          padding: 10,
+          backgroundColor: loading ? 'gray' : 'red',
+          borderRadius: 5,
+        }}>
+        <Text style={{ color: 'white', fontSize: 16 }}>
+          {loading ? 'Processing...' : 'Confirm Delete'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  message: {
-    fontSize: 18,
-    marginBottom: 20,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  status: {
-    fontSize: 16,
-    marginBottom: 20,
-    color: '#555',
-  },
-  deleteButton: {
-    backgroundColor: 'red',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  checkButton: {
-    backgroundColor: '#007AFF',
-    padding: 10,
-    borderRadius: 5,
-  },
-  checkButtonText: {
-    color: 'white',
-    fontSize: 16,
-  },
-});
 
 export default ConfirmDeleteScreen;
