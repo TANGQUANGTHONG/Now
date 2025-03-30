@@ -44,6 +44,9 @@ const Setting = ({navigation}) => {
   const [loading, setloading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [qrVisible, setQrVisible] = useState(false); // 🔥 State để hiển thị modal QR
+  const [notificationVisible, setNotificationVisible] = useState(false); // State cho thông báo
+  const [notificationMessage, setNotificationMessage] = useState(''); // Nội dung thông báo
+  const [notificationType, setNotificationType] = useState('success'); // Loại thông báo
   const providerId = auth().currentUser?.providerData[0]?.providerId;
   useEffect(() => {
     GoogleSignin.configure({
@@ -134,7 +137,6 @@ const Setting = ({navigation}) => {
             ? decryptMessage(data.nickname)
             : 'No nickname';
 
-
           // Thêm @ vào trước nickname nếu chưa có
           if (decryptedNickname && !decryptedNickname.startsWith('@')) {
             decryptedNickname = `@${decryptedNickname}`;
@@ -188,7 +190,6 @@ const Setting = ({navigation}) => {
   };
 
   const handleDeleteAccount = async () => {
-
     try {
       const user = auth().currentUser;
       if (!user) throw new Error('Bạn chưa đăng nhập.');
@@ -205,20 +206,18 @@ const Setting = ({navigation}) => {
           password,
         );
         await user.reauthenticateWithCredential(credential);
-      }else if (providerId === 'google.com') {
+      } else if (providerId === 'google.com') {
         await GoogleSignin.hasPlayServices();
-        const { idToken } = await GoogleSignin.getTokens(); // Đã sửa
+        const {idToken} = await GoogleSignin.getTokens(); // Đã sửa
         if (!idToken) throw new Error('Không lấy được idToken từ Google');
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         await user.reauthenticateWithCredential(googleCredential);
       }
-      
 
       await database().ref(`/users/${user.uid}`).remove();
-       // Xóa toàn bộ dữ liệu local liên quan user
-       await AsyncStorage.clear();
+      // Xóa toàn bộ dữ liệu local liên quan user
+      await AsyncStorage.clear();
       await user.delete();
-      
 
       Alert.alert('Thành công', 'Tài khoản và dữ liệu đã bị xóa.');
       setModalVisible(false);
@@ -227,8 +226,34 @@ const Setting = ({navigation}) => {
       console.log(error.message);
     }
   };
- 
 
+  const showNotification = (message, type = 'success') => {
+    setNotificationMessage(message);
+    setNotificationType(type);
+    setNotificationVisible(true);
+    setTimeout(() => setNotificationVisible(false), 3000); // Tự động ẩn sau 3 giây
+  };
+
+  const clearCurrentLocation = async () => {
+    try {
+      const userId = auth().currentUser?.uid;
+      if (!userId) {
+        showNotification('User ID not found!', 'error');
+        return;
+      }
+
+      const userRef = ref(getDatabase(), `users/${userId}`);
+      await update(userRef, {
+        latitude: null,
+        longitude: null,
+      });
+
+      showNotification('Your current location has been cleared.', 'success');
+    } catch (error) {
+      console.error('Lỗi khi xóa vị trí:', error);
+      showNotification('Failed to clear your location.', 'error');
+    }
+  };
   return (
     <View style={styles.container}>
       <LoadingModal visible={loading} />
@@ -356,6 +381,13 @@ const Setting = ({navigation}) => {
                 }>
                 <Option icon="scan" title="QR" subtitle="QR scan" />
               </TouchableOpacity>
+              <TouchableOpacity onPress={clearCurrentLocation}>
+                <Option
+                  icon="location"
+                  title="Clear Location"
+                  subtitle="Remove your current location"
+                />
+              </TouchableOpacity>
               <TouchableOpacity onPress={logOut}>
                 <Option
                   icon="exit-outline"
@@ -402,7 +434,7 @@ const Setting = ({navigation}) => {
 
                 {providerId === 'password' && (
                   <TextInput
-                    placeholder='Please enter your password to confirm.'
+                    placeholder="Please enter your password to confirm."
                     secureTextEntry
                     value={password}
                     onChangeText={setPassword}
@@ -428,6 +460,25 @@ const Setting = ({navigation}) => {
                     <Text style={{color: 'red'}}>Confirm</Text>
                   </TouchableOpacity>
                 </View>
+              </View>
+            </View>
+          </Modal>
+          <Modal
+            transparent
+            visible={notificationVisible}
+            animationType="fade"
+            onRequestClose={() => setNotificationVisible(false)}>
+            <View style={styles.notificationContainer}>
+              <View
+                style={[
+                  styles.notificationBox,
+                  notificationType === 'success'
+                    ? styles.successBox
+                    : styles.errorBox,
+                ]}>
+                <Text style={styles.notificationText}>
+                  {notificationMessage}
+                </Text>
               </View>
             </View>
           </Modal>
@@ -530,6 +581,29 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   closeButtonText: {color: 'white', fontSize: 16},
+  notificationContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  notificationBox: {
+    padding: 20,
+    borderRadius: 10,
+    width: width * 0.8,
+    alignItems: 'center',
+  },
+  successBox: {
+    backgroundColor: '#4CAF50', // Màu xanh cho thành công
+  },
+  errorBox: {
+    backgroundColor: '#F44336', // Màu đỏ cho lỗi
+  },
+  notificationText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 export default Setting;
